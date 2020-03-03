@@ -1,0 +1,1 @@
+{"version":3,"file":"humble-render.js","sources":["../src/index.js"],"sourcesContent":["\nexport function test () {\n    console.log('123');\n}"],"names":[],"mappings":";;;;;;IACO,SAAS,IAAI,IAAI;IACxB,IAAI,OAAO,CAAC,GAAG,CAAC,KAAK,CAAC,CAAC;IACvB;;;;;;;;;;;;"}
