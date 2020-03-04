@@ -4,8 +4,10 @@
 
 import env from "./tools/env";
 import guid from "./tools/guid";
-import CanvasPainter from "./view/CanvasPainter";
-import Storage from './model/Storage';
+import CanvasPainter from "./view/CanvasPainter";  //视图 view
+import Storage from './model/Storage'; // 数据模型  model
+import EventProxy from './control/EventProxy';
+import GlobalAnimationMgr from './animation/GlobalAnimationMgr'; //动画
 
 
 //检测浏览器的支持情况
@@ -18,7 +20,7 @@ let instances = {};
 
 //tools -- 图形环境 map
 let painterMap = {
-    canavs: CanvasPainter
+    canvas: CanvasPainter
 };
 
 export let version = "1.0.0";
@@ -38,7 +40,7 @@ export function init(root, opts) {
 
 //tools --- 初始化图形环境
 class HumbleRender {
-    constructor(root, opts) {
+    constructor(root, opts={}) {
         this.id = guid();
         this.root = root;
         let self = this;
@@ -55,7 +57,7 @@ class HumbleRender {
 
         //对浏览器默认事件拦截， 做二次处理
         let handerProxy = null;
-        if (typeof this.host.moveTo !== "function") {
+        if (typeof this.root.moveTo !== "function") {
             if (!env.node && !env.worker && !env.wxa) {
                 handerProxy = new EventProxy(this.painter.root);
             }
@@ -65,7 +67,7 @@ class HumbleRender {
         // this.eventHandler = new HRenderEventHandler(this.storage, this.painter, handerProxy);
 
         //生成动画实例
-        this.globalAnimationMgr = new this.globalAnimationMgr();
+        this.globalAnimationMgr = new GlobalAnimationMgr();
         this.globalAnimationMgr.on('frame', function() {
             self.flush();
         });

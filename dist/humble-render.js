@@ -112,6 +112,15 @@
     // retina 屏幕优化
     var devicePixelRatio = dpr;
 
+    class CanvasLayer {
+        constructor(root, width, height, dpr, id){
+            Object.assign(this, {root, width, height, dpr, id});
+            
+
+        }
+    }
+
+    const CANVAS_QLEVEL = 314159; //图层id;
     class CanvasPainter{
         constructor(root, storage, opts={}){
             this.opts = Object.assign({}, opts);
@@ -121,8 +130,8 @@
             this.type = 'canvas';
             this.dpr = this.opts.devicePixelRatio || devicePixelRatio; //分辨率
 
-            let qlevelList = this._qlevelList = []; //?
-            let layers = this._layers = {}; //?
+            let layer_id_list = (this._layer_id_list = []);
+            let layers = this._layers = {}; // 图层 对象列表
             this._layerConfig = {}; //?
 
             this._needsManuallyCompositing = false; //?
@@ -130,7 +139,8 @@
 
             this._singleCanvas = !this.root.nodeName || this.root.nodeName.toUpperCase() === 'CANVAS'; //根节点canvas
 
-            if(this._singleCanvas){
+
+            if(this._singleCanvas){ // 如果根节点是一个canvas
                 let width = this.root.width;
                 let height = this.root.height;
 
@@ -145,9 +155,53 @@
                 this.root.height = this.dpr * height;
 
                 //为单一画布创建图层
-                let mainLayer = new CanvasLayer();
+                let mainLayer = new CanvasLayer(this.root, this._width, this._height, this.dpr, CANVAS_QLEVEL);
+                mainLayer.__builtin__ = true;
                 
+                layers[CANVAS_QLEVEL] = mainLayer;
+                layer_id_list.push(CANVAS_QLEVEL);
+                this._root = root;
+                
+            }else{ //根节点不是canvas, 动态创建一个div包裹
+                this._width = this._getStyle(this.root, 'width');
+                this._height = this._getStyle(this.root, 'height');
+
+                let canvasCon = this._createDomRoot(this._width, this._height);
+                this._root = canvasCon;
+                this.root.appendChild(canvasCon);
             }
+
+
+
+        }
+
+
+        //tools--动态创建 根节点
+        _createDomRoot(width, height){
+            let oDiv = document.createElement('div');
+            oDiv.style.cssText = [
+                `position: relative`,
+                `width: ${width}px`,
+                `height: ${height}px`,
+                `padding: 0`,
+                `margin: 0`,
+                `border-width: 0`,
+                `background: #067`
+            ].join(';') +';';
+            return oDiv;
+        }
+
+
+        //tools--获取真实样式
+        _getStyle(obj, attr){
+           let opts = this.opts;
+           if(attr in opts){
+               return parseFloat(opts[attr]);
+           }else{
+               let res =  obj.currentStyle? obj.currentStyle[attr] : getComputedStyle(obj, false)[attr];
+               return parseInt(res, 10);
+           }
+
         }
     }
 
@@ -167,6 +221,185 @@
     }
 
     /*
+     * 拦截浏览器默认事件，用自定义事件来代替
+     */
+    class EventProxy {
+        constructor(root) {}
+    }
+
+    /*
+     * common_util常用的 工具函数集合
+     * 1. requestAnimationFrame
+     */
+
+    let RAF = (
+        typeof window !== 'undefined'
+        && ( 
+            (window.requestAnimationFrame && window.requestAnimationFrame.bind(window))
+            || (window.msRequestAnimationFrame && window.msRequestAnimationFrame.bind(window))
+            || window.mozRequestAnimationFrame
+            || window.webkitRequestAnimationFrame
+        )
+    ) || function(fn) { setTimeout(fn, 16); };
+
+    /*
+     *
+     * event_simulation(事件模拟) 为不支持事件的类提供事件支持
+     */
+
+     class Eventful {
+         constructor(eventProcessor) {
+            this._$handlers = {};  
+            this._$eventProcessor = eventProcessor;
+         }
+
+         /**
+          * 绑定一个事件控制器
+          *
+          * @param {String} event 事件名称
+          * @param {String | Object} query 事件过滤器条件
+          * @param {Function} handler 事件控制器
+          * @param {Object} context 
+          */
+         on(event, query, handler, context) {
+            return on(this, event, query, handler, context, false);
+         }
+
+         once(event, query, handler, context) {
+             return on(this, event, query, handler, context, true);
+         }
+     }
+
+
+     //tools -- 解析参数
+     function normalizeQuery(host, query) {
+        let eventProcessor = host._$eventProcessor;
+        if (query != null && eventProcessor && eventProcessor.normalizeQuery) {
+            query = eventProcessor.normalizeQuery(query);
+        }
+        return query;
+    }
+
+
+    //tools -- 
+    function callListenerChanged(eventful, eventType) {
+        let eventProcessor = eventful._$eventProcessor;
+        if (eventProcessor && eventProcessor.afterListenerChanged) {
+            eventProcessor.afterListenerChanged(eventType);
+        }
+    }
+
+
+
+     //tools -- 绑定事件
+     function on(eventful, event, query, handler, context, isOnce) {
+        let _h = eventful._$handlers;
+
+        //参数自适应 
+        if (typeof query === 'function') { 
+            context = handler;
+            handler = query;
+            query = null;
+        }
+
+        if(!handler || !event){
+            return eventful
+        }
+
+        query = normalizeQuery(eventful, query);
+
+        if (!_h[event]) {
+            _h[event] = [];
+        }
+
+        for (let i = 0; i < _h[event].length; i++) {
+            if (_h[event][i].h === handler) {
+                return eventful;
+            }
+        }
+        
+        let wrap = {
+            h: handler,
+            one: isOnce,
+            query: query,
+            ctx: context || eventful,
+            callAtLast: ''
+        };
+
+        let lastIndex = _h[event].length - 1;
+        let lastWrap = _h[event][lastIndex];
+        if(lastWrap && lastWrap.callAtLast){
+            _h[event].splice(lastIndex, 0, wrap);
+        }else{
+            _h[event].push(wrap);
+        }
+
+        callListenerChanged(eventful, event);
+        return eventful;
+     }
+
+    class GlobalAnimationMgr extends Eventful {
+        constructor(opts) {
+            super(); //调用父类的
+            this._running = false; //动画启动开关
+            this._timestamp; //时间戳(记录动画启动时间)
+            this._pause ={
+                duration : 0,  //暂停持续时间
+                start: 0, //暂停时间戳
+                flag: false //暂停开关标记
+            };
+            this._animatableMap = new Map(); //动画对象列表
+        }
+
+        //启动动画
+        start() {
+            this._pause.duration = 0;
+            this._timestamp = new Date().getTime();
+            this._startLoop();
+        }
+
+        //暂停动画
+        pause() {
+            if (!this._pause.flag) {
+                this._pause.start = new Date().getTime();
+                this._pause.flag = true; //暂停
+            }
+        }
+
+        // RAF (requestAnimationFrame) 递归执行动画
+        _startLoop() {
+            let self = this;
+            this._running = true;
+            function nextFrame() {
+                if (self._running) {
+                    RAF(nextFrame);
+                    !self._pause.flag && self._update();
+                }
+            }
+            RAF(nextFrame);
+        }
+
+        //
+        _update() {
+            let time = new Date().getTime() - this._pause.duration;
+            let delta = time - this._timestamp;
+            
+            this._timestamp = time;
+
+        }
+
+        //向动画列表中增加 动画方案（特征）
+        addAnimatable(animatable) {
+            this._animatableMap.set(animatable.id, animatable);
+        }
+
+        //从动画列表中移除 动画方案（特征）
+        removeAnimatable(animatable) {
+            this._animatableMap.delete(animatable.id);
+        }
+    }
+
+    /*
      *  注释:toos --- 表示是被其他函数引用 的工具函数
      */
 
@@ -178,7 +411,7 @@
 
     //tools -- 图形环境 map
     let painterMap = {
-        canavs: CanvasPainter
+        canvas: CanvasPainter
     };
 
     let version = "1.0.0";
@@ -197,7 +430,7 @@
 
     //tools --- 初始化图形环境
     class HumbleRender {
-        constructor(root, opts) {
+        constructor(root, opts={}) {
             this.id = guid();
             this.root = root;
             let self = this;
@@ -214,7 +447,7 @@
 
             //对浏览器默认事件拦截， 做二次处理
             let handerProxy = null;
-            if (typeof this.host.moveTo !== "function") {
+            if (typeof this.root.moveTo !== "function") {
                 if (!env$1.node && !env$1.worker && !env$1.wxa) {
                     handerProxy = new EventProxy(this.painter.root);
                 }
@@ -224,7 +457,7 @@
             // this.eventHandler = new HRenderEventHandler(this.storage, this.painter, handerProxy);
 
             //生成动画实例
-            this.globalAnimationMgr = new this.globalAnimationMgr();
+            this.globalAnimationMgr = new GlobalAnimationMgr();
             this.globalAnimationMgr.on('frame', function() {
                 self.flush();
             });
