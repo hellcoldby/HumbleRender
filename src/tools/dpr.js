@@ -1,3 +1,6 @@
+/* 
+*  分辨率检测
+*/
 var dpr = 1;
 
 // If in browser environment

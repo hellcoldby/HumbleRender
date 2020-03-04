@@ -3,4 +3,8 @@
  */
 export default class EventProxy {
     constructor(root) {}
+
+    trigger(){
+        
+    }
 }

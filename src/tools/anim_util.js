@@ -1,5 +1,5 @@
 /*
- * common_util常用的 工具函数集合
+ * 动画相关的 工具函数集合
  * 1. requestAnimationFrame
  */
 

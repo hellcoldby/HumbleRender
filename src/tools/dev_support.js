@@ -2,8 +2,6 @@
  *  检测设备支持情况
  */
 let env = {};
-
-
 //tools --- 浏览器环境检测
 function detect(ua) {
     let os = {};

@@ -205,18 +205,143 @@
         }
     }
 
+    /*
+     *
+     * event_simulation(事件模拟) 为不支持事件的类提供事件支持
+     */
+
+    class Eventful {
+        constructor(eventProcessor) {
+            this._handle_map = {};  //订阅的事件列表
+            this._$eventProcessor = eventProcessor;
+        }
+
+        /**
+         * 绑定一个事件控制器
+         *
+         * @param {String} event 事件名称
+         * @param {String | Object} query 事件过滤器条件
+         * @param {Function} handler 事件控制器
+         * @param {Object} context
+         */
+        on(event, query, fn, context) {
+            return on(this, event, query, fn, context, false);
+        }
+
+        once(event, query, fn, context) {
+            return on(this, event, query, fn, context, true);
+        }
+
+        /**
+         * @method
+         * 触发绑定的事件
+         *
+         * @param {String} event --- 事件的名称
+         */
+        trigger(event) {
+            let _hmp = this._handle_map[event];
+            if(_h);
+            return this;
+        }
+    }
+
+
+
+    //tools -- 绑定事件
+    function on(eventful, event, query, fn, context, isOnce) {
+        let _h = eventful._handle_map;
+
+        //参数自适应
+        if (typeof query === "function") {
+            context = fn;
+            fn = query;
+            query = null;
+        }
+
+        if (!fn || !event) {
+            return eventful;
+        }
+
+        query = normalizeQuery(eventful, query);
+
+        if (!_h[event]) {
+            _h[event] = [];
+        }
+
+        for (let i = 0; i < _h[event].length; i++) {
+            if (_h[event][i].h === fn) {
+                return eventful;
+            }
+        }
+
+        let wrap = {
+            h: handler,
+            one: isOnce,
+            query: query,
+            ctx: context || eventful,
+            callAtLast: ""
+        };
+
+        let lastIndex = _h[event].length - 1;
+        let lastWrap = _h[event][lastIndex];
+        if (lastWrap && lastWrap.callAtLast) {
+            _h[event].splice(lastIndex, 0, wrap);
+        } else {
+            _h[event].push(wrap);
+        }
+
+        callListenerChanged(eventful, event);
+        return eventful;
+    }
+
+
+
+    //tools -- 解析参数
+    function normalizeQuery(host, query) {
+        let eventProcessor = host._$eventProcessor;
+        if (query != null && eventProcessor && eventProcessor.normalizeQuery) {
+            query = eventProcessor.normalizeQuery(query);
+        }
+        return query;
+    }
+
+    //tools --
+    function callListenerChanged(eventful, eventType) {
+        let eventProcessor = eventful._$eventProcessor;
+        if (eventProcessor && eventProcessor.afterListenerChanged) {
+            eventProcessor.afterListenerChanged(eventType);
+        }
+    }
+
     /**
-     * 
+     *
      * 内容仓库 (M)，用来存储和管理画布上的所有对象，同时提供绘制和更新队列的功能。
      * 需要绘制的对象首先存储在 Storage 中，然后 Painter 类会从 Storage 中依次取出进行绘图。
      * 利用 Storage 作为内存中转站，对于不需要刷新的对象可以不进行绘制，从而可以提升整体性能。
-     * 
+     *
      */
+    class Storage extends Eventful {
+        constructor() {
+            super();
+            this._root = new Map();
+            this._displayList = [];
+            this._displayList_len = 0;
+        }
 
+        addToRoot(ele) {
+            if(el._storage === this){
+                return;
+            }
+            this.trigger('beforeAddToRoot');
+            ele.trigger('beforeAddToRoot');
+            this.addToStorage(ele);
+        }
 
-    class Storage {
-        constructor(){
-
+        addToStorage(ele) {
+            this._roots.set(el.id,ele);
+            this.trigger("addToStorage");
+            ele.trigger("addToStorage");
+            return this;
         }
     }
 
@@ -225,6 +350,10 @@
      */
     class EventProxy {
         constructor(root) {}
+
+        trigger(){
+            
+        }
     }
 
     /*
@@ -241,102 +370,6 @@
             || window.webkitRequestAnimationFrame
         )
     ) || function(fn) { setTimeout(fn, 16); };
-
-    /*
-     *
-     * event_simulation(事件模拟) 为不支持事件的类提供事件支持
-     */
-
-     class Eventful {
-         constructor(eventProcessor) {
-            this._$handlers = {};  
-            this._$eventProcessor = eventProcessor;
-         }
-
-         /**
-          * 绑定一个事件控制器
-          *
-          * @param {String} event 事件名称
-          * @param {String | Object} query 事件过滤器条件
-          * @param {Function} handler 事件控制器
-          * @param {Object} context 
-          */
-         on(event, query, handler, context) {
-            return on(this, event, query, handler, context, false);
-         }
-
-         once(event, query, handler, context) {
-             return on(this, event, query, handler, context, true);
-         }
-     }
-
-
-     //tools -- 解析参数
-     function normalizeQuery(host, query) {
-        let eventProcessor = host._$eventProcessor;
-        if (query != null && eventProcessor && eventProcessor.normalizeQuery) {
-            query = eventProcessor.normalizeQuery(query);
-        }
-        return query;
-    }
-
-
-    //tools -- 
-    function callListenerChanged(eventful, eventType) {
-        let eventProcessor = eventful._$eventProcessor;
-        if (eventProcessor && eventProcessor.afterListenerChanged) {
-            eventProcessor.afterListenerChanged(eventType);
-        }
-    }
-
-
-
-     //tools -- 绑定事件
-     function on(eventful, event, query, handler, context, isOnce) {
-        let _h = eventful._$handlers;
-
-        //参数自适应 
-        if (typeof query === 'function') { 
-            context = handler;
-            handler = query;
-            query = null;
-        }
-
-        if(!handler || !event){
-            return eventful
-        }
-
-        query = normalizeQuery(eventful, query);
-
-        if (!_h[event]) {
-            _h[event] = [];
-        }
-
-        for (let i = 0; i < _h[event].length; i++) {
-            if (_h[event][i].h === handler) {
-                return eventful;
-            }
-        }
-        
-        let wrap = {
-            h: handler,
-            one: isOnce,
-            query: query,
-            ctx: context || eventful,
-            callAtLast: ''
-        };
-
-        let lastIndex = _h[event].length - 1;
-        let lastWrap = _h[event][lastIndex];
-        if(lastWrap && lastWrap.callAtLast){
-            _h[event].splice(lastIndex, 0, wrap);
-        }else{
-            _h[event].push(wrap);
-        }
-
-        callListenerChanged(eventful, event);
-        return eventful;
-     }
 
     class GlobalAnimationMgr extends Eventful {
         constructor(opts) {
@@ -383,9 +416,8 @@
         _update() {
             let time = new Date().getTime() - this._pause.duration;
             let delta = time - this._timestamp;
-            
             this._timestamp = time;
-
+            this.trigger('frame');
         }
 
         //向动画列表中增加 动画方案（特征）

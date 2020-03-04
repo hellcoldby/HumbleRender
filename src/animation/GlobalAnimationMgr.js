@@ -47,9 +47,8 @@ class GlobalAnimationMgr extends Eventful {
     _update() {
         let time = new Date().getTime() - this._pause.duration;
         let delta = time - this._timestamp;
-        
         this._timestamp = time;
-
+        this.trigger('frame');
     }
 
     //向动画列表中增加 动画方案（特征）
