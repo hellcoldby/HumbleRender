@@ -22,7 +22,19 @@ class CanvasPainter{
             let width = this.root.width;
             let height = this.root.height;
 
-            [width, height] = [this.root.width, this.root.height];
+            if(this.opts.width){
+                this._width = width = this.opts.width;
+            }
+            if(this.opts.height){
+                this._height = height = this.opts.height;
+            }
+            
+            this.root.width = this.dpr * width; //修正retina 屏幕的分辨率
+            this.root.height = this.dpr * height;
+
+            //为单一画布创建图层
+            let mainLayer = new CanvasLayer();
+            
         }
     }
 }
