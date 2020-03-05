@@ -1,1 +1,1 @@
-export {default as Rect} from './graphic/shape/Rect';
+export {default as Rect} from './graphic/shape/Rect/Rect';

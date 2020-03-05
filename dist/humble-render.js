@@ -672,9 +672,28 @@
         }
     }
 
+    //tools -- 默认配置
+
     class Rect {
         constructor(opts) {
-            
+            this.type = "rect";
+        }
+
+        buildPath(ctx, shape) {
+            let x;
+            let y;
+            let width;
+            let height;
+            if (this.subPixelOptimize) ; else {
+                x = shape.x;
+                y = shape.y;
+                width = shape.width;
+                height = shape.height;
+            }
+            // 判断是否为 圆角矩形
+            if (!shape.r) { 
+                ctx.rect(x, y, width, height);
+            }
         }
     }
 
