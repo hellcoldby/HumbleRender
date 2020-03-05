@@ -1,5 +1,9 @@
-import { RAF } from "../tools/comon_util";
-import Eventful from '../control/event_simulation';
+/*
+ *  用来记录 动画开关， 时间戳， 添加动画序列
+ */
+
+import { RAF } from "../tools/anim_util";
+import Eventful from "../control/event_simulation";
 
 class GlobalAnimationMgr extends Eventful {
     constructor(opts) {
@@ -7,8 +11,8 @@ class GlobalAnimationMgr extends Eventful {
         opts = opts || {};
         this._running = false; //动画启动开关
         this._timestamp; //时间戳(记录动画启动时间)
-        this._pause ={
-            duration : 0,  //暂停持续时间
+        this._pause = {
+            duration: 0, //暂停持续时间
             start: 0, //暂停时间戳
             flag: false //暂停开关标记
         };
@@ -48,7 +52,7 @@ class GlobalAnimationMgr extends Eventful {
         let time = new Date().getTime() - this._pause.duration;
         let delta = time - this._timestamp;
         this._timestamp = time;
-        this.trigger('frame');
+        this.trigger("frame");
     }
 
     //向动画列表中增加 动画方案（特征）
@@ -61,7 +65,5 @@ class GlobalAnimationMgr extends Eventful {
         this._animatableMap.delete(animatable.id);
     }
 }
-
-
 
 export default GlobalAnimationMgr;

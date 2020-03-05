@@ -11,8 +11,8 @@ class CanvasPainter{
         this.type = 'canvas';
         this.dpr = this.opts.devicePixelRatio || devicePixelRatio; //分辨率
 
-        let layer_id_list = (this._layer_id_list = []);
-        let layers = this._layers = {}; // 图层 对象列表
+        let layer_id_list = (this._layer_id_list = []); //图层id序列
+        let layers = this._layers = {}; // 图层对象列表
         this._layerConfig = {}; //?
 
         this._needsManuallyCompositing = false; //?
@@ -37,7 +37,7 @@ class CanvasPainter{
 
             //为单一画布创建图层
             let mainLayer = new CanvasLayer(this.root, this._width, this._height, this.dpr, CANVAS_QLEVEL);
-            mainLayer.__builtin__ = true;
+            mainLayer.__builtin__ = true; //标记构建完成
             
             layers[CANVAS_QLEVEL] = mainLayer;
             layer_id_list.push(CANVAS_QLEVEL);
@@ -54,6 +54,40 @@ class CanvasPainter{
 
 
 
+    }
+
+    /**
+     * @method
+     * 刷新
+     * @param {Boolean} [paintAll=false] 是否强制绘制所有displayable
+     */
+    refresh(paintAll){
+        //从 storage 中获取 元素列表
+        let list = this.storage.getDisplayList(true);
+        let layer_id_list = this._layer_id_list;
+
+        this._redrawId = Math.random(); // 重绘id
+        this._paintList(list, paintAll, this._redrawId);
+
+        //paint custom layers
+        for(let i = 0; i < layer_id_list.length; i++) {
+            let id = layer_id_list[i];
+            let layer = this.layers[id];
+            if(!layer.__builtin__ && layer.refresh){
+                let clearColor = i === 0 ? this._backgroundColor : null;
+                layer.refresh(clearColor);
+            }
+        }
+        return this;
+    }
+
+    _paintList(list, paintAll, redrawId) {
+        //如果 redrawId 不一致，说明下一个动画帧已经到来，这里就会直接跳过去，相当于跳过了一帧
+        if(this._redrawId !== redrawId) {
+            return;
+        }
+
+        paintAll = paintAll || false;
     }
 
 
@@ -87,3 +121,4 @@ class CanvasPainter{
 }
 
 export default CanvasPainter;
+

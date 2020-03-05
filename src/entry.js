@@ -1,14 +1,17 @@
 /*
- *  注释:toos --- 表示是被其他函数引用 的工具函数
+ *  注释:tools --- 表示是被其他函数引用 的工具函数
+ *  引入 Storage.js 保存 绘制对象 的列表 （Model)
+ *  引入 CanvasPainter.js 来生成绘图环境 创建图层 等 (view)
+ *  引入 EvetProxy.js 转发DOM 事件，一部分到 容器div上，一部分到document， 或到绘制元素
+ *  引入 GlobalAnimationMgr.js  无限循环监控 视图变化
  */
 
-import env from "./tools/env";
+import env from "./tools/dev_support";
 import guid from "./tools/guid";
-import CanvasPainter from "./view/CanvasPainter";  //视图 view
-import Storage from './model/Storage'; // 数据模型  model
-import EventProxy from './control/EventProxy';
-import GlobalAnimationMgr from './animation/GlobalAnimationMgr'; //动画
-
+import CanvasPainter from "./view/CanvasPainter"; //视图 view
+import Storage from "./model/Storage"; // 数据模型  model
+import EventProxy from "./control/EventProxy";
+import GlobalAnimationMgr from "./animation/GlobalAnimationMgr"; //动画
 
 //检测浏览器的支持情况
 if (!env.canvasSupported) {
@@ -40,18 +43,17 @@ export function init(root, opts) {
 
 //tools --- 初始化图形环境
 class HumbleRender {
-    constructor(root, opts={}) {
+    constructor(root, opts = {}) {
         this.id = guid();
         this.root = root;
         let self = this;
-
-        this.storage = new Storage();
 
         let renderType = opts.render;
         if (!renderType || !painterMap[renderType]) {
             renderType = "canvas";
         }
-
+        //创建数据仓库
+        this.storage = new Storage();
         //生成视图实例
         this.painter = new painterMap[renderType](this.root, this.storage, opts, this.id);
 
@@ -68,44 +70,59 @@ class HumbleRender {
 
         //生成动画实例
         this.globalAnimationMgr = new GlobalAnimationMgr();
-        this.globalAnimationMgr.on('frame', function() {
+        this.globalAnimationMgr.on("frame", function() {
+            console.log("监控更新");
             self.flush();
         });
         this.globalAnimationMgr.start();
-
         this._needRefresh = false;
     }
 
     //获取图形实例唯一id
-    getId(){
+    getId() {
         return this.id;
     }
 
     //添加元素
-    add(ele){
-        // this.storage.addToRoot(ele)
+    add(ele) {
+        this.storage.addToRoot(ele);
         this.refresh();
     }
 
     //移除元素
-    remove(ele){
+    remove(ele) {
         // this.storage.delFromRoot(ele);
         this.refresh();
     }
 
-    refresh(){
+    refresh() {
         this._needRefresh = true;
     }
 
     //刷新 canvas 画面
     flush() {
+        // console.log('123');
         //全部重绘
-        if(this._needRefresh) {
-            // this.refreshImmediately();
+        if (this._needRefresh) {
+            this.refreshImmediately();
         }
         //重绘特定元素
-        if(this._needRefreshHover){
-            // this.refreshHoverImmediaterly();
+        if (this._needRefreshHover) {
+            this.refreshHoverImmediaterly();
         }
+    }
+
+    //立即重绘
+    refreshImmediately() {
+        console.log("立即更新");
+        this._needRefresh = this._needRefreshHover = false;
+        this.painter.refresh();
+        this._needRefresh = this._needRefreshHover = false;
+    }
+
+    //立即重绘特定元素
+    refreshHoverImmediaterly() {
+        this._needRefreshHover = false;
+        this.painter.refreshHover && this.painter.refreshHover();
     }
 }
