@@ -6,21 +6,23 @@
  *
  */
 
+import env from "../tools/dev_support";
 import Eventful from "../control/event_simulation";
 class Storage extends Eventful {
     constructor() {
         super();
-        this._root = new Map(); //元素id 列表
+        this._roots = new Map(); //元素id 列表
         this._displayList = []; //所有图形的绘制队列
         this._displayList_len = 0;
     }
 
+    //增加 图像 到元素的id列表
     addToRoot(ele) {
         if (ele._storage === this) {
             return;
         }
-        this.trigger("beforeAddToRoot");
-        ele.trigger("beforeAddToRoot");
+        // this.trigger("beforeAddToRoot");
+        // ele.trigger("beforeAddToRoot");
         this.addToStorage(ele);
     }
 
@@ -30,9 +32,9 @@ class Storage extends Eventful {
      * @param {*} ele
      */
     addToStorage(ele) {
-        this._roots.set(el.id, ele);
-        this.trigger("addToStorage");
-        ele.trigger("addToStorage");
+        this._roots.set(ele.id, ele);
+        // this.trigger("addToStorage");
+        // ele.trigger("addToStorage");
         return this;
     }
 
@@ -46,9 +48,11 @@ class Storage extends Eventful {
      * @return {Array<Displayable>}
      */
     getDisplayList(needUpdate, includeIgnore = false) {
-        if (needUpdate) {
-            this.updateDisplayList(includeIgnore);
+        if (needUpdate) { 
+            this.updateDisplayList(includeIgnore);   //更新图形队列,并按照优先级排序
+            //更新完成后返回最新排序的 图形队列
         }
+        
         return this._displayList;
     }
 
@@ -63,13 +67,38 @@ class Storage extends Eventful {
         this._displayListLen = 0;
         let displayList = this._displayList;
 
-        this._roots.forEach((el, id, map) => {
-            this._updateAndAddDisplayable(el, null, includeIgnore); //recursive update
+        this._roots.forEach((ele, id, map) => {
+            this._updateAndAddDisplayable(ele, null, includeIgnore); //recursive update
         });
 
         displayList.length = this._displayListLen;
-        env.canvasSupported && timsort(displayList, this.displayableSortFunc);
+        //队列排序
+        env.canvasSupported && (displayList, this._displayList_sort);
     }
+
+    _updateAndAddDisplayable(ele, clipPaths, includeIgnore) {
+        if (ele.ignore && !includeIgnore) {
+            return;
+        }
+
+
+
+
+
+    }
+
+    //tools -- 对图形队列排序
+    _displayList_sort(a,b){
+        if (a.qlevel === b.qlevel) {
+            if (a.z === b.z) {
+                return a.z2 - b.z2;
+            }
+            return a.z - b.z;
+        }
+        return a.qlevel - b.qlevel;
+    }
+
+
 }
 
 export default Storage;

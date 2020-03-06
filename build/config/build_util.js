@@ -1,9 +1,12 @@
 const rollup = require("rollup");
+const fs = require('fs');
+const path = require('path');
 
 exports.watch = function(config) {
     let watch = rollup.watch(config);
 
     watch.on("event", event => {
+        // console.log(event);
         // event.code 会是下面其中一个：
         //   START        — 监听器正在启动（重启）
         //   BUNDLE_START — 构建单个文件束
@@ -21,6 +24,13 @@ exports.watch = function(config) {
         //有错误
         if (event.code === "ERROR" || event.code === "FATAL") {
             console.log(`错误` + event.error);
+            console.log(event.error.loc);
+            fs.writeFile( path.resolve(__dirname, './error.json'), `${JSON.stringify(event.error)}`, function(err) {
+                if(err) {
+                    throw  err
+                }
+                console.log('错误文件写入: ' +  path.resolve(__dirname, './error.json'));
+            });
         }
 
         //完成构建

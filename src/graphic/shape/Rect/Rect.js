@@ -19,7 +19,7 @@ let defaultConfig = {
 
 export default class Rect {
     constructor(opts) {
-        super(merge(defaultConfig, opts, true))
+        // super(merge(defaultConfig, opts, true))
         this.type = "rect";
     }
 

@@ -7,7 +7,7 @@
     /*
      *  检测设备支持情况
      */
-    let env$1 = {};
+    let env = {};
     //tools --- 浏览器环境检测
     function detect(ua) {
         let os = {};
@@ -52,7 +52,7 @@
 
     if (typeof wx === "object" && typeof wx.getSystemInfoSync === "function") {
         // 判断微信环境
-        env$1 = {
+        env = {
             browser: {},
             os: {},
             node: false,
@@ -64,7 +64,7 @@
         };
     } else if (typeof document === "undefined" && typeof self !== "undefined") {
         // web worker 环境
-        env$1 = {
+        env = {
             browser: {},
             os: {},
             node: false,
@@ -74,7 +74,7 @@
         };
     } else if(typeof navigator === 'undefined') {
         // node 环境
-        env$1 = {
+        env = {
             browser: {},
             os: {},
             node: true,
@@ -85,11 +85,11 @@
         };
     }else {
         //浏览器环境检测
-        env$1 = detect(navigator.userAgent); 
+        env = detect(navigator.userAgent); 
     }
 
 
-    var env$2 = env$1;
+    var env$1 = env;
 
     /*
      * 生成唯一 id
@@ -122,58 +122,55 @@
     }
 
     const CANVAS_QLEVEL = 314159; //图层id;
-    class CanvasPainter{
-        constructor(root, storage, opts={}){
+    class CanvasPainter {
+        constructor(root, storage, opts = {}) {
             this.opts = Object.assign({}, opts);
             this.root = root;
             this.storage = storage;
 
-            this.type = 'canvas';
+            this.type = "canvas";
             this.dpr = this.opts.devicePixelRatio || devicePixelRatio; //分辨率
 
             let layer_id_list = (this._layer_id_list = []); //图层id序列
-            let layers = this._layers = {}; // 图层对象列表
+            let layers = (this._layers = {}); // 图层对象列表
             this._layerConfig = {}; //?
 
             this._needsManuallyCompositing = false; //?
-            this._hoverlayer = null;  //?
+            this._hoverlayer = null; //?
 
-            this._singleCanvas = !this.root.nodeName || this.root.nodeName.toUpperCase() === 'CANVAS'; //根节点canvas
+            this._singleCanvas = !this.root.nodeName || this.root.nodeName.toUpperCase() === "CANVAS"; //根节点canvas
 
-
-            if(this._singleCanvas){ // 如果根节点是一个canvas
+            if (this._singleCanvas) {
+                // 如果根节点是一个canvas
                 let width = this.root.width;
                 let height = this.root.height;
 
-                if(this.opts.width){
+                if (this.opts.width) {
                     this._width = width = this.opts.width;
                 }
-                if(this.opts.height){
+                if (this.opts.height) {
                     this._height = height = this.opts.height;
                 }
-                
+
                 this.root.width = this.dpr * width; //修正retina 屏幕的分辨率
                 this.root.height = this.dpr * height;
 
                 //为单一画布创建图层
                 let mainLayer = new CanvasLayer(this.root, this._width, this._height, this.dpr, CANVAS_QLEVEL);
                 mainLayer.__builtin__ = true; //标记构建完成
-                
+
                 layers[CANVAS_QLEVEL] = mainLayer;
                 layer_id_list.push(CANVAS_QLEVEL);
                 this._root = root;
-                
-            }else{ //根节点不是canvas, 动态创建一个div包裹
-                this._width = this._getStyle(this.root, 'width');
-                this._height = this._getStyle(this.root, 'height');
+            } else {
+                //根节点不是canvas, 动态创建一个div包裹
+                this._width = getStyle(this.root, "width");
+                this._height = getStyle(this.root, "height");
 
-                let canvasCon = this._createDomRoot(this._width, this._height);
+                let canvasCon = createDomRoot(this._width, this._height);
                 this._root = canvasCon;
                 this.root.appendChild(canvasCon);
             }
-
-
-
         }
 
         /**
@@ -181,7 +178,7 @@
          * 刷新
          * @param {Boolean} [paintAll=false] 是否强制绘制所有displayable
          */
-        refresh(paintAll){
+        refresh(paintAll) {
             //从 storage 中获取 元素列表
             let list = this.storage.getDisplayList(true);
             let layer_id_list = this._layer_id_list;
@@ -190,10 +187,10 @@
             this._paintList(list, paintAll, this._redrawId);
 
             //paint custom layers
-            for(let i = 0; i < layer_id_list.length; i++) {
+            for (let i = 0; i < layer_id_list.length; i++) {
                 let id = layer_id_list[i];
                 let layer = this.layers[id];
-                if(!layer.__builtin__ && layer.refresh){
+                if (!layer.__builtin__ && layer.refresh) {
                     let clearColor = i === 0 ? this._backgroundColor : null;
                     layer.refresh(clearColor);
                 }
@@ -203,38 +200,27 @@
 
         _paintList(list, paintAll, redrawId) {
             //如果 redrawId 不一致，说明下一个动画帧已经到来，这里就会直接跳过去，相当于跳过了一帧
-            if(this._redrawId !== redrawId) {
+            if (this._redrawId !== redrawId) {
                 return;
             }
         }
+    }
 
+    //tools--动态创建 根节点
+    function createDomRoot(width, height) {
+        let oDiv = document.createElement("div");
+        oDiv.style.cssText = [`position: relative`, `width: ${width}px`, `height: ${height}px`, `padding: 0`, `margin: 0`, `border-width: 0`, `background: #067`].join(";") + ";";
+        return oDiv;
+    }
 
-        //tools--动态创建 根节点
-        _createDomRoot(width, height){
-            let oDiv = document.createElement('div');
-            oDiv.style.cssText = [
-                `position: relative`,
-                `width: ${width}px`,
-                `height: ${height}px`,
-                `padding: 0`,
-                `margin: 0`,
-                `border-width: 0`,
-                `background: #067`
-            ].join(';') +';';
-            return oDiv;
-        }
-
-
-        //tools--获取真实样式
-        _getStyle(obj, attr){
-           let opts = this.opts;
-           if(attr in opts){
-               return parseFloat(opts[attr]);
-           }else{
-               let res =  obj.currentStyle? obj.currentStyle[attr] : getComputedStyle(obj, false)[attr];
-               return parseInt(res, 10);
-           }
-
+    //tools--获取真实样式
+    function getStyle(obj, attr) {
+        let opts = this.opts;
+        if (attr in opts) {
+            return parseFloat(opts[attr]);
+        } else {
+            let res = obj.currentStyle ? obj.currentStyle[attr] : getComputedStyle(obj, false)[attr];
+            return parseInt(res, 10);
         }
     }
 
@@ -402,17 +388,18 @@
     class Storage extends Eventful {
         constructor() {
             super();
-            this._root = new Map(); //元素id 列表
+            this._roots = new Map(); //元素id 列表
             this._displayList = []; //所有图形的绘制队列
             this._displayList_len = 0;
         }
 
+        //增加 图像 到元素的id列表
         addToRoot(ele) {
             if (ele._storage === this) {
                 return;
             }
-            this.trigger("beforeAddToRoot");
-            ele.trigger("beforeAddToRoot");
+            // this.trigger("beforeAddToRoot");
+            // ele.trigger("beforeAddToRoot");
             this.addToStorage(ele);
         }
 
@@ -422,9 +409,9 @@
          * @param {*} ele
          */
         addToStorage(ele) {
-            this._roots.set(el.id, ele);
-            this.trigger("addToStorage");
-            ele.trigger("addToStorage");
+            this._roots.set(ele.id, ele);
+            // this.trigger("addToStorage");
+            // ele.trigger("addToStorage");
             return this;
         }
 
@@ -438,9 +425,11 @@
          * @return {Array<Displayable>}
          */
         getDisplayList(needUpdate, includeIgnore = false) {
-            if (needUpdate) {
-                this.updateDisplayList(includeIgnore);
+            if (needUpdate) { 
+                this.updateDisplayList(includeIgnore);   //更新图形队列,并按照优先级排序
+                //更新完成后返回最新排序的 图形队列
             }
+            
             return this._displayList;
         }
 
@@ -455,13 +444,38 @@
             this._displayListLen = 0;
             let displayList = this._displayList;
 
-            this._roots.forEach((el, id, map) => {
-                this._updateAndAddDisplayable(el, null, includeIgnore); //recursive update
+            this._roots.forEach((ele, id, map) => {
+                this._updateAndAddDisplayable(ele, null, includeIgnore); //recursive update
             });
 
             displayList.length = this._displayListLen;
-            env.canvasSupported && timsort(displayList, this.displayableSortFunc);
+            //队列排序
+            env$1.canvasSupported && (this._displayList_sort);
         }
+
+        _updateAndAddDisplayable(ele, clipPaths, includeIgnore) {
+            if (ele.ignore && !includeIgnore) {
+                return;
+            }
+
+
+
+
+
+        }
+
+        //tools -- 对图形队列排序
+        _displayList_sort(a,b){
+            if (a.qlevel === b.qlevel) {
+                if (a.z === b.z) {
+                    return a.z2 - b.z2;
+                }
+                return a.z - b.z;
+            }
+            return a.qlevel - b.qlevel;
+        }
+
+
     }
 
     /*
@@ -563,7 +577,7 @@
      */
 
     //检测浏览器的支持情况
-    if (!env$2.canvasSupported) {
+    if (!env$1.canvasSupported) {
         throw new Error("Need Canvas Environment");
     }
 
@@ -605,7 +619,7 @@
             //对浏览器默认事件拦截， 做二次处理
             let handerProxy = null;
             if (typeof this.root.moveTo !== "function") {
-                if (!env$2.node && !env$2.worker && !env$2.wxa) {
+                if (!env$1.node && !env$1.worker && !env$1.wxa) {
                     handerProxy = new EventProxy(this.painter.root);
                 }
             }
@@ -616,7 +630,6 @@
             //生成动画实例
             this.globalAnimationMgr = new GlobalAnimationMgr();
             this.globalAnimationMgr.on("frame", function() {
-                console.log("监控更新");
                 self.flush();
             });
             this.globalAnimationMgr.start();
@@ -628,7 +641,7 @@
             return this.id;
         }
 
-        //添加元素
+        //向数据仓库storage中添加元素，并开启刷新
         add(ele) {
             this.storage.addToRoot(ele);
             this.refresh();
@@ -640,11 +653,12 @@
             this.refresh();
         }
 
+        //开启刷新
         refresh() {
             this._needRefresh = true;
         }
 
-        //刷新 canvas 画面
+        //监控 this._needRefresh 的开关
         flush() {
             // console.log('123');
             //全部重绘
@@ -672,13 +686,100 @@
         }
     }
 
-    //tools -- 默认配置
+    function round_rect(ctx, shape) {
+        let x = shape.x;
+        let y = shape.y;
+        let width = shape.width;
+        let height = shape.height;
+        let r = shape.r;
+        let r1, r2, r3, r4;
+
+        if(width < 0){
+            x = x + width; 
+            width = - width;
+        }
+
+        if(height < 0) {
+            y = y + height;
+            height = - height;
+        }
+
+        if(typeof r === 'number') {
+            r1 = r2 = r3 = r4 = r;
+        }else if(r instanceof Array) {
+            switch (r.length) {
+                case 1:
+                    r1 = r2 = r3 = r4 = r[0];
+                    break;
+                case 2:
+                    r1 = r3 = r[0];
+                    r2 = r4 = r[2]; 
+                    break;
+                case 3:
+                    r1 = r[0];
+                    r2 = r4 = r[1];
+                    r3 = r[2];
+                    break;
+                default:
+                    r1 = r[0];
+                    r2 = r[1];
+                    r3 = r[2];
+                    r4 = r[4];
+                    break;
+            }
+       
+        }else{
+            r1 = r2 = r3 = r4 = 0;
+        }
+
+        let total;
+        if(r1 + r2 > width) {
+            total = r1 + r2;
+            r1 *= width / total;
+            r2 *= width / total;
+        }
+
+        if (r3 + r4 > width) {
+            total = r3 + r4;
+            r3 *= width / total;
+            r4 *= width / total;
+        }
+        if (r2 + r3 > height) {
+            total = r2 + r3;
+            r2 *= height / total;
+            r3 *= height / total;
+        }
+        if (r1 + r4 > height) {
+            total = r1 + r4;
+            r1 *= height / total;
+            r4 *= height / total;
+        }
+
+        ctx.moveTo(x + r1, y);
+        ctx.lineTo(x + width - r2, y);
+        r2 !== 0 && ctx.arc(x + width - r2, y + r2, r2, -Math.PI /2, 0);
+        ctx.lineTo(x + width, y + height - r3);
+        r3 !== 0 && ctx.arc(x + width - r3, y + height - r3, r3, 0, Math.PI / 2);
+        ctx.lineTo(x + r4, y + height);
+        r4 !== 0 && ctx.arc(x + r4, y + height - r4, r4, Math.PI / 2, Math.PI);
+        ctx.lineTo(x, y + r1);
+        r1 !== 0 && ctx.arc(x + r1, y + r1, r1, Math.PI, Math.PI * 1.5);
+
+
+    }
 
     class Rect {
         constructor(opts) {
+            // super(merge(defaultConfig, opts, true))
             this.type = "rect";
         }
 
+        /**
+         * @method buildPath
+         * 绘制元素路径
+         * @param {Object} ctx
+         * @param {String} shape
+         */
         buildPath(ctx, shape) {
             let x;
             let y;
@@ -691,9 +792,13 @@
                 height = shape.height;
             }
             // 判断是否为 圆角矩形
-            if (!shape.r) { 
+            if (!shape.r) {
                 ctx.rect(x, y, width, height);
+            } else {
+                round_rect(ctx, shape);
             }
+            ctx.closePath();
+            return;
         }
     }
 

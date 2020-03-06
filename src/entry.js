@@ -71,7 +71,6 @@ class HumbleRender {
         //生成动画实例
         this.globalAnimationMgr = new GlobalAnimationMgr();
         this.globalAnimationMgr.on("frame", function() {
-            console.log("监控更新");
             self.flush();
         });
         this.globalAnimationMgr.start();
@@ -83,7 +82,7 @@ class HumbleRender {
         return this.id;
     }
 
-    //添加元素
+    //向数据仓库storage中添加元素，并开启刷新
     add(ele) {
         this.storage.addToRoot(ele);
         this.refresh();
@@ -95,11 +94,12 @@ class HumbleRender {
         this.refresh();
     }
 
+    //开启刷新
     refresh() {
         this._needRefresh = true;
     }
 
-    //刷新 canvas 画面
+    //监控 this._needRefresh 的开关
     flush() {
         // console.log('123');
         //全部重绘
