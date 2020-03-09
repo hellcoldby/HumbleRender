@@ -1,6 +1,6 @@
 import round_rect from "./round_rect";
-import {merge} from '../../../tools/data_util';
-
+import { merge } from "../../../tools/data_util";
+import Path from "../../Path";
 //tools -- 默认配置
 let defaultConfig = {
     shape: {
@@ -17,9 +17,9 @@ let defaultConfig = {
     }
 };
 
-export default class Rect {
+export default class Rect extends Path {
     constructor(opts) {
-        // super(merge(defaultConfig, opts, true))
+        super(merge(defaultConfig, opts, true));
         this.type = "rect";
     }
 

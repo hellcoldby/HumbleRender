@@ -3,7 +3,7 @@
  */
 
 import { RAF } from "../tools/anim_util";
-import Eventful from "../control/event_simulation";
+import Eventful from "../tools/EventEmitter";
 
 class GlobalAnimationMgr extends Eventful {
     constructor(opts) {
@@ -52,7 +52,7 @@ class GlobalAnimationMgr extends Eventful {
         let time = new Date().getTime() - this._pause.duration;
         let delta = time - this._timestamp;
         this._timestamp = time;
-        this.trigger("frame");
+        this.trigger("frame", delta);
     }
 
     //向动画列表中增加 动画方案（特征）

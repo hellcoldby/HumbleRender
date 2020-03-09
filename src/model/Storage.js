@@ -7,16 +7,16 @@
  */
 
 import env from "../tools/dev_support";
-import Eventful from "../control/event_simulation";
+import Eventful from "../tools/EventEmitter";
 class Storage extends Eventful {
     constructor() {
         super();
         this._roots = new Map(); //元素id 列表
         this._displayList = []; //所有图形的绘制队列
-        this._displayList_len = 0;
+        this._displayList_len = 0; // 图形编号
     }
 
-    //增加 图像 到元素的id列表
+    //1.1增加 图像 到元素的id列表
     addToRoot(ele) {
         if (ele._storage === this) {
             return;
@@ -27,8 +27,8 @@ class Storage extends Eventful {
     }
 
     /**
-     *
-     *  创建基础图形的时候，基础图形订阅了"addToStorage", 调用此方法会触发
+     * 1.2增加 图像 到元素的id列表
+     * 创建基础图形的时候，基础图形订阅了"addToStorage"
      * @param {*} ele
      */
     addToStorage(ele) {
@@ -38,9 +38,8 @@ class Storage extends Eventful {
         return this;
     }
 
-    /**
+    /**2.1 返回所有图形的绘制队列
      * @method getDisplayList
-     * 返回所有图形的绘制队列
      * @param {boolean} [needUpdate=false] 是否在返回前更新该数组
      * @param {boolean} [includeIgnore=false] 是否包含 ignore 的数组, 在 needUpdate 为 true 的时候有效
      *
@@ -48,32 +47,30 @@ class Storage extends Eventful {
      * @return {Array<Displayable>}
      */
     getDisplayList(needUpdate, includeIgnore = false) {
-        if (needUpdate) { 
-            this.updateDisplayList(includeIgnore);   //更新图形队列,并按照优先级排序
-            //更新完成后返回最新排序的 图形队列
+        if (needUpdate) {
+            this.updateDisplayList(includeIgnore); //更新图形队列,并按照优先级排序， 更新完成后返回最新排序的 图形队列
         }
-        
         return this._displayList;
     }
 
     /**
      * @method updateDisplayList
-     * 更新图形的绘制队列。
+     * 2.2 更新图形的绘制队列。
      * 每次绘制前都会调用，该方法会先深度优先遍历整个树，更新所有Group和Shape的变换并且把所有可见的Shape保存到数组中，
      * 最后根据绘制的优先级（zlevel > z > 插入顺序）排序得到绘制队列
      * @param {boolean} [includeIgnore=false] 是否包含 ignore 的数组
      */
     updateDisplayList(includeIgnore) {
-        this._displayListLen = 0;
+        this._displayList_len = 0;
         let displayList = this._displayList;
-
+        //遍历元素的id 列表
         this._roots.forEach((ele, id, map) => {
-            this._updateAndAddDisplayable(ele, null, includeIgnore); //recursive update
+            this._updateAndAddDisplayable(ele, null, includeIgnore);
         });
 
-        displayList.length = this._displayListLen;
+        displayList.length = this._displayList_len;
         //队列排序
-        env.canvasSupported && (displayList, this._displayList_sort);
+        // env.canvasSupported && (displayList, this._displayList_sort);
     }
 
     _updateAndAddDisplayable(ele, clipPaths, includeIgnore) {
@@ -81,14 +78,16 @@ class Storage extends Eventful {
             return;
         }
 
+        if (ele.__dirty) {
+            // ele.composeLocalTransform();
+        }
 
-
-
-
+        ele.clipPaths = clipPaths;
+        this._displayList[this._displayList_len++] = ele;
     }
 
     //tools -- 对图形队列排序
-    _displayList_sort(a,b){
+    _displayList_sort(a, b) {
         if (a.qlevel === b.qlevel) {
             if (a.z === b.z) {
                 return a.z2 - b.z2;
@@ -97,8 +96,6 @@ class Storage extends Eventful {
         }
         return a.qlevel - b.qlevel;
     }
-
-
 }
 
 export default Storage;

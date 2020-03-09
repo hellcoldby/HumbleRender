@@ -113,30 +113,163 @@
     // retina 屏幕优化
     var devicePixelRatio = dpr;
 
-    class CanvasLayer {
-        constructor(root, width, height, dpr, id){
-            Object.assign(this, {root, width, height, dpr, id});
-            
+    /**
+     * 创建 canvas 实例
+     * @param {String} id
+     * @param {Number} width
+     * @param {Number} height
+     * @param {Number} dpr
+     * @return {Canvas}
+     */
+    function createCanvas(id, width, height, dpr) {
+        let canvas = document.createElement("canvas");
 
+        if (id == null || id == undefined) {
+            id = guid();
+        }
+        canvas.setAttribute("data-qr-dom-id", id);
+
+        if (width == null || width == undefined || height == null || height == undefined) {
+            return canvas;
+        }
+
+        // Canvas instance has no style attribute in nodejs.
+        if (canvas.style) {
+            canvas.style.position = "absolute";
+            canvas.style.left = 0;
+            canvas.style.top = 0;
+            canvas.style.width = width + "px";
+            canvas.style.height = height + "px";
+        }
+
+        if (dpr == null || dpr == undefined) {
+            return canvas;
+        }
+
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        return canvas;
+    }
+
+    function getContext(canvasInstance) {
+        if (!canvasInstance) {
+            canvasInstance = createCanvas();
+        }
+        return canvasInstance.getContext("2d");
+    }
+
+    /*
+     * 创建canvas 图层实例
+     * 该类被设计用来创建 canvas 层，在 CanvasPainter 类中会引用此类。
+     * 在绘图过程中， CanvasPainter 会创建多个 canvas 实例来辅助操作，
+     * 某些 canvas 实例是隐藏的，比如用来导出图片的 canvas。
+     * 注意：在微信小程序中不能动态创建 canvas 标签，因为微信小程序不允许 DOM 操作。
+     */
+    class CanvasLayer {
+        constructor(root, width, height, dpr, id) {
+            Object.assign(this, { root, width, height, dpr, id });
+
+            this.ctx = null;
+
+            let canvasDOM = null;
+            if (root && root.nodeName && root.nodeName.toUpperCase() === "CANVAS") {
+                canvasDOM = root;
+            } else if (typeof root === "string") {
+                canvasDOM = createCanvas(id, width, height, dpr);
+            } else {
+                this.ctx = root; //root 为上下文环境
+            }
+
+            if (canvasDOM && canvasDOM.style) {
+                canvasDOM.onselectstart = () => {
+                    return false;
+                }; // 避免页面选中的尴尬
+                canvasDOM.style["-webkit-user-select"] = "none";
+                canvasDOM.style["user-select"] = "none";
+                canvasDOM.style["-webkit-touch-callout"] = "none";
+                canvasDOM.style["-webkit-tap-highlight-color"] = "rgba(0,0,0,0)";
+                canvasDOM.style["padding"] = 0; // eslint-disable-line dot-notation
+                canvasDOM.style["margin"] = 0; // eslint-disable-line dot-notation
+                canvasDOM.style["border-width"] = 0;
+            }
+
+            this.canvasDOM = canvasDOM; //注意：this.canvasDOM 可能为null，因为在微信小程序中，没有办法获取 canvas 实例，只能获取到 Context 对象。
+
+            this.hiddenCanvas = null; // 隐藏画布实例
+            this.hiddenContext = null; // 隐藏画布的上下文
+
+            this.config = null;
+            this.clearColor = 0; //每次清空画布的颜色
+        }
+
+        //初始化绘图环境
+        initContext() {
+            if (this.canvasDOM) {
+                this.ctx = getContext(this.canvasDOM);
+            }
+            this.ctx.dpr = this.dpr;
+        }
+
+        //创建隐藏的canvas
+        creatHiddenCanvas() {
+            this.hiddenCanvas = createCanvas("back-" + this.id, this.width, this.height, this.dpr);
+            this.hiddenContext = getContext(this.hiddenCanvas);
+            if (this.dpr !== 1) {
+                this.hiddenContext.scale(this.dpr, this.dpr);
+            }
+        }
+
+        //改变尺寸
+        resize(width, height) {
+            //Can NOT get canvas instance in Wechat mini-program.
+            if (!this.canvasInstance) {
+                return;
+            }
+            if (this.canvasInstance.style) {
+                this.canvasInstance.style.width = width + "px";
+                this.canvasInstance.style.height = height + "px";
+            }
+            this.canvasInstance.width = width * this.dpr;
+            this.canvasInstance.height = height * this.dpr;
+
+            if (!this.hiddenCanvas) {
+                return;
+            }
+            this.hiddenCanvas.width = width * this.dpr;
+            this.hiddenCanvas.height = height * this.dpr;
+            if (this.dpr !== 1) {
+                this.hiddenContext.scale(this.dpr, this.dpr);
+            }
+        }
+
+        clear(clearAll, clearColor) {
+            clearColor = clearColor || this.clearColor;
+            let dpr = this.dpr;
+
+            this.ctx.clearRect(0, 0, this.width, this.height);
         }
     }
 
-    const CANVAS_QLEVEL = 314159; //图层id;
+    const CANVAS_LEVEL_ID = 314159; //图层id;
+    const HOVER_LAYER_LEVEL_ID = 1e5; //事件图层id
     class CanvasPainter {
         constructor(root, storage, opts = {}) {
             this.opts = Object.assign({}, opts);
+            // console.log(this.opts);
             this.root = root;
             this.storage = storage;
 
             this.type = "canvas";
             this.dpr = this.opts.devicePixelRatio || devicePixelRatio; //分辨率
 
-            let layer_id_list = (this._layer_id_list = []); //图层id序列
-            let layers = (this._layers = {}); // 图层对象列表
+            let layer_id_list = (this.layer_id_list = []); //图层id序列
+            let layers = (this.layers_map = {}); // 图层对象列表
             this._layerConfig = {}; //?
 
-            this._needsManuallyCompositing = false; //?
+            this._needsManuallyCompositing = false; //? 是否需要手动合成
             this._hoverlayer = null; //?
+
+            this._hoverElements = []; //?
 
             this._singleCanvas = !this.root.nodeName || this.root.nodeName.toUpperCase() === "CANVAS"; //根节点canvas
 
@@ -156,20 +289,20 @@
                 this.root.height = this.dpr * height;
 
                 //为单一画布创建图层
-                let mainLayer = new CanvasLayer(this.root, this._width, this._height, this.dpr, CANVAS_QLEVEL);
+                let mainLayer = new CanvasLayer(this.root, this._width, this._height, this.dpr, CANVAS_LEVEL_ID);
                 mainLayer.__builtin__ = true; //标记构建完成
 
-                layers[CANVAS_QLEVEL] = mainLayer;
-                layer_id_list.push(CANVAS_QLEVEL);
+                layers[CANVAS_LEVEL_ID] = mainLayer;
+                layer_id_list.push(CANVAS_LEVEL_ID);
                 this._root = root;
             } else {
                 //根节点不是canvas, 动态创建一个div包裹
-                this._width = getStyle(this.root, "width");
-                this._height = getStyle(this.root, "height");
+                this._width = getStyle(this.root, "width", this.opts);
+                this._height = getStyle(this.root, "height", this.opts);
 
-                let canvasCon = createDomRoot(this._width, this._height);
-                this._root = canvasCon;
-                this.root.appendChild(canvasCon);
+                let canvas_wrap = createDomRoot(this._width, this._height);
+                this._root = canvas_wrap;
+                this.root.appendChild(canvas_wrap);
             }
         }
 
@@ -181,27 +314,189 @@
         refresh(paintAll) {
             //从 storage 中获取 元素列表
             let list = this.storage.getDisplayList(true);
-            let layer_id_list = this._layer_id_list;
+            let layer_id_list = this.layer_id_list;
 
             this._redrawId = Math.random(); // 重绘id
-            this._paintList(list, paintAll, this._redrawId);
+            this._paintList(list, paintAll, this._redrawId); //更新图层，动态创建图层， 绘制图层
 
             //paint custom layers
             for (let i = 0; i < layer_id_list.length; i++) {
                 let id = layer_id_list[i];
-                let layer = this.layers[id];
+                let layer = this.layers_map[id];
                 if (!layer.__builtin__ && layer.refresh) {
                     let clearColor = i === 0 ? this._backgroundColor : null;
                     layer.refresh(clearColor);
                 }
             }
+            // this.refreshHover(); // 获取图层，动态创建图层，更新图层id 列表
+
             return this;
         }
 
+        /*
+         * @method _paintList
+         * @param {} list --- 要绘制的图形列表
+         * @param {} redrawId --- 随机生成的重绘id
+         */
         _paintList(list, paintAll, redrawId) {
             //如果 redrawId 不一致，说明下一个动画帧已经到来，这里就会直接跳过去，相当于跳过了一帧
             if (this._redrawId !== redrawId) {
                 return;
+            }
+            paintAll = paintAll || false;
+            //更新图层状态， 动态创建图层
+            this._updateLayerStatus(list); //
+            //开始绘制图形
+            let finished = this._doPaintList(list, paintAll);
+        }
+
+        //更新图层状态
+        _updateLayerStatus(list) {
+            this.eachBuildinLayer(function(layer, id) {
+                layer.__dirty = layer.used = false;
+            });
+
+            if (this._singleCanvas) {
+                for (let i = 0; i < list.length; i++) {}
+            }
+
+            let prevLayer = null;
+            for (let i = 0; i < list.length; i++) {
+                let ele = list[i];
+                let hLevel = ele.hLevel; //确定可显示对象可以在画布的哪一层绘制
+                let layer;
+
+                if (ele.incremental) ; else {
+                    let tmp_id =  0;
+                    layer = this.getLayer(hLevel + tmp_id, this._needsManuallyCompositing);
+                }
+
+                if (!layer.__builtin__) {
+                    console.log("ZLevel" + hLevel + "has been used by unknow layer" + layer.id);
+                }
+
+                if (layer !== prevLayer) {
+                    layer.used = true;
+                    if (layer.__startIndex !== 1) {
+                        layer.__dirty = true;
+                    }
+                    layer.__startIndex = i;
+                }
+
+                if (ele.__dirty) {
+                    layer.__dirty = true;
+                    if (layer.incremental && layer.__drawIndex < 0) {
+                        layer.__drawIndex = i;
+                    }
+                }
+            }
+        }
+
+        //遍历执行构建完成 图层的回调
+        eachBuildinLayer(cb) {
+            let layer_id_list = this.layer_id_list;
+            let layer;
+            for (let i = 0; i < layer_id_list.length; i++) {
+                let id = layer_id_list[i];
+                layer = this.layers[id];
+                if (layer.__builtin__) {
+                    cb.call(context, layer, id);
+                }
+            }
+        }
+
+        //绘制图形
+        _doPaintList(list, paintAll) {
+            let layerList = [];
+            for (let i = 0; i < this.layer_id_list.length; i++) {
+                let id = this.layer_id_list[i];
+                let cur_layer = this.layers_map[id];
+                if (cur_layer.__builtin__ && cur_layer !== this.__hoverlayer && (cur_layer.__dirty || paintAll)) {
+                    layerList.push(cur_layer);
+                }
+            }
+            console.log(layerList);
+        }
+
+        refreshHover() {
+            let hoverElements = this._hoverElements;
+            let len = hoverElements.length;
+
+            if (!len) return;
+
+            let hoverLayer = this._hoverlayer;
+            if (!hoverLayer) {
+                hoverLayer = this._hoverlayer = this.getLayer(HOVER_LAYER_LEVEL_ID); //获取图层
+            }
+            // hoverLayer.ctx.save();
+
+            // hoverLayer.ctx.restore();
+        }
+
+        //获取图层，如果没有图层就创建一个
+        getLayer(curLevelId, virtual) {
+            if (this._singleCanvas && !this._needsManuallyCompositing) {
+                //如果根节点是canvas,而且不需要手动合成, 那么当前图层id 就是初始化的图层id
+                curLevelId = CANVAS_LEVEL_ID;
+            }
+
+            let layer = this.layers_map[curLevelId]; //根据id获取图层
+
+            if (!layer) {
+                //如果没有初始图层存在就创建一个 canvas 图层
+                layer = new CanvasLayer("hr_" + curLevelId, this._width, this._height, this.dpr);
+                layer.levelId = curLevelId;
+                layer.__builtin__ = true;
+
+                this.insertLayer(curLevelId, layer); //动态插入图层 到 运行环境
+                layer.initContext();
+            }
+            return layer;
+        }
+
+        //将动态创建的图层 插入到页面中
+        insertLayer(levelId, layer) {
+            let layersMap = this.layers_map;
+            let layer_id_list = this.layer_id_list;
+            let len = layer_id_list.length;
+
+            let prevLayer = null;
+
+            if (layersMap[levelId]) {
+                // 图层id 已经被占用
+                console.log("Zlevel" + levelId + "has been used already");
+                return;
+            }
+
+            let i = -1; //查找图层的 位置
+            if (len > 0 && levelId > layer_id_list[0]) {
+                //在图层id列表中，比自己序列小的 前一个图层
+                for (let i = 0; i < len - 1; i++) {
+                    if (layer_id_list[i] < levelId && layer_id_list[i + 1] > levelId) break;
+                }
+                prevLayer = layersMap[layer_id_list[i]];
+            }
+
+            layer_id_list.splice(i + 1, 0, levelId);
+
+            layersMap[levelId] = layer;
+
+            if (!layer.virtual) {
+                //没有虚拟图层
+                if (prevLayer) {
+                    let prevDom = prevLayer.canvasDOM;
+                    if (prevDom.nextSibling) {
+                        this._root.insertBefore(layer.canvasDOM, prevDom.nextSibling);
+                    } else {
+                        this._root.appendChild(layer.canvasDOM);
+                    }
+                } else {
+                    if (this._root.firstChild) {
+                        this._root.insertBefore(layer.canvasDOM, this.root.firstChild);
+                    } else {
+                        this._root.appendChild(layer.canvasDOM);
+                    }
+                }
             }
         }
     }
@@ -214,9 +509,8 @@
     }
 
     //tools--获取真实样式
-    function getStyle(obj, attr) {
-        let opts = this.opts;
-        if (attr in opts) {
+    function getStyle(obj, attr, opts) {
+        if (opts && attr in opts) {
             return parseFloat(opts[attr]);
         } else {
             let res = obj.currentStyle ? obj.currentStyle[attr] : getComputedStyle(obj, false)[attr];
@@ -230,6 +524,23 @@
      * 订阅发布模式
      */
 
+    /**
+     * @method constructor Eventful
+     * @param {Object} [eventProcessor] The object eventProcessor is the scope when
+     *        `eventProcessor.xxx` called. 事件处理者，也就是当前事件处理函数执行时的作用域。
+     * @param {Function} [eventProcessor.normalizeQuery]
+     *        param: {String|Object} Raw query.
+     *        return: {String|Object} Normalized query.
+     * @param {Function} [eventProcessor.filter] Event will be dispatched only
+     *        if it returns `true`.
+     *        param: {String} eventType
+     *        param: {String|Object} query
+     *        return: {Boolean}
+     * @param {Function} [eventProcessor.afterTrigger] Called after all handlers called.
+     *        param: {String} eventType
+     * @param {Function} [eventProcessor.afterListenerChanged] Called when any listener added or removed.
+     *        param: {String} eventType
+     */
     class Eventful {
         constructor(eventProcessor) {
             this._handle_map = {}; //订阅的事件列表
@@ -260,9 +571,11 @@
          */
         trigger(event) {
             let _map = this._handle_map[event];
+            // console.log(_map[0].fn);
             let _ev_pro = this._eventProcessor;
             if (_map) {
                 let args = arguments;
+                // console.log(args);
                 let args_len = args.length;
 
                 if (args_len > 3) {
@@ -294,10 +607,11 @@
                             break;
                     }
 
-                    if(item.one) { //如果只运行一次， 就从订阅列表中移除 当前事件
-                        _map.splice(i, 1); 
-                        _map.length --;
-                    }else {
+                    if (item.one) {
+                        //如果只运行一次， 就从订阅列表中移除 当前事件
+                        _map.splice(i, 1);
+                        _map.length--;
+                    } else {
                         i++;
                     }
                 }
@@ -323,10 +637,12 @@
             return _this;
         }
 
+        // console.log(fn);
+
         query = normalizeQuery(_this, query);
 
         if (!_map[event]) {
-            //创建订阅列表
+            //没有相关的订阅事件就 创建订阅列表
             _map[event] = [];
         }
 
@@ -390,10 +706,10 @@
             super();
             this._roots = new Map(); //元素id 列表
             this._displayList = []; //所有图形的绘制队列
-            this._displayList_len = 0;
+            this._displayList_len = 0; // 图形编号
         }
 
-        //增加 图像 到元素的id列表
+        //1.1增加 图像 到元素的id列表
         addToRoot(ele) {
             if (ele._storage === this) {
                 return;
@@ -404,8 +720,8 @@
         }
 
         /**
-         *
-         *  创建基础图形的时候，基础图形订阅了"addToStorage", 调用此方法会触发
+         * 1.2增加 图像 到元素的id列表
+         * 创建基础图形的时候，基础图形订阅了"addToStorage"
          * @param {*} ele
          */
         addToStorage(ele) {
@@ -415,9 +731,8 @@
             return this;
         }
 
-        /**
+        /**2.1 返回所有图形的绘制队列
          * @method getDisplayList
-         * 返回所有图形的绘制队列
          * @param {boolean} [needUpdate=false] 是否在返回前更新该数组
          * @param {boolean} [includeIgnore=false] 是否包含 ignore 的数组, 在 needUpdate 为 true 的时候有效
          *
@@ -425,32 +740,30 @@
          * @return {Array<Displayable>}
          */
         getDisplayList(needUpdate, includeIgnore = false) {
-            if (needUpdate) { 
-                this.updateDisplayList(includeIgnore);   //更新图形队列,并按照优先级排序
-                //更新完成后返回最新排序的 图形队列
+            if (needUpdate) {
+                this.updateDisplayList(includeIgnore); //更新图形队列,并按照优先级排序， 更新完成后返回最新排序的 图形队列
             }
-            
             return this._displayList;
         }
 
         /**
          * @method updateDisplayList
-         * 更新图形的绘制队列。
+         * 2.2 更新图形的绘制队列。
          * 每次绘制前都会调用，该方法会先深度优先遍历整个树，更新所有Group和Shape的变换并且把所有可见的Shape保存到数组中，
          * 最后根据绘制的优先级（zlevel > z > 插入顺序）排序得到绘制队列
          * @param {boolean} [includeIgnore=false] 是否包含 ignore 的数组
          */
         updateDisplayList(includeIgnore) {
-            this._displayListLen = 0;
+            this._displayList_len = 0;
             let displayList = this._displayList;
-
+            //遍历元素的id 列表
             this._roots.forEach((ele, id, map) => {
-                this._updateAndAddDisplayable(ele, null, includeIgnore); //recursive update
+                this._updateAndAddDisplayable(ele, null, includeIgnore);
             });
 
-            displayList.length = this._displayListLen;
+            displayList.length = this._displayList_len;
             //队列排序
-            env$1.canvasSupported && (this._displayList_sort);
+            // env.canvasSupported && (displayList, this._displayList_sort);
         }
 
         _updateAndAddDisplayable(ele, clipPaths, includeIgnore) {
@@ -458,14 +771,14 @@
                 return;
             }
 
+            if (ele.__dirty) ;
 
-
-
-
+            ele.clipPaths = clipPaths;
+            this._displayList[this._displayList_len++] = ele;
         }
 
         //tools -- 对图形队列排序
-        _displayList_sort(a,b){
+        _displayList_sort(a, b) {
             if (a.qlevel === b.qlevel) {
                 if (a.z === b.z) {
                     return a.z2 - b.z2;
@@ -474,8 +787,6 @@
             }
             return a.qlevel - b.qlevel;
         }
-
-
     }
 
     /*
@@ -554,7 +865,7 @@
             let time = new Date().getTime() - this._pause.duration;
             let delta = time - this._timestamp;
             this._timestamp = time;
-            this.trigger("frame");
+            this.trigger("frame", delta);
         }
 
         //向动画列表中增加 动画方案（特征）
@@ -768,9 +1079,209 @@
 
     }
 
-    class Rect {
+    /*
+     * data_util 数据 相关的 工具集合
+     *
+     * 判断对象类型
+     */
+
+    //1. 判断对象类型
+    function isObject(val) {
+        let res = typeof val;
+        return res === "function" || (!!val && res === "object");
+    }
+
+    //2. 精确判断数据类型
+    function judeType(val) {
+        return Object.prototype.toString.call(val);
+    }
+
+    //3. 深拷贝
+    function deepClone(source) {
+        if (!source || typeof source !== "object") return source;
+
+        let res = source;
+        if (judeType(source) === "[object Array]") {
+            res = [];
+            for (let i = 0; i < source.length; i++) {
+                res[i] = deepClone(source[i]);
+            }
+        }
+        if (judeType(source) === "[object Object") {
+            res = {};
+            for (let key in source) {
+                res[key] = deepClone(source[key]);
+            }
+        }
+
+        return res;
+    }
+
+    function merge(target, source, overwrite) {
+        if (!isObject(target) || !isObject(source)) {
+            //如果 overwirte 为true, source 覆盖 target
+            if (overwrite) {
+                return deepClone(source);
+            } else {
+                return target;
+            }
+        }
+
+        for (let key in source) {
+            let source_prop = source[key];
+            let target_prop = target[key];
+            if (judeType(source_prop) === "[object Object]" && judeType(target_prop) === "[object Object]") {
+                // 如果需要递归覆盖，就递归调用merge
+                merge(target_prop, source_prop, overwrite);
+            } else if (overwrite || !(key in target)) {
+                // 否则只处理overwrite为true，或者在目标对象中没有此属性的情况
+                // NOTE，在 target[key] 不存在的时候也是直接覆盖
+                target[key] = deepClone(source[key]);
+            }
+        }
+
+        return target;
+    }
+
+    //4. 从父类继承 并覆盖taget内置的属性
+    function inheritProperties(target, source, opts) {
+        let src = new source(opts);
+        for (let name in src) {
+            if (target.hasOwnProperty(name)) {
+                target[name] = src[name];
+            }
+        }
+    }
+
+    class Transformable {
+        constructor() {}
+    }
+
+    class Animatable {
+        constructor() {}
+    }
+
+    /*
+     * HRenderer 中所有图形对象都是 Element 的子类。这是一个抽象类，请不要直接创建这个类的实例。
+     * 引入 transformable 为 Element 类提供变换功能，例如：平移、缩放、扭曲、旋转、翻转、形状、样式。
+     * 引入 Animatable 为Element 为元素提供动画功能。
+     * 引入 EventFul 为 Element 提供订阅发布功能。
+     *
+     * 注意： Element 同时继承多个类，并且只继承用户传递来的属性
+     */
+
+    class Element {
+        constructor(opts = {}) {
+            this.opts = opts;
+            this.id = "el-" + guid();
+            this.type = "element";
+            this.name = "";
+            this.parent = null;
+
+            this.ignore = false; // 为true时，忽略图形绘制和事件触发
+            this.clipPath = null; //用于裁剪的路径，所有 Group 内的路径在绘制时都会被这个路径裁剪，该路径会继承被裁减对象的变换。
+
+            this.calculateTextPosition = null; //文本位置的字符串，计算实际位置
+
+            this.invisible = false; //是否隐藏对象，默认false--不隐藏。（绘制）
+            this.z = 0;
+
+            this.hLevel = 0; //确定可显示对象可以在画布的哪一层绘制
+
+            this.draggalbe = false; //是否开启拖拽
+            this.dragging = false; //是否在拖拽中
+
+            this.slient = false; //是否响应鼠标事件
+
+            this.cursor = "pointer";
+            this.rectHover = false; // 如果悬停区域是边界举行
+
+            this.progressive = false; // 逐渐渲染数据
+
+            this.incremental = false; // 渐增渲染
+            this.globalScaleRatio = 1; //全局缩放
+
+            this.animationProcessList = []; //元素上所有的动画处理列表
+
+            this._hr = null; //元素被添加到 HumbleRender 实例后，自动赋值
+
+            this._dirty = true; //下一帧渲染的元素，标记为 dirty（true)
+
+            this._rect = null;
+
+            this.__clipPaths = null; //因为仅使用null来检查clipPaths是否已更改很容易
+
+            // this.style = new Style(this.opts.style, this);
+
+            this.shape = {}; // shape 形状 宽高 坐标等信息
+
+            //拷贝自定义属性到 this.shape 默认属性中
+            let defaultShape = this.opts.shape;
+            if (defaultShape) {
+                for (let name in defaultShape) {
+                    if (!this.shape.hasOwnProperty(name) && defaultShape.hasOwnProperty(name)) {
+                        this.shape[name] = defaultShape[name];
+                    }
+                }
+            }
+
+            inheritProperties(this, Transformable, this.opts);
+            inheritProperties(this, Eventful, this.opts);
+            inheritProperties(this, Animatable, this.opts);
+            // copyOwnProperties(this, this.opts, ["style", "shape"]);
+
+            // console.log(this);
+            // this.on("addToStorage", this.addToStorageHandler);
+            // this.on("delFromStorage", this.delFromStorageHandler);
+        }
+    }
+
+    /*
+     *
+     */
+    class Path extends Element {
         constructor(opts) {
-            // super(merge(defaultConfig, opts, true))
+            super(opts);
+            this.type = "path";
+            this.path = null;
+            this.__dirtyPath = true;
+
+            this.strokeContainThreshold = 5; //绘制 临界值
+            this.segmentIgnoreThreshold = 0; //部分 忽略 临界值
+            this.subPixelOptimize = false; //设备优化
+        }
+        dirty() {}
+
+        brush(ctx, prevEl) {}
+
+        getBoundingRect() {}
+
+        contian(x, y) {}
+
+        setShape() {}
+
+        getLineScale() {}
+    }
+
+    //tools -- 默认配置
+    let defaultConfig = {
+        shape: {
+            // 左上、右上、右下、左下角的半径依次为r1、r2、r3、r4
+            // r缩写为1         相当于 [1, 1, 1, 1]
+            // r缩写为[1]       相当于 [1, 1, 1, 1]
+            // r缩写为[1, 2]    相当于 [1, 2, 1, 2]
+            // r缩写为[1, 2, 3] 相当于 [1, 2, 3, 2]
+            r: 0,
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0
+        }
+    };
+
+    class Rect extends Path {
+        constructor(opts) {
+            super(merge(defaultConfig, opts, true));
             this.type = "rect";
         }
 

@@ -4,6 +4,23 @@
  * 订阅发布模式
  */
 
+/**
+ * @method constructor Eventful
+ * @param {Object} [eventProcessor] The object eventProcessor is the scope when
+ *        `eventProcessor.xxx` called. 事件处理者，也就是当前事件处理函数执行时的作用域。
+ * @param {Function} [eventProcessor.normalizeQuery]
+ *        param: {String|Object} Raw query.
+ *        return: {String|Object} Normalized query.
+ * @param {Function} [eventProcessor.filter] Event will be dispatched only
+ *        if it returns `true`.
+ *        param: {String} eventType
+ *        param: {String|Object} query
+ *        return: {Boolean}
+ * @param {Function} [eventProcessor.afterTrigger] Called after all handlers called.
+ *        param: {String} eventType
+ * @param {Function} [eventProcessor.afterListenerChanged] Called when any listener added or removed.
+ *        param: {String} eventType
+ */
 class Eventful {
     constructor(eventProcessor) {
         this._handle_map = {}; //订阅的事件列表
@@ -34,9 +51,11 @@ class Eventful {
      */
     trigger(event) {
         let _map = this._handle_map[event];
+        // console.log(_map[0].fn);
         let _ev_pro = this._eventProcessor;
         if (_map) {
             let args = arguments;
+            // console.log(args);
             let args_len = args.length;
 
             if (args_len > 3) {
@@ -68,11 +87,12 @@ class Eventful {
                         break;
                 }
 
-                if(item.one) { //如果只运行一次， 就从订阅列表中移除 当前事件
-                    _map.splice(i, 1); 
-                    _map.length --;
-                }else {
-                    i++
+                if (item.one) {
+                    //如果只运行一次， 就从订阅列表中移除 当前事件
+                    _map.splice(i, 1);
+                    _map.length--;
+                } else {
+                    i++;
                 }
             }
         }
@@ -97,10 +117,12 @@ function on(_this, event, query, fn, context, isOnce) {
         return _this;
     }
 
+    // console.log(fn);
+
     query = normalizeQuery(_this, query);
 
     if (!_map[event]) {
-        //创建订阅列表
+        //没有相关的订阅事件就 创建订阅列表
         _map[event] = [];
     }
 
