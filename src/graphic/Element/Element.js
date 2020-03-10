@@ -6,11 +6,12 @@
  *
  * 注意： Element 同时继承多个类，并且只继承用户传递来的属性
  */
-import Eventful from "../tools/EventEmitter";
-import Transformable from "./transform/Transformable";
-import Animatable from "./Animatable/Animatable";
-import guid from "../tools/guid";
-import { inheritProperties } from "../tools/data_util";
+import Eventful from "../../tools/EventEmitter";
+import Transformable from "../transform/Transformable";
+import Animatable from "../Animatable/Animatable";
+import guid from "../../tools/guid";
+import { inheritProperties } from "../../tools/data_util";
+import Style from "./Style";
 
 class Element {
     constructor(opts = {}) {
@@ -53,7 +54,7 @@ class Element {
 
         this.__clipPaths = null; //因为仅使用null来检查clipPaths是否已更改很容易
 
-        // this.style = new Style(this.opts.style, this);
+        this.style = new Style(this.opts.style, this);
 
         this.shape = {}; // shape 形状 宽高 坐标等信息
 
@@ -76,6 +77,12 @@ class Element {
         // this.on("addToStorage", this.addToStorageHandler);
         // this.on("delFromStorage", this.delFromStorageHandler);
     }
+
+    beforeBrush(ctx) {}
+
+    afterBrush(ctx) {}
+
+    brush() {}
 }
 
 export default Element;

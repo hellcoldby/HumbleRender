@@ -1,6 +1,6 @@
 import { devicePixelRatio } from "../tools/dpr";
 import CanvasLayer from "./CanvasLayer";
-
+import { RAF } from "../tools/anim_util";
 const CANVAS_LEVEL_ID = 314159; //图层id;
 const HOVER_LAYER_LEVEL_ID = 1e5; //事件图层id
 const ELE_AFTER_INCREMENTAL_INC = 0.01; //图形 增量的初始id
@@ -100,6 +100,13 @@ class CanvasPainter {
         this._updateLayerStatus(list); //
         //开始绘制图形
         let finished = this._doPaintList(list, paintAll);
+
+        if (!finished) {
+            let self = this;
+            RAF(function() {
+                self._paintList(list, paintAll, redrawId);
+            });
+        }
     }
 
     //更新图层状态
@@ -139,6 +146,14 @@ class CanvasPainter {
                     layer.__dirty = true;
                 }
                 layer.__startIndex = i;
+
+                if (!layer.incremental) {
+                    layer.__drawIndex = i;
+                } else {
+                    layer.__drawIndex = -1;
+                }
+                updatePrevLayer(i);
+                prevLayer = layer;
             }
 
             if (ele.__dirty) {
@@ -151,6 +166,17 @@ class CanvasPainter {
 
         updatePrevLayer(idx);
 
+        this.eachBuildinLayer(function(cur_layer, z) {
+            if (!cur_layer.__used && cur_layer.getElementCount > 0) {
+                cur_layer.__dirty = true;
+                cur_layer.__startIndex = cur_layer.__endIndex = cur_layer.__drawIndex = 0;
+            }
+
+            if (cur_layer.__dirty && cur_layer.__drawIndex < 0) {
+                cur_layer.__drawIndex = cur_layer.__startIndex;
+            }
+        });
+
         function updatePrevLayer(idx) {
             if (prevLayer) {
                 if (prevLayer.__endIndex !== idx) {
@@ -162,12 +188,12 @@ class CanvasPainter {
     }
 
     //遍历执行构建完成 图层的回调
-    eachBuildinLayer(cb) {
+    eachBuildinLayer(cb, context) {
         let layer_id_list = this.layer_id_list;
         let layer;
         for (let i = 0; i < layer_id_list.length; i++) {
             let id = layer_id_list[i];
-            layer = this.layers[id];
+            layer = this.layers_map[id];
             if (layer.__builtin__) {
                 cb.call(context, layer, id);
             }
@@ -187,6 +213,83 @@ class CanvasPainter {
 
         let finished = true;
         console.log(layerList);
+        for (let j = 0; j < layerList.length; j++) {
+            let cur_layer = layerList[j];
+            let ctx = cur_layer.ctx;
+            let scope = {};
+            ctx.save();
+
+            let start = paintAll ? cur_layer.__startIndex : cur_layer.__drawIndex; //paintAll 为true ,重绘所有图形
+
+            let userTimer = !paintAll && cur_layer.incremental && Date.now; //不重新绘制 记录当前时间
+            let startTimer = userTimer && Date.now();
+
+            let clearColor = cur_layer.hLevel === this.layer_id_list[0] ? this._backgroundColor : null;
+
+            //如果全部重绘，清空图层颜色
+            if (cur_layer.__startIndex === cur_layer.__endIndex) {
+                cur_layer.clear(false, clearColor);
+            } else if (start === cur_layer.__startIndex) {
+                let firstEl = list[start];
+                if (!firstEl.incremental || paintAll) {
+                    cur_layer.clear(false, clearColor);
+                }
+            }
+
+            if (start === -1) {
+                console.log("for some unknow reason.  drawIndex is -1");
+                start = cur_layer.__startIndex;
+            }
+
+            //遍历所有的图层,开始绘制元素
+            let i = start;
+            for (; i < cur_layer.__endIndex; i++) {
+                let ele = list[i];
+                this._doPaintEl(ele, cur_layer, paintAll, scope); //绘制图形的参数
+                ele.__dirty = ele.__dirtyText = false;
+
+                //如果 不是全部重绘
+                if (userTimer) {
+                    let dTime = Date.now() - startTimer;
+                    //这里的时间非常重要， 如果15ms 内没有完成所有绘制， 则跳出， 等待下一帧继续绘制
+                    //但是 15ms 的时间是有限的， 如果元素的数量非常巨大， 例如有1000万个， 还是会卡顿。
+                    if (dTime > 15) {
+                        break;
+                    }
+                }
+            }
+
+            cur_layer.__drawIndex = i;
+
+            if (cur_layer.__drawIndex < cur_layer.__endIndex) {
+                finished = false;
+            }
+
+            if (scope.prevElClipPaths) {
+                ctx.restore();
+            }
+
+            ctx.restore();
+
+            return finished;
+        }
+    }
+
+    _doPaintEl(ele, cur_layer, paintAll, scope) {
+        let ctx = cur_layer.ctx;
+        let m = ele.transform;
+        if (
+            (cur_layer.__dirty || paintAll) &&
+            !ele.invisible &&
+            ele.style.opacity !== 0 &&
+            !(m && !m[0] && !m[3])
+            // && !(ele.culling && this.isDisplayableCulled())
+        ) {
+            ele.beforeBrush && ele.beforeBrush(ctx);
+            ele.brush(ctx, scope.prevEl || null);
+            scope.prevEl = ele;
+            ele.afterBrush && ele.afterBrush(ctx);
+        }
     }
 
     refreshHover() {
@@ -277,7 +380,7 @@ export default CanvasPainter;
 //tools--动态创建 根节点
 function createDomRoot(width, height) {
     let oDiv = document.createElement("div");
-    oDiv.style.cssText = [`position: relative`, `width: ${width}px`, `height: ${height}px`, `padding: 0`, `margin: 0`, `border-width: 0`, `background: #067`].join(";") + ";";
+    oDiv.style.cssText = [`position: relative`, `width: ${width}px`, `height: ${height}px`, `padding: 0`, `margin: 0`, `border-width: 0`, `background: none`].join(";") + ";";
     return oDiv;
 }
 

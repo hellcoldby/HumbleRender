@@ -250,6 +250,21 @@
         }
     }
 
+    /*
+     * 动画相关的 工具函数集合
+     * 1. requestAnimationFrame
+     */
+
+    let RAF = (
+        typeof window !== 'undefined'
+        && ( 
+            (window.requestAnimationFrame && window.requestAnimationFrame.bind(window))
+            || (window.msRequestAnimationFrame && window.msRequestAnimationFrame.bind(window))
+            || window.mozRequestAnimationFrame
+            || window.webkitRequestAnimationFrame
+        )
+    ) || function(fn) { setTimeout(fn, 16); };
+
     const CANVAS_LEVEL_ID = 314159; //图层id;
     const HOVER_LAYER_LEVEL_ID = 1e5; //事件图层id
     class CanvasPainter {
@@ -348,6 +363,13 @@
             this._updateLayerStatus(list); //
             //开始绘制图形
             let finished = this._doPaintList(list, paintAll);
+
+            if (!finished) {
+                let self = this;
+                RAF(function() {
+                    self._paintList(list, paintAll, redrawId);
+                });
+            }
         }
 
         //更新图层状态
@@ -361,7 +383,10 @@
             }
 
             let prevLayer = null;
+
+            let idx = 0;
             for (let i = 0; i < list.length; i++) {
+                idx = i;
                 let ele = list[i];
                 let hLevel = ele.hLevel; //确定可显示对象可以在画布的哪一层绘制
                 let layer;
@@ -381,6 +406,14 @@
                         layer.__dirty = true;
                     }
                     layer.__startIndex = i;
+
+                    if (!layer.incremental) {
+                        layer.__drawIndex = i;
+                    } else {
+                        layer.__drawIndex = -1;
+                    }
+                    updatePrevLayer(i);
+                    prevLayer = layer;
                 }
 
                 if (ele.__dirty) {
@@ -390,15 +423,37 @@
                     }
                 }
             }
+
+            updatePrevLayer(idx);
+
+            this.eachBuildinLayer(function(cur_layer, z) {
+                if (!cur_layer.__used && cur_layer.getElementCount > 0) {
+                    cur_layer.__dirty = true;
+                    cur_layer.__startIndex = cur_layer.__endIndex = cur_layer.__drawIndex = 0;
+                }
+
+                if (cur_layer.__dirty && cur_layer.__drawIndex < 0) {
+                    cur_layer.__drawIndex = cur_layer.__startIndex;
+                }
+            });
+
+            function updatePrevLayer(idx) {
+                if (prevLayer) {
+                    if (prevLayer.__endIndex !== idx) {
+                        prevLayer.__dirty = true;
+                    }
+                    prevLayer.__endIndex = idx;
+                }
+            }
         }
 
         //遍历执行构建完成 图层的回调
-        eachBuildinLayer(cb) {
+        eachBuildinLayer(cb, context) {
             let layer_id_list = this.layer_id_list;
             let layer;
             for (let i = 0; i < layer_id_list.length; i++) {
                 let id = layer_id_list[i];
-                layer = this.layers[id];
+                layer = this.layers_map[id];
                 if (layer.__builtin__) {
                     cb.call(context, layer, id);
                 }
@@ -415,7 +470,86 @@
                     layerList.push(cur_layer);
                 }
             }
+
+            let finished = true;
             console.log(layerList);
+            for (let j = 0; j < layerList.length; j++) {
+                let cur_layer = layerList[j];
+                let ctx = cur_layer.ctx;
+                let scope = {};
+                ctx.save();
+
+                let start = paintAll ? cur_layer.__startIndex : cur_layer.__drawIndex; //paintAll 为true ,重绘所有图形
+
+                let userTimer = !paintAll && cur_layer.incremental && Date.now; //不重新绘制 记录当前时间
+                let startTimer = userTimer && Date.now();
+
+                let clearColor = cur_layer.hLevel === this.layer_id_list[0] ? this._backgroundColor : null;
+
+                //如果全部重绘，清空图层颜色
+                if (cur_layer.__startIndex === cur_layer.__endIndex) {
+                    cur_layer.clear(false, clearColor);
+                } else if (start === cur_layer.__startIndex) {
+                    let firstEl = list[start];
+                    if (!firstEl.incremental || paintAll) {
+                        cur_layer.clear(false, clearColor);
+                    }
+                }
+
+                if (start === -1) {
+                    console.log("for some unknow reason.  drawIndex is -1");
+                    start = cur_layer.__startIndex;
+                }
+
+                //遍历所有的图层,开始绘制元素
+                let i = start;
+                for (; i < cur_layer.__endIndex; i++) {
+                    let ele = list[i];
+                    this._doPaintEl(ele, cur_layer, paintAll, scope); //绘制图形的参数
+                    ele.__dirty = ele.__dirtyText = false;
+
+                    //如果 不是全部重绘
+                    if (userTimer) {
+                        let dTime = Date.now() - startTimer;
+                        //这里的时间非常重要， 如果15ms 内没有完成所有绘制， 则跳出， 等待下一帧继续绘制
+                        //但是 15ms 的时间是有限的， 如果元素的数量非常巨大， 例如有1000万个， 还是会卡顿。
+                        if (dTime > 15) {
+                            break;
+                        }
+                    }
+                }
+
+                cur_layer.__drawIndex = i;
+
+                if (cur_layer.__drawIndex < cur_layer.__endIndex) {
+                    finished = false;
+                }
+
+                if (scope.prevElClipPaths) {
+                    ctx.restore();
+                }
+
+                ctx.restore();
+
+                return finished;
+            }
+        }
+
+        _doPaintEl(ele, cur_layer, paintAll, scope) {
+            let ctx = cur_layer.ctx;
+            let m = ele.transform;
+            if (
+                (cur_layer.__dirty || paintAll) &&
+                !ele.invisible &&
+                ele.style.opacity !== 0 &&
+                !(m && !m[0] && !m[3])
+                // && !(ele.culling && this.isDisplayableCulled())
+            ) {
+                ele.beforeBrush && ele.beforeBrush(ctx);
+                ele.brush(ctx, scope.prevEl || null);
+                scope.prevEl = ele;
+                ele.afterBrush && ele.afterBrush(ctx);
+            }
         }
 
         refreshHover() {
@@ -504,7 +638,7 @@
     //tools--动态创建 根节点
     function createDomRoot(width, height) {
         let oDiv = document.createElement("div");
-        oDiv.style.cssText = [`position: relative`, `width: ${width}px`, `height: ${height}px`, `padding: 0`, `margin: 0`, `border-width: 0`, `background: #067`].join(";") + ";";
+        oDiv.style.cssText = [`position: relative`, `width: ${width}px`, `height: ${height}px`, `padding: 0`, `margin: 0`, `border-width: 0`, `background: none`].join(";") + ";";
         return oDiv;
     }
 
@@ -799,21 +933,6 @@
             
         }
     }
-
-    /*
-     * 动画相关的 工具函数集合
-     * 1. requestAnimationFrame
-     */
-
-    let RAF = (
-        typeof window !== 'undefined'
-        && ( 
-            (window.requestAnimationFrame && window.requestAnimationFrame.bind(window))
-            || (window.msRequestAnimationFrame && window.msRequestAnimationFrame.bind(window))
-            || window.mozRequestAnimationFrame
-            || window.webkitRequestAnimationFrame
-        )
-    ) || function(fn) { setTimeout(fn, 16); };
 
     /*
      *  用来记录 动画开关， 时间戳， 添加动画序列
@@ -1161,6 +1280,151 @@
         constructor() {}
     }
 
+    let STYLE_COMMON_PROPS = [
+        ["shadowBlur", 0],
+        ["shadowOffsetX", 0],
+        ["shadowOffsetY", 0],
+        ["shadowColor", "#000"],
+        ["lineCap", "butt"],
+        ["lineJoin", "miter"],
+        ["miterLimit", 10]
+    ];
+
+    /**
+     * @method Style
+     * @param {} opts --- 用户自定义的样式
+     */
+    function Style(opts) {
+        extendStyle(this, opts, false);
+    }
+
+    Style.prototype = {
+        constructor: Style,
+        fill: "#000",
+        stroke: null,
+        opacity: 1,
+        fillOpacity: null,
+        strokeOPacity: null,
+
+        strokeNoScale: false,
+
+        lineDash: null,
+        lineDashOffset: 0,
+
+        shadowblur: 0,
+        shadowOffsetX: 0,
+        shadowOffsetY: 0,
+
+        lineWidth: 1,
+        text: null,
+
+        font: null,
+        textFont: null,
+        fontStyle: null,
+        fontWeight: null,
+        fontFamily: null,
+        textTag: null,
+        textFill: "#000",
+        textWidth: null,
+        textHeight: null,
+        textStrokeWidth: 0,
+        textLineHeight: null,
+
+        textPosition: "inside",
+        textRect: null,
+        textOffset: null,
+
+        textAlign: null,
+        textVerticalAlign: null,
+        textDistance: 5,
+
+        textShadowColor: "transparent",
+        textShadowBlur: 0,
+        textShadowOffsetX: 0,
+        textShadowOffsetY: 0,
+
+        textBoxShadowColor: "transparent",
+        textBoxShadowBlur: 0,
+        textBoxShadowOffsetX: 0,
+        textBoxShadowOffsetY: 0,
+
+        transformText: 0,
+        textRotation: 0,
+        textOrigin: null,
+
+        textBorderColor: null,
+        textBackgroundColor: null,
+        textBorderWidth: 0,
+        textBorderRadius: 0,
+        textPadding: null,
+
+        rich: null,
+        truncate: null,
+        blend: null,
+
+        bind: function(ctx, ele, prevEl) {
+            let prevStyle = prevEl && prevEl.style;
+
+            //如果没有上一个样式，就代表绘制第一个元素
+
+            if (!prevEl) {
+                ctx.fillStyle = this.fill;
+                ctx.strokeStyle = this.stroke;
+                ctx.globalAlpha = this.opacity == null ? 1 : this.opacity;
+
+                ctx.globalCompositeOperation = this.blend || "source-over";
+            }
+
+            // if(this.hasStroke()) {
+            //     let lineWidth = this.lineWidth;
+            //     ctx.lineWidth = lineWidth / (this.strokeNoScale && ele && ele.getLineScale)?
+            // }
+        },
+
+        hasFill: function() {
+            let fill = this.fill;
+            return fill != null && fill !== "none";
+        },
+
+        hasStroke: function() {
+            let stroke = this.stroke;
+            return stroke != null && stroke !== "none" && this.lineWidth > 0;
+        },
+
+        set: function() {},
+
+        clone: function() {}
+    };
+
+    let styleProto = Style.prototype;
+    for (let i = 0; i < STYLE_COMMON_PROPS.length; i++) {
+        let prop = STYLE_COMMON_PROPS[i];
+        if (!prop[0] in styleProto) {
+            styleProto[prop[0]] = prop[1];
+        }
+    }
+
+    /**
+     * tools -- 复制属性
+     * @param source --- 传递来的属性
+     * @param overwrite --- 是否覆盖   true -- 全部覆盖   false --- 仅复制target没有的属性
+     */
+    const extendStyle = function(target, source, overwrite) {
+        if (!source) return;
+        if (overwrite) {
+            //全覆盖
+            target = Object.assign(target, source);
+        } else {
+            for (let prop in source) {
+                //仅复制target已经有的属性
+                if (!target.hasOwnProperty(prop) && source[prop]) {
+                    target[prop] = source[prop];
+                }
+            }
+        }
+        return target;
+    };
+
     /*
      * HRenderer 中所有图形对象都是 Element 的子类。这是一个抽象类，请不要直接创建这个类的实例。
      * 引入 transformable 为 Element 类提供变换功能，例如：平移、缩放、扭曲、旋转、翻转、形状、样式。
@@ -1211,7 +1475,7 @@
 
             this.__clipPaths = null; //因为仅使用null来检查clipPaths是否已更改很容易
 
-            // this.style = new Style(this.opts.style, this);
+            this.style = new Style(this.opts.style, this);
 
             this.shape = {}; // shape 形状 宽高 坐标等信息
 
@@ -1234,6 +1498,62 @@
             // this.on("addToStorage", this.addToStorageHandler);
             // this.on("delFromStorage", this.delFromStorageHandler);
         }
+
+        beforeBrush(ctx) {}
+
+        afterBrush(ctx) {}
+
+        brush() {}
+    }
+
+    class pathProxy {
+        constructor(notSaveData) {
+            this._saveData = !(notSaveData || false);
+
+            if (this._saveData) {
+                this.data = [];
+            }
+
+            this.ctx = null;
+        }
+
+        getContext() {
+            return this._ctx;
+        }
+
+        beginPath(ctx) {
+            this._ctx = ctx;
+            ctx && ctx.beginPath();
+            ctx && (this.dpr = ctx.dpr);
+
+            //Reset
+            if (this._saveData) {
+                this._len = 0;
+            }
+
+            if (this._lineDash) {
+                this._lineDash = null;
+                this._dashOffset = 0;
+            }
+            return this;
+        }
+
+        moveTo(x, y) {
+            this.addData(CMD, x, y);
+            this._ctx && this._ctx.moveTo(x, y);
+        }
+
+        addData(cmd) {
+            if (!this._saveData) {
+                return;
+            }
+
+            var data = this.data;
+            // if(this._len + arguments.length > data.length) {
+            //     this._expandData();
+            //     data = this.data;
+            // }
+        }
     }
 
     /*
@@ -1252,7 +1572,38 @@
         }
         dirty() {}
 
-        brush(ctx, prevEl) {}
+        brush(ctx, prevEl) {
+            let path = this.path || new pathProxy(true);
+            let hasStroke = this.style.hasStroke(); //绘制需求
+            let hasFill = this.style.hasFill(); //填充需求
+
+            let fill = this.style.fill;
+            let stroke = this.style.stroke;
+
+            let hasFillGradient = hasFill && !!fill.colorStops;
+            let hasStrokeGradient = hasStroke && !!stroke.colorStops;
+
+            let hasFillPattern = hasFill && !!fill.image;
+            let hasStrokePattern = hasStroke && !!stroke.image;
+
+            this.style.bind(ctx, this, prevEl);
+
+            if (hasFillGradient) {
+                ctx.fillStyle = this.__fillGradient;
+            }
+
+            if (hasStrokeGradient) {
+                ctx.strokeStyle = this.__strokeGradient;
+            }
+
+            if (hasFill) {
+                path.fill(ctx);
+            }
+
+            if (hasStroke) {
+                path.stroke(ctx);
+            }
+        }
 
         getBoundingRect() {}
 

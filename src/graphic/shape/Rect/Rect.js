@@ -1,6 +1,6 @@
 import round_rect from "./round_rect";
 import { merge } from "../../../tools/data_util";
-import Path from "../../Path";
+import Path from "../../Path/Path";
 //tools -- 默认配置
 let defaultConfig = {
     shape: {
