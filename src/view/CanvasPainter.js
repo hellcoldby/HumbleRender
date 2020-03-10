@@ -58,10 +58,10 @@ class CanvasPainter {
         }
     }
 
-    /**
+    /**1.1
      * @method
      * 刷新
-     * @param {Boolean} [paintAll=false] 是否强制绘制所有displayable
+     * @param {Boolean} [paintAll=false] 是否强制绘制所有displayable 默认false
      */
     refresh(paintAll) {
         //从 storage 中获取 元素列表
@@ -69,7 +69,7 @@ class CanvasPainter {
         let layer_id_list = this.layer_id_list;
 
         this._redrawId = Math.random(); // 重绘id
-        this._paintList(list, paintAll, this._redrawId); //更新图层，动态创建图层， 绘制图层
+        this._paintList(list, paintAll, this._redrawId); //1.2 更新图层，动态创建图层， 绘制图层
 
         //paint custom layers
         for (let i = 0; i < layer_id_list.length; i++) {
@@ -85,9 +85,10 @@ class CanvasPainter {
         return this;
     }
 
-    /*
+    /**1.2 更新图层，动态创建图层， 绘制图层
      * @method _paintList
      * @param {} list --- 要绘制的图形列表
+     * @param {Boolean} [paintAll=false] 是否强制绘制所有displayable
      * @param {} redrawId --- 随机生成的重绘id
      */
     _paintList(list, paintAll, redrawId) {
@@ -96,8 +97,8 @@ class CanvasPainter {
             return;
         }
         paintAll = paintAll || false;
-        //更新图层状态， 动态创建图层
-        this._updateLayerStatus(list); //
+        //1.3 更新图层状态， 动态创建图层
+        this._updateLayerStatus(list);
         //开始绘制图形
         let finished = this._doPaintList(list, paintAll);
 
@@ -109,7 +110,7 @@ class CanvasPainter {
         }
     }
 
-    //更新图层状态
+    //1.3 更新图层状态 动态创建图层
     _updateLayerStatus(list) {
         this.eachBuildinLayer(function(layer, id) {
             layer.__dirty = layer.used = false;
@@ -187,7 +188,7 @@ class CanvasPainter {
         }
     }
 
-    //遍历执行构建完成 图层的回调
+    //遍历图层的id 列表，如果图层构建完成，就执行回调
     eachBuildinLayer(cb, context) {
         let layer_id_list = this.layer_id_list;
         let layer;
