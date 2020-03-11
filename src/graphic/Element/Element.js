@@ -10,7 +10,7 @@ import Eventful from "../../tools/EventEmitter";
 import Transformable from "../transform/Transformable";
 import Animatable from "../Animatable/Animatable";
 import guid from "../../tools/guid";
-import { inheritProperties } from "../../tools/data_util";
+import { inheritProperties, mixin } from "../../tools/data_util";
 import Style from "./Style";
 
 class Element {
@@ -84,5 +84,8 @@ class Element {
 
     brush() {}
 }
+
+mixin(Element.prototype, Animatable.prototype, Transformable.prototype, Eventful.prototype);
+// console.log(Element.prototype);
 
 export default Element;

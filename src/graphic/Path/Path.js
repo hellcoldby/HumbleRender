@@ -31,6 +31,20 @@ class Path extends Element {
         let hasStrokePattern = hasStroke && !!stroke.image;
 
         this.style.bind(ctx, this, prevEl);
+        // console.log(this);
+
+        if (this.__dirty) {
+            let rect;
+            if (hasFillGradient) {
+                rect = rect || this.getBoundingRect();
+                this._fillGradient = this.style.getBoundingRect(ctx, fill, rect);
+            }
+
+            if (hasStrokeGradient) {
+                rect = rect || this.getBoundingRect();
+                this.__strokeGradient = this.style.getBoundingRect(ctx, stroke, rect);
+            }
+        }
 
         if (hasFillGradient) {
             ctx.fillStyle = this.__fillGradient;
@@ -38,6 +52,18 @@ class Path extends Element {
 
         if (hasStrokeGradient) {
             ctx.strokeStyle = this.__strokeGradient;
+        }
+
+        //更新路径
+        if (this.__dirtyPath) {
+            // console.log(this);
+            path.beginPath(ctx);
+            this.buildPath(path, this.shape, false);
+            if (this.path) {
+                this.__dirtyPath = false;
+            }
+        } else {
+            ctx.beginPath();
         }
 
         if (hasFill) {

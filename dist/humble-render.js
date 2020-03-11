@@ -200,6 +200,23 @@
 
             this.config = null;
             this.clearColor = 0; //每次清空画布的颜色
+
+            /**
+             * @property {boolean} 是否开启动态模糊
+             */
+            this.motionBlur = false;
+
+            /**
+             * @property {Number} 在开启动态模糊的时候使用，与上一帧混合的alpha值，值越大尾迹越明显
+             */
+            this.lastFrameAlpha = 0.7;
+
+            this.__dirty = true;
+            this.__used = false;
+            this.__drawIndex = 0; //增量绘制的序列
+            this.__startIndex = 0; //最先绘制的元素编号
+            this.__endIndex = 0; //最后绘制的元素编号
+            this.incremental = false; //增量绘制
         }
 
         //初始化绘图环境
@@ -219,6 +236,9 @@
             }
         }
 
+        getElementCount() {
+            return this.__endIndex - this.__startIndex;
+        }
         //改变尺寸
         resize(width, height) {
             //Can NOT get canvas instance in Wechat mini-program.
@@ -321,10 +341,10 @@
             }
         }
 
-        /**
+        /**1.1
          * @method
          * 刷新
-         * @param {Boolean} [paintAll=false] 是否强制绘制所有displayable
+         * @param {Boolean} [paintAll=false] 是否强制绘制所有displayable 默认false
          */
         refresh(paintAll) {
             //从 storage 中获取 元素列表
@@ -332,9 +352,8 @@
             let layer_id_list = this.layer_id_list;
 
             this._redrawId = Math.random(); // 重绘id
-            this._paintList(list, paintAll, this._redrawId); //更新图层，动态创建图层， 绘制图层
+            this._paintList(list, paintAll, this._redrawId); //1.2 更新图层，动态创建图层， 绘制图层
 
-            //paint custom layers
             for (let i = 0; i < layer_id_list.length; i++) {
                 let id = layer_id_list[i];
                 let layer = this.layers_map[id];
@@ -343,14 +362,13 @@
                     layer.refresh(clearColor);
                 }
             }
-            // this.refreshHover(); // 获取图层，动态创建图层，更新图层id 列表
-
             return this;
         }
 
-        /*
+        /**1.2 更新图层，动态创建图层， 绘制图层
          * @method _paintList
          * @param {} list --- 要绘制的图形列表
+         * @param {Boolean} [paintAll=false] 是否强制绘制所有displayable
          * @param {} redrawId --- 随机生成的重绘id
          */
         _paintList(list, paintAll, redrawId) {
@@ -359,11 +377,10 @@
                 return;
             }
             paintAll = paintAll || false;
-            //更新图层状态， 动态创建图层
-            this._updateLayerStatus(list); //
-            //开始绘制图形
+            //1.2_1 更新图层状态， 动态创建图层
+            this._updateLayerStatus(list);
+            //1.2_2开始绘制图形
             let finished = this._doPaintList(list, paintAll);
-
             if (!finished) {
                 let self = this;
                 RAF(function() {
@@ -372,42 +389,37 @@
             }
         }
 
-        //更新图层状态
+        //1.2_1 更新图层状态 动态创建图层
         _updateLayerStatus(list) {
-            this.eachBuildinLayer(function(layer, id) {
-                layer.__dirty = layer.used = false;
+            //1.2_1_2所有图层的更新和使用 标记都设置为false
+            this.eachBuiltinLayer(function(layer, z) {
+                layer.__dirty = layer.__used = false;
             });
 
-            if (this._singleCanvas) {
-                for (let i = 0; i < list.length; i++) {}
-            }
-
             let prevLayer = null;
-
             let idx = 0;
-            for (let i = 0; i < list.length; i++) {
-                idx = i;
+            for (let i = 0; i < list.length; ) {
                 let ele = list[i];
-                let hLevel = ele.hLevel; //确定可显示对象可以在画布的哪一层绘制
-                let layer;
+                let hLevel = ele.hLevel; //图形对应的图层
 
-                if (ele.incremental) ; else {
-                    let tmp_id =  0;
-                    layer = this.getLayer(hLevel + tmp_id, this._needsManuallyCompositing);
-                }
+                let tmp_id = 0;
+                //1.2_1_1 为每个图形创建图层
+                let layer = this.getLayer(hLevel + tmp_id, this._needsManuallyCompositing);
 
                 if (!layer.__builtin__) {
-                    console.log("ZLevel" + hLevel + "has been used by unknow layer" + layer.id);
+                    console.log("HLevel" + hLevel + "has been used by unknow layer" + layer.id);
                 }
 
+                //为新建立的图层，增加绘制编号
                 if (layer !== prevLayer) {
-                    layer.used = true;
-                    if (layer.__startIndex !== 1) {
+                    layer.__used = true;
+                    if (layer.__startIndex !== i) {
                         layer.__dirty = true;
                     }
                     layer.__startIndex = i;
 
                     if (!layer.incremental) {
+                        //没有增量图层
                         layer.__drawIndex = i;
                     } else {
                         layer.__drawIndex = -1;
@@ -422,21 +434,26 @@
                         layer.__drawIndex = i;
                     }
                 }
-            }
 
+                i++;
+                idx = i;
+            }
             updatePrevLayer(idx);
 
-            this.eachBuildinLayer(function(cur_layer, z) {
-                if (!cur_layer.__used && cur_layer.getElementCount > 0) {
-                    cur_layer.__dirty = true;
-                    cur_layer.__startIndex = cur_layer.__endIndex = cur_layer.__drawIndex = 0;
+            this.eachBuiltinLayer(function(layer, z) {
+                // Used in last frame but not in this frame. Needs clear
+                if (!layer.__used && layer.getElementCount() > 0) {
+                    layer.__dirty = true;
+                    layer.__startIndex = layer.__endIndex = layer.__drawIndex = 0;
                 }
-
-                if (cur_layer.__dirty && cur_layer.__drawIndex < 0) {
-                    cur_layer.__drawIndex = cur_layer.__startIndex;
+                // For incremental layer. In case start index changed and no elements are dirty.
+                if (layer.__dirty && layer.__drawIndex < 0) {
+                    //增量更新的图层
+                    layer.__drawIndex = layer.__startIndex;
                 }
             });
 
+            //tools --- 更新图层序列
             function updatePrevLayer(idx) {
                 if (prevLayer) {
                     if (prevLayer.__endIndex !== idx) {
@@ -445,10 +462,12 @@
                     prevLayer.__endIndex = idx;
                 }
             }
+
+            // console.log(this.layers_map);
         }
 
-        //遍历执行构建完成 图层的回调
-        eachBuildinLayer(cb, context) {
+        //1.2_1_2tools ---遍历图层的id 列表，如果图层构建完成，就执行回调
+        eachBuiltinLayer(cb, context) {
             let layer_id_list = this.layer_id_list;
             let layer;
             for (let i = 0; i < layer_id_list.length; i++) {
@@ -460,19 +479,88 @@
             }
         }
 
-        //绘制图形
+        //1.2_1_1  为图形动态创建图层 --参数：（图层id, 是否合并）
+        getLayer(curLevelId, virtual) {
+            if (this._singleCanvas && !this._needsManuallyCompositing) {
+                curLevelId = CANVAS_LEVEL_ID;
+            }
+
+            let layer = this.layers_map[curLevelId]; //根据id获取图层
+            //如果没有初始图层存在就创建一个 canvas 图层
+            if (!layer) {
+                layer = new CanvasLayer("hr_" + curLevelId, this._width, this._height, this.dpr);
+                layer.levelId = curLevelId;
+                layer.__builtin__ = true;
+                if (virtual) {
+                    layer.virtual = virtual;
+                }
+                //1.5 图层 插入到页面中
+                this.insertLayer(curLevelId, layer);
+                layer.initContext();
+            }
+            return layer;
+        }
+
+        //1.2_1_1_1 图层 插入到页面中
+        insertLayer(levelId, layer) {
+            let layersMap = this.layers_map;
+            let layer_id_list = this.layer_id_list;
+            let len = layer_id_list.length;
+            let prevLayer = null; //插入图层的上一个图层
+            let index = -1;
+            if (layersMap[levelId]) {
+                // 图层id 已经被占用
+                console.log("Zlevel" + levelId + "has been used already");
+                return;
+            }
+
+            if (len > 0 && levelId > layer_id_list[0]) {
+                //多个图层
+                for (let i = 0; i < len - 1; i++) {
+                    if (layer_id_list[i] < levelId && layer_id_list[i + 1] > levelId) {
+                        index = i; //找到 图层插入的前一个位置
+                        break;
+                    }
+                }
+                prevLayer = layersMap[layer_id_list[index]]; //前一个图层
+            }
+
+            layer_id_list.splice(index + 1, 0, levelId); //插入 新图层id
+            layersMap[levelId] = layer; // 新图层id 对应图层map
+
+            //没有虚拟图层
+            if (!layer.virtual) {
+                if (prevLayer) {
+                    let prevDom = prevLayer.canvasDOM;
+                    if (prevDom.nextSibling) {
+                        this._root.insertBefore(layer.canvasDOM, prevDom.nextSibling);
+                    } else {
+                        this._root.appendChild(layer.canvasDOM);
+                    }
+                } else {
+                    if (this._root.firstChild) {
+                        this._root.insertBefore(layer.canvasDOM, this.root.firstChild);
+                    } else {
+                        this._root.appendChild(layer.canvasDOM);
+                    }
+                }
+            }
+        }
+
+        //1.2_2绘制图形
         _doPaintList(list, paintAll) {
             let layerList = [];
             for (let i = 0; i < this.layer_id_list.length; i++) {
                 let id = this.layer_id_list[i];
                 let cur_layer = this.layers_map[id];
+                //如果图层构建完成 并且 当前图层和事件图层不一致  并且 图层需要更新 ， 那么就放入到 layerList 图层队列中
                 if (cur_layer.__builtin__ && cur_layer !== this.__hoverlayer && (cur_layer.__dirty || paintAll)) {
                     layerList.push(cur_layer);
                 }
             }
+            // console.log(layerList);
 
             let finished = true;
-            console.log(layerList);
             for (let j = 0; j < layerList.length; j++) {
                 let cur_layer = layerList[j];
                 let ctx = cur_layer.ctx;
@@ -503,9 +591,12 @@
 
                 //遍历所有的图层,开始绘制元素
                 let i = start;
+                // console.log(cur_layer);
                 for (; i < cur_layer.__endIndex; i++) {
                     let ele = list[i];
-                    this._doPaintEl(ele, cur_layer, paintAll, scope); //绘制图形的参数
+                    //1.2_2_1绘制图形
+                    this._doPaintEl(ele, cur_layer, paintAll, scope);
+                    //绘制完成标记为不更新
                     ele.__dirty = ele.__dirtyText = false;
 
                     //如果 不是全部重绘
@@ -534,7 +625,7 @@
                 return finished;
             }
         }
-
+        //1.2_2_1 开始绘制图层里的 元素
         _doPaintEl(ele, cur_layer, paintAll, scope) {
             let ctx = cur_layer.ctx;
             let m = ele.transform;
@@ -565,73 +656,6 @@
             // hoverLayer.ctx.save();
 
             // hoverLayer.ctx.restore();
-        }
-
-        //获取图层，如果没有图层就创建一个
-        getLayer(curLevelId, virtual) {
-            if (this._singleCanvas && !this._needsManuallyCompositing) {
-                //如果根节点是canvas,而且不需要手动合成, 那么当前图层id 就是初始化的图层id
-                curLevelId = CANVAS_LEVEL_ID;
-            }
-
-            let layer = this.layers_map[curLevelId]; //根据id获取图层
-
-            if (!layer) {
-                //如果没有初始图层存在就创建一个 canvas 图层
-                layer = new CanvasLayer("hr_" + curLevelId, this._width, this._height, this.dpr);
-                layer.levelId = curLevelId;
-                layer.__builtin__ = true;
-
-                this.insertLayer(curLevelId, layer); //动态插入图层 到 运行环境
-                layer.initContext();
-            }
-            return layer;
-        }
-
-        //将动态创建的图层 插入到页面中
-        insertLayer(levelId, layer) {
-            let layersMap = this.layers_map;
-            let layer_id_list = this.layer_id_list;
-            let len = layer_id_list.length;
-
-            let prevLayer = null;
-
-            if (layersMap[levelId]) {
-                // 图层id 已经被占用
-                console.log("Zlevel" + levelId + "has been used already");
-                return;
-            }
-
-            let i = -1; //查找图层的 位置
-            if (len > 0 && levelId > layer_id_list[0]) {
-                //在图层id列表中，比自己序列小的 前一个图层
-                for (let i = 0; i < len - 1; i++) {
-                    if (layer_id_list[i] < levelId && layer_id_list[i + 1] > levelId) break;
-                }
-                prevLayer = layersMap[layer_id_list[i]];
-            }
-
-            layer_id_list.splice(i + 1, 0, levelId);
-
-            layersMap[levelId] = layer;
-
-            if (!layer.virtual) {
-                //没有虚拟图层
-                if (prevLayer) {
-                    let prevDom = prevLayer.canvasDOM;
-                    if (prevDom.nextSibling) {
-                        this._root.insertBefore(layer.canvasDOM, prevDom.nextSibling);
-                    } else {
-                        this._root.appendChild(layer.canvasDOM);
-                    }
-                } else {
-                    if (this._root.firstChild) {
-                        this._root.insertBefore(layer.canvasDOM, this.root.firstChild);
-                    } else {
-                        this._root.appendChild(layer.canvasDOM);
-                    }
-                }
-            }
         }
     }
 
@@ -1210,8 +1234,8 @@
         return res === "function" || (!!val && res === "object");
     }
 
-    //2. 精确判断数据类型
-    function judeType(val) {
+    //2. 判断数据类型
+    function judgeType(val) {
         return Object.prototype.toString.call(val);
     }
 
@@ -1220,13 +1244,13 @@
         if (!source || typeof source !== "object") return source;
 
         let res = source;
-        if (judeType(source) === "[object Array]") {
+        if (judgeType(source) === "[object Array]") {
             res = [];
             for (let i = 0; i < source.length; i++) {
                 res[i] = deepClone(source[i]);
             }
         }
-        if (judeType(source) === "[object Object") {
+        if (judgeType(source) === "[object Object") {
             res = {};
             for (let key in source) {
                 res[key] = deepClone(source[key]);
@@ -1249,7 +1273,7 @@
         for (let key in source) {
             let source_prop = source[key];
             let target_prop = target[key];
-            if (judeType(source_prop) === "[object Object]" && judeType(target_prop) === "[object Object]") {
+            if (judgeType(source_prop) === "[object Object]" && judgeType(target_prop) === "[object Object]") {
                 // 如果需要递归覆盖，就递归调用merge
                 merge(target_prop, source_prop, overwrite);
             } else if (overwrite || !(key in target)) {
@@ -1270,6 +1294,33 @@
                 target[name] = src[name];
             }
         }
+    }
+
+    //6. 继承多个实例的（非继承）属性 参数（targe, obj1, obj2, ..., overWrite)
+    function mixin() {
+        let lastArgs = arguments[arguments.length - 1];
+        let overwrite = false;
+        if (typeof lastArgs === "boolean") {
+            overwrite = lastArgs;
+        }
+        let target = arguments[0];
+        let i = 1;
+        let tmp = null;
+        let tmp_keys = [];
+        for (i; i < arguments.length; i++) {
+            tmp = arguments[i];
+            // console.log(tmp);
+
+            tmp_keys = Object.getOwnPropertyNames(tmp);
+            if (tmp_keys.length) {
+                tmp_keys.forEach(function(prop, index) {
+                    if (tmp.hasOwnProperty(prop) && (overwrite ? tmp[prop] != null : target[prop] == null)) {
+                        target[prop] = tmp[prop];
+                    }
+                });
+            }
+        }
+        return target;
     }
 
     class Transformable {
@@ -1363,6 +1414,7 @@
         blend: null,
 
         bind: function(ctx, ele, prevEl) {
+            // console.log(this);
             let prevStyle = prevEl && prevEl.style;
 
             //如果没有上一个样式，就代表绘制第一个元素
@@ -1390,6 +1442,8 @@
             let stroke = this.stroke;
             return stroke != null && stroke !== "none" && this.lineWidth > 0;
         },
+
+        getBoundingRect: function() {},
 
         set: function() {},
 
@@ -1506,6 +1560,17 @@
         brush() {}
     }
 
+    mixin(Element.prototype, Animatable.prototype, Transformable.prototype, Eventful.prototype);
+
+    var CMD = {
+        M: 1,
+        L: 2,
+        C: 3,
+        Q: 4,
+        A: 5,
+        Z: 6,
+        R: 7
+    };
     class pathProxy {
         constructor(notSaveData) {
             this._saveData = !(notSaveData || false);
@@ -1543,16 +1608,71 @@
             this._ctx && this._ctx.moveTo(x, y);
         }
 
+        fill(ctx) {
+            ctx && ctx.fill();
+            this.toStatic();
+        }
+
+        closePath() {
+            this.addData(CMD.Z);
+
+            var ctx = this._ctx;
+            var x0 = this._x0;
+            var y0 = this._y0;
+            if (ctx) {
+                // this._needsDash() && this._dashedLineTo(x0, y0);
+                ctx.closePath();
+            }
+
+            this._xi = x0;
+            this._yi = y0;
+            return this;
+        }
+
+        toStatic() {
+            let data = this.data;
+            if (data instanceof Array) {
+                data.length = this._len;
+                if (hasTypeArray) {
+                    this.data = new Float32Array(data);
+                }
+            }
+        }
+
         addData(cmd) {
             if (!this._saveData) {
                 return;
             }
 
             var data = this.data;
-            // if(this._len + arguments.length > data.length) {
-            //     this._expandData();
-            //     data = this.data;
-            // }
+            if (this._len + arguments.length > data.length) {
+                // 因为之前的数组已经转换成静态的 Float32Array
+                // 所以不够用时需要扩展一个新的动态数组
+                this._expandData();
+                data = this.data;
+            }
+            for (var i = 0; i < arguments.length; i++) {
+                data[this._len++] = arguments[i];
+            }
+
+            this._prevCmd = cmd;
+        }
+
+        _expandData() {
+            // Only if data is Float32Array
+            if (!(this.data instanceof Array)) {
+                var newData = [];
+                for (var i = 0; i < this._len; i++) {
+                    newData[i] = this.data[i];
+                }
+                this.data = newData;
+            }
+        }
+
+        rect(x, y, w, h) {
+            this._ctx && this._ctx.rect(x, y, w, h);
+            this.addData(CMD.R, x, y, w, h);
+            return this;
         }
     }
 
@@ -1587,6 +1707,20 @@
             let hasStrokePattern = hasStroke && !!stroke.image;
 
             this.style.bind(ctx, this, prevEl);
+            // console.log(this);
+
+            if (this.__dirty) {
+                let rect;
+                if (hasFillGradient) {
+                    rect = rect || this.getBoundingRect();
+                    this._fillGradient = this.style.getBoundingRect(ctx, fill, rect);
+                }
+
+                if (hasStrokeGradient) {
+                    rect = rect || this.getBoundingRect();
+                    this.__strokeGradient = this.style.getBoundingRect(ctx, stroke, rect);
+                }
+            }
 
             if (hasFillGradient) {
                 ctx.fillStyle = this.__fillGradient;
@@ -1594,6 +1728,18 @@
 
             if (hasStrokeGradient) {
                 ctx.strokeStyle = this.__strokeGradient;
+            }
+
+            //更新路径
+            if (this.__dirtyPath) {
+                // console.log(this);
+                path.beginPath(ctx);
+                this.buildPath(path, this.shape, false);
+                if (this.path) {
+                    this.__dirtyPath = false;
+                }
+            } else {
+                ctx.beginPath();
             }
 
             if (hasFill) {

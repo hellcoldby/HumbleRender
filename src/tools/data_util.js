@@ -10,8 +10,8 @@ export function isObject(val) {
     return res === "function" || (!!val && res === "object");
 }
 
-//2. 精确判断数据类型
-export function judeType(val) {
+//2. 判断数据类型
+export function judgeType(val) {
     return Object.prototype.toString.call(val);
 }
 
@@ -20,13 +20,13 @@ export function deepClone(source) {
     if (!source || typeof source !== "object") return source;
 
     let res = source;
-    if (judeType(source) === "[object Array]") {
+    if (judgeType(source) === "[object Array]") {
         res = [];
         for (let i = 0; i < source.length; i++) {
             res[i] = deepClone(source[i]);
         }
     }
-    if (judeType(source) === "[object Object") {
+    if (judgeType(source) === "[object Object") {
         res = {};
         for (let key in source) {
             res[key] = deepClone(source[key]);
@@ -49,7 +49,7 @@ export function merge(target, source, overwrite) {
     for (let key in source) {
         let source_prop = source[key];
         let target_prop = target[key];
-        if (judeType(source_prop) === "[object Object]" && judeType(target_prop) === "[object Object]") {
+        if (judgeType(source_prop) === "[object Object]" && judgeType(target_prop) === "[object Object]") {
             // 如果需要递归覆盖，就递归调用merge
             merge(target_prop, source_prop, overwrite);
         } else if (overwrite || !(key in target)) {
@@ -82,6 +82,33 @@ export function copyOwnProperties(target, source, excludes = []) {
                 }
             }
             target[key] = source[key];
+        }
+    }
+    return target;
+}
+
+//6. 继承多个实例的（非继承）属性 参数（targe, obj1, obj2, ..., overWrite)
+export function mixin() {
+    let lastArgs = arguments[arguments.length - 1];
+    let overwrite = false;
+    if (typeof lastArgs === "boolean") {
+        overwrite = lastArgs;
+    }
+    let target = arguments[0];
+    let i = 1;
+    let tmp = null;
+    let tmp_keys = [];
+    for (i; i < arguments.length; i++) {
+        tmp = arguments[i];
+        // console.log(tmp);
+
+        tmp_keys = Object.getOwnPropertyNames(tmp);
+        if (tmp_keys.length) {
+            tmp_keys.forEach(function(prop, index) {
+                if (tmp.hasOwnProperty(prop) && (overwrite ? tmp[prop] != null : target[prop] == null)) {
+                    target[prop] = tmp[prop];
+                }
+            });
         }
     }
     return target;

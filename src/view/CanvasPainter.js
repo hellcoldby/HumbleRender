@@ -94,9 +94,9 @@ class CanvasPainter {
             return;
         }
         paintAll = paintAll || false;
-        //1.3 更新图层状态， 动态创建图层
+        //1.2_1 更新图层状态， 动态创建图层
         this._updateLayerStatus(list);
-        //开始绘制图形
+        //1.2_2开始绘制图形
         let finished = this._doPaintList(list, paintAll);
         if (!finished) {
             let self = this;
@@ -106,18 +106,21 @@ class CanvasPainter {
         }
     }
 
-    //1.3 更新图层状态 动态创建图层
+    //1.2_1 更新图层状态 动态创建图层
     _updateLayerStatus(list) {
-        let prevLayer = null;
+        //1.2_1_2所有图层的更新和使用 标记都设置为false
+        this.eachBuiltinLayer(function(layer, z) {
+            layer.__dirty = layer.__used = false;
+        });
 
+        let prevLayer = null;
         let idx = 0;
-        for (let i = 0; i < list.length; i++) {
-            idx = i;
+        for (let i = 0; i < list.length; ) {
             let ele = list[i];
             let hLevel = ele.hLevel; //图形对应的图层
 
             let tmp_id = 0;
-            //1.4 为每个图形创建图层
+            //1.2_1_1 为每个图形创建图层
             let layer = this.getLayer(hLevel + tmp_id, this._needsManuallyCompositing);
 
             if (!layer.__builtin__) {
@@ -126,7 +129,7 @@ class CanvasPainter {
 
             //为新建立的图层，增加绘制编号
             if (layer !== prevLayer) {
-                layer.used = true;
+                layer.__used = true;
                 if (layer.__startIndex !== i) {
                     layer.__dirty = true;
                 }
@@ -148,6 +151,9 @@ class CanvasPainter {
                     layer.__drawIndex = i;
                 }
             }
+
+            i++;
+            idx = i;
         }
         updatePrevLayer(idx);
 
@@ -173,10 +179,12 @@ class CanvasPainter {
                 prevLayer.__endIndex = idx;
             }
         }
+
+        // console.log(this.layers_map);
     }
 
-    //tools ---遍历图层的id 列表，如果图层构建完成，就执行回调
-    eachBuildinLayer(cb, context) {
+    //1.2_1_2tools ---遍历图层的id 列表，如果图层构建完成，就执行回调
+    eachBuiltinLayer(cb, context) {
         let layer_id_list = this.layer_id_list;
         let layer;
         for (let i = 0; i < layer_id_list.length; i++) {
@@ -188,7 +196,7 @@ class CanvasPainter {
         }
     }
 
-    //1.4 为图形动态创建图层 --参数：（图层id, 是否合并）
+    //1.2_1_1  为图形动态创建图层 --参数：（图层id, 是否合并）
     getLayer(curLevelId, virtual) {
         if (this._singleCanvas && !this._needsManuallyCompositing) {
             curLevelId = CANVAS_LEVEL_ID;
@@ -210,7 +218,7 @@ class CanvasPainter {
         return layer;
     }
 
-    //1.5 图层 插入到页面中
+    //1.2_1_1_1 图层 插入到页面中
     insertLayer(levelId, layer) {
         let layersMap = this.layers_map;
         let layer_id_list = this.layer_id_list;
@@ -256,19 +264,20 @@ class CanvasPainter {
         }
     }
 
-    //绘制图形
+    //1.2_2绘制图形
     _doPaintList(list, paintAll) {
         let layerList = [];
         for (let i = 0; i < this.layer_id_list.length; i++) {
             let id = this.layer_id_list[i];
             let cur_layer = this.layers_map[id];
+            //如果图层构建完成 并且 当前图层和事件图层不一致  并且 图层需要更新 ， 那么就放入到 layerList 图层队列中
             if (cur_layer.__builtin__ && cur_layer !== this.__hoverlayer && (cur_layer.__dirty || paintAll)) {
                 layerList.push(cur_layer);
             }
         }
+        // console.log(layerList);
 
         let finished = true;
-        console.log(layerList);
         for (let j = 0; j < layerList.length; j++) {
             let cur_layer = layerList[j];
             let ctx = cur_layer.ctx;
@@ -299,9 +308,12 @@ class CanvasPainter {
 
             //遍历所有的图层,开始绘制元素
             let i = start;
+            // console.log(cur_layer);
             for (; i < cur_layer.__endIndex; i++) {
                 let ele = list[i];
-                this._doPaintEl(ele, cur_layer, paintAll, scope); //绘制图形的参数
+                //1.2_2_1绘制图形
+                this._doPaintEl(ele, cur_layer, paintAll, scope);
+                //绘制完成标记为不更新
                 ele.__dirty = ele.__dirtyText = false;
 
                 //如果 不是全部重绘
@@ -330,7 +342,7 @@ class CanvasPainter {
             return finished;
         }
     }
-
+    //1.2_2_1 开始绘制图层里的 元素
     _doPaintEl(ele, cur_layer, paintAll, scope) {
         let ctx = cur_layer.ctx;
         let m = ele.transform;

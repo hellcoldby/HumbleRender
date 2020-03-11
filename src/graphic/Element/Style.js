@@ -81,6 +81,7 @@ Style.prototype = {
     blend: null,
 
     bind: function(ctx, ele, prevEl) {
+        // console.log(this);
         let prevStyle = prevEl && prevEl.style;
 
         //如果没有上一个样式，就代表绘制第一个元素
@@ -108,6 +109,8 @@ Style.prototype = {
         let stroke = this.stroke;
         return stroke != null && stroke !== "none" && this.lineWidth > 0;
     },
+
+    getBoundingRect: function() {},
 
     set: function() {},
 

@@ -56,8 +56,8 @@ export default class CanvasLayer {
         this.__dirty = true;
         this.__used = false;
         this.__drawIndex = 0; //增量绘制的序列
-        this.__startIndex = 0; //图层开始绘制的序列
-        this.__endIndex = 0; //图层结束绘制的序列
+        this.__startIndex = 0; //最先绘制的元素编号
+        this.__endIndex = 0; //最后绘制的元素编号
         this.incremental = false; //增量绘制
     }
 
@@ -78,6 +78,9 @@ export default class CanvasLayer {
         }
     }
 
+    getElementCount() {
+        return this.__endIndex - this.__startIndex;
+    }
     //改变尺寸
     resize(width, height) {
         //Can NOT get canvas instance in Wechat mini-program.
