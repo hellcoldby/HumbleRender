@@ -42,6 +42,23 @@ export default class CanvasLayer {
 
         this.config = null;
         this.clearColor = 0; //每次清空画布的颜色
+
+        /**
+         * @property {boolean} 是否开启动态模糊
+         */
+        this.motionBlur = false;
+
+        /**
+         * @property {Number} 在开启动态模糊的时候使用，与上一帧混合的alpha值，值越大尾迹越明显
+         */
+        this.lastFrameAlpha = 0.7;
+
+        this.__dirty = true;
+        this.__used = false;
+        this.__drawIndex = 0; //增量绘制的序列
+        this.__startIndex = 0; //图层开始绘制的序列
+        this.__endIndex = 0; //图层结束绘制的序列
+        this.incremental = false; //增量绘制
     }
 
     //初始化绘图环境
@@ -93,3 +110,5 @@ export default class CanvasLayer {
         this.ctx.clearRect(0, 0, this.width, this.height);
     }
 }
+
+let a = function() {};
