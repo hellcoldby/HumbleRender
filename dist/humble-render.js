@@ -404,6 +404,7 @@
 
                 let tmp_id = 0;
                 //1.2_1_1 为每个图形创建图层
+                console.log(hLevel + tmp_id);
                 let layer = this.getLayer(hLevel + tmp_id, this._needsManuallyCompositing);
 
                 if (!layer.__builtin__) {
@@ -438,6 +439,9 @@
                 i++;
                 idx = i;
             }
+
+            console.log(this.layer_id_list);
+
             updatePrevLayer(idx);
 
             this.eachBuiltinLayer(function(layer, z) {
@@ -486,6 +490,7 @@
             }
 
             let layer = this.layers_map[curLevelId]; //根据id获取图层
+
             //如果没有初始图层存在就创建一个 canvas 图层
             if (!layer) {
                 layer = new CanvasLayer("hr_" + curLevelId, this._width, this._height, this.dpr);
@@ -862,9 +867,9 @@
     class Storage extends Eventful {
         constructor() {
             super();
-            this._roots = new Map(); //元素id 列表
+            this._roots = new Map(); //元素id 地图map
             this._displayList = []; //所有图形的绘制队列
-            this._displayList_len = 0; // 图形编号
+            this._displayList_len = 0; // 图形队列的长度
         }
 
         //1.1增加 图像 到元素的id列表
@@ -893,20 +898,17 @@
          * @method getDisplayList
          * @param {boolean} [needUpdate=false] 是否在返回前更新该数组
          * @param {boolean} [includeIgnore=false] 是否包含 ignore 的数组, 在 needUpdate 为 true 的时候有效
-         *
-         * 详见{@link Displayable.prototype.updateDisplayList}
-         * @return {Array<Displayable>}
          */
         getDisplayList(needUpdate, includeIgnore = false) {
             if (needUpdate) {
-                this.updateDisplayList(includeIgnore); //更新图形队列,并按照优先级排序， 更新完成后返回最新排序的 图形队列
+                this.updateDisplayList(includeIgnore); //2.1_2更新图形队列,并按照优先级排序， 更新完成后返回最新排序的 图形队列
             }
             return this._displayList;
         }
 
         /**
          * @method updateDisplayList
-         * 2.2 更新图形的绘制队列。
+         * 2.1_2 更新图形的绘制队列。
          * 每次绘制前都会调用，该方法会先深度优先遍历整个树，更新所有Group和Shape的变换并且把所有可见的Shape保存到数组中，
          * 最后根据绘制的优先级（zlevel > z > 插入顺序）排序得到绘制队列
          * @param {boolean} [includeIgnore=false] 是否包含 ignore 的数组
@@ -924,13 +926,12 @@
             // env.canvasSupported && (displayList, this._displayList_sort);
         }
 
+        //2.1_2_1
         _updateAndAddDisplayable(ele, clipPaths, includeIgnore) {
             if (ele.ignore && !includeIgnore) {
                 return;
             }
-
             if (ele.__dirty) ;
-
             ele.clipPaths = clipPaths;
             this._displayList[this._displayList_len++] = ele;
         }
@@ -944,17 +945,6 @@
                 return a.z - b.z;
             }
             return a.qlevel - b.qlevel;
-        }
-    }
-
-    /*
-     * 拦截浏览器默认事件，用自定义事件来代替
-     */
-    class EventProxy {
-        constructor(root) {}
-
-        trigger(){
-            
         }
     }
 
@@ -1069,14 +1059,7 @@
             this.storage = new Storage();
             //生成视图实例
             this.painter = new painterMap[renderType](this.root, this.storage, opts, this.id);
-
-            //对浏览器默认事件拦截， 做二次处理
-            let handerProxy = null;
-            if (typeof this.root.moveTo !== "function") {
-                if (!env$1.node && !env$1.worker && !env$1.wxa) {
-                    handerProxy = new EventProxy(this.painter.root);
-                }
-            }
+            if (typeof this.root.moveTo !== "function") ;
 
             //生成事件实例
             // this.eventHandler = new HRenderEventHandler(this.storage, this.painter, handerProxy);
@@ -1084,10 +1067,24 @@
             //生成动画实例
             this.globalAnimationMgr = new GlobalAnimationMgr();
             this.globalAnimationMgr.on("frame", function() {
-                self.flush();
+                self.flush(); //每间隔16.7ms 执行一次 flush() 函数
             });
             this.globalAnimationMgr.start();
             this._needRefresh = false;
+        }
+
+        //监控 this._needRefresh 的开关
+        flush() {
+            console.log("123");
+            //全部重绘
+            if (this._needRefresh) {
+                console.log("开始刷新");
+                this.refreshImmediately();
+            }
+            //重绘特定元素
+            if (this._needRefreshHover) {
+                this.refreshHoverImmediaterly();
+            }
         }
 
         //获取图形实例唯一id
@@ -1101,33 +1098,19 @@
             this.refresh();
         }
 
+        //开启刷新
+        refresh() {
+            this._needRefresh = true;
+        }
+
         //移除元素
         remove(ele) {
             // this.storage.delFromRoot(ele);
             this.refresh();
         }
 
-        //开启刷新
-        refresh() {
-            this._needRefresh = true;
-        }
-
-        //监控 this._needRefresh 的开关
-        flush() {
-            // console.log('123');
-            //全部重绘
-            if (this._needRefresh) {
-                this.refreshImmediately();
-            }
-            //重绘特定元素
-            if (this._needRefreshHover) {
-                this.refreshHoverImmediaterly();
-            }
-        }
-
         //立即重绘
         refreshImmediately() {
-            console.log("立即更新");
             this._needRefresh = this._needRefreshHover = false;
             this.painter.refresh();
             this._needRefresh = this._needRefreshHover = false;
@@ -1278,7 +1261,7 @@
                 merge(target_prop, source_prop, overwrite);
             } else if (overwrite || !(key in target)) {
                 // 否则只处理overwrite为true，或者在目标对象中没有此属性的情况
-                // NOTE，在 target[key] 不存在的时候也是直接覆盖
+                // 在 target[key] 不存在的时候也是直接覆盖
                 target[key] = deepClone(source[key]);
             }
         }
@@ -1690,7 +1673,6 @@
             this.segmentIgnoreThreshold = 0; //部分 忽略 临界值
             this.subPixelOptimize = false; //设备优化
         }
-        dirty() {}
 
         brush(ctx, prevEl) {
             let path = this.path || new pathProxy(true);
@@ -1750,14 +1732,6 @@
                 path.stroke(ctx);
             }
         }
-
-        getBoundingRect() {}
-
-        contian(x, y) {}
-
-        setShape() {}
-
-        getLineScale() {}
     }
 
     //tools -- 默认配置

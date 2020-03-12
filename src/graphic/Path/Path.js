@@ -14,7 +14,6 @@ class Path extends Element {
         this.segmentIgnoreThreshold = 0; //部分 忽略 临界值
         this.subPixelOptimize = false; //设备优化
     }
-    dirty() {}
 
     brush(ctx, prevEl) {
         let path = this.path || new pathProxy(true);
@@ -74,13 +73,5 @@ class Path extends Element {
             path.stroke(ctx);
         }
     }
-
-    getBoundingRect() {}
-
-    contian(x, y) {}
-
-    setShape() {}
-
-    getLineScale() {}
 }
 export default Path;

@@ -60,9 +60,9 @@ class HumbleRender {
         //对浏览器默认事件拦截， 做二次处理
         let handerProxy = null;
         if (typeof this.root.moveTo !== "function") {
-            if (!env.node && !env.worker && !env.wxa) {
-                handerProxy = new EventProxy(this.painter.root);
-            }
+            // if (!env.node && !env.worker && !env.wxa) {
+            //     handerProxy = new EventProxy(this.painter.root);
+            // }
         }
 
         //生成事件实例
@@ -71,10 +71,24 @@ class HumbleRender {
         //生成动画实例
         this.globalAnimationMgr = new GlobalAnimationMgr();
         this.globalAnimationMgr.on("frame", function() {
-            self.flush();
+            self.flush(); //每间隔16.7ms 执行一次 flush() 函数
         });
         this.globalAnimationMgr.start();
         this._needRefresh = false;
+    }
+
+    //监控 this._needRefresh 的开关
+    flush() {
+        console.log("123");
+        //全部重绘
+        if (this._needRefresh) {
+            console.log("开始刷新");
+            this.refreshImmediately();
+        }
+        //重绘特定元素
+        if (this._needRefreshHover) {
+            this.refreshHoverImmediaterly();
+        }
     }
 
     //获取图形实例唯一id
@@ -88,33 +102,19 @@ class HumbleRender {
         this.refresh();
     }
 
+    //开启刷新
+    refresh() {
+        this._needRefresh = true;
+    }
+
     //移除元素
     remove(ele) {
         // this.storage.delFromRoot(ele);
         this.refresh();
     }
 
-    //开启刷新
-    refresh() {
-        this._needRefresh = true;
-    }
-
-    //监控 this._needRefresh 的开关
-    flush() {
-        // console.log('123');
-        //全部重绘
-        if (this._needRefresh) {
-            this.refreshImmediately();
-        }
-        //重绘特定元素
-        if (this._needRefreshHover) {
-            this.refreshHoverImmediaterly();
-        }
-    }
-
     //立即重绘
     refreshImmediately() {
-        console.log("立即更新");
         this._needRefresh = this._needRefreshHover = false;
         this.painter.refresh();
         this._needRefresh = this._needRefreshHover = false;

@@ -11,9 +11,9 @@ import Eventful from "../tools/EventEmitter";
 class Storage extends Eventful {
     constructor() {
         super();
-        this._roots = new Map(); //元素id 列表
+        this._roots = new Map(); //元素id 地图map
         this._displayList = []; //所有图形的绘制队列
-        this._displayList_len = 0; // 图形编号
+        this._displayList_len = 0; // 图形队列的长度
     }
 
     //1.1增加 图像 到元素的id列表
@@ -42,20 +42,17 @@ class Storage extends Eventful {
      * @method getDisplayList
      * @param {boolean} [needUpdate=false] 是否在返回前更新该数组
      * @param {boolean} [includeIgnore=false] 是否包含 ignore 的数组, 在 needUpdate 为 true 的时候有效
-     *
-     * 详见{@link Displayable.prototype.updateDisplayList}
-     * @return {Array<Displayable>}
      */
     getDisplayList(needUpdate, includeIgnore = false) {
         if (needUpdate) {
-            this.updateDisplayList(includeIgnore); //更新图形队列,并按照优先级排序， 更新完成后返回最新排序的 图形队列
+            this.updateDisplayList(includeIgnore); //2.1_2更新图形队列,并按照优先级排序， 更新完成后返回最新排序的 图形队列
         }
         return this._displayList;
     }
 
     /**
      * @method updateDisplayList
-     * 2.2 更新图形的绘制队列。
+     * 2.1_2 更新图形的绘制队列。
      * 每次绘制前都会调用，该方法会先深度优先遍历整个树，更新所有Group和Shape的变换并且把所有可见的Shape保存到数组中，
      * 最后根据绘制的优先级（zlevel > z > 插入顺序）排序得到绘制队列
      * @param {boolean} [includeIgnore=false] 是否包含 ignore 的数组
@@ -73,15 +70,14 @@ class Storage extends Eventful {
         // env.canvasSupported && (displayList, this._displayList_sort);
     }
 
+    //2.1_2_1
     _updateAndAddDisplayable(ele, clipPaths, includeIgnore) {
         if (ele.ignore && !includeIgnore) {
             return;
         }
-
         if (ele.__dirty) {
             // ele.composeLocalTransform();
         }
-
         ele.clipPaths = clipPaths;
         this._displayList[this._displayList_len++] = ele;
     }

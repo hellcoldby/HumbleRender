@@ -121,6 +121,7 @@ class CanvasPainter {
 
             let tmp_id = 0;
             //1.2_1_1 为每个图形创建图层
+            console.log(hLevel + tmp_id);
             let layer = this.getLayer(hLevel + tmp_id, this._needsManuallyCompositing);
 
             if (!layer.__builtin__) {
@@ -155,6 +156,9 @@ class CanvasPainter {
             i++;
             idx = i;
         }
+
+        console.log(this.layer_id_list);
+
         updatePrevLayer(idx);
 
         this.eachBuiltinLayer(function(layer, z) {
@@ -203,6 +207,7 @@ class CanvasPainter {
         }
 
         let layer = this.layers_map[curLevelId]; //根据id获取图层
+
         //如果没有初始图层存在就创建一个 canvas 图层
         if (!layer) {
             layer = new CanvasLayer("hr_" + curLevelId, this._width, this._height, this.dpr);
