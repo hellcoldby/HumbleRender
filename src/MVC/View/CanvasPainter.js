@@ -1,30 +1,24 @@
-import { devicePixelRatio } from "../tools/dpr";
+import { devicePixelRatio } from "../../tools/dpr";
 import CanvasLayer from "./CanvasLayer";
-import { RAF } from "../tools/anim_util";
+import { RAF } from "../../tools/anim_util";
 const CANVAS_LEVEL_ID = 314159; //图层id;
 const HOVER_LAYER_LEVEL_ID = 1e5; //事件图层id
 const ELE_AFTER_INCREMENTAL_INC = 0.01; //图形 增量的初始id
 class CanvasPainter {
     constructor(root, storage, opts = {}) {
         this.opts = Object.assign({}, opts);
-        // console.log(this.opts);
         this.root = root;
         this.storage = storage;
 
         this.type = "canvas";
-        this.dpr = this.opts.devicePixelRatio || devicePixelRatio; //分辨率
+        this.dpr = this.opts.devicePixelRatio || devicePixelRatio; //分辨率比例
 
-        let layer_id_list = (this.layer_id_list = []); //图层id序列
-        let layers = (this.layers_map = {}); // 图层对象列表
+        this.layers_map = {}; // 图层对象列表
+        this.layer_id_list = []; //图层id数组
         this._layerConfig = {}; //?
-
         this._needsManuallyCompositing = false; //? 是否需要手动合成
-        this._hoverlayer = null; //?
-
-        this._hoverElements = []; //?
 
         this._singleCanvas = !this.root.nodeName || this.root.nodeName.toUpperCase() === "CANVAS"; //根节点canvas
-
         if (this._singleCanvas) {
             // 如果根节点是一个canvas
             let width = this.root.width;
@@ -44,7 +38,7 @@ class CanvasPainter {
             let mainLayer = new CanvasLayer(this.root, this._width, this._height, this.dpr, CANVAS_LEVEL_ID);
             mainLayer.__builtin__ = true; //标记构建完成
 
-            layers[CANVAS_LEVEL_ID] = mainLayer;
+            layers_map[CANVAS_LEVEL_ID] = mainLayer;
             layer_id_list.push(CANVAS_LEVEL_ID);
             this._root = root;
         } else {
@@ -59,18 +53,15 @@ class CanvasPainter {
     }
 
     /**1.1
-     * @method
-     * 刷新
-     * @param {Boolean} [paintAll=false] 是否强制绘制所有displayable 默认false
+     * @param {Boolean} [paintAll=false] 是否强制绘制所有元素
      */
     refresh(paintAll) {
-        //从 storage 中获取 元素列表
-        let list = this.storage.getDisplayList(true);
-        let layer_id_list = this.layer_id_list;
-
+        //从 storage 中获取 元素数组列表
+        let ele_ary = this.storage.getDisplayList(true);
         this._redrawId = Math.random(); // 重绘id
-        this._paintList(list, paintAll, this._redrawId); //1.2 更新图层，动态创建图层， 绘制图层
+        this._paintList(ele_ary, paintAll, this._redrawId); //1.2 更新图层，动态创建图层， 绘制图层
 
+        let layer_id_list = this.layer_id_list;
         for (let i = 0; i < layer_id_list.length; i++) {
             let id = layer_id_list[i];
             let layer = this.layers_map[id];
@@ -84,51 +75,41 @@ class CanvasPainter {
 
     /**1.2 更新图层，动态创建图层， 绘制图层
      * @method _paintList
-     * @param {} list --- 要绘制的图形列表
+     * @param {} ele_ary --- 要绘制的图形列表
      * @param {Boolean} [paintAll=false] 是否强制绘制所有displayable
      * @param {} redrawId --- 随机生成的重绘id
      */
-    _paintList(list, paintAll, redrawId) {
+    _paintList(ele_ary, paintAll, redrawId) {
         //如果 redrawId 不一致，说明下一个动画帧已经到来，这里就会直接跳过去，相当于跳过了一帧
         if (this._redrawId !== redrawId) {
             return;
         }
         paintAll = paintAll || false;
-        //1.2_1 更新图层状态， 动态创建图层
-        this._updateLayerStatus(list);
+        //1.2_1  动态创建图层 更新图层状态
+        this._updateLayerStatus(ele_ary);
         //1.2_2开始绘制图形
-        let finished = this._doPaintList(list, paintAll);
+        let finished = this._doPaintList(ele_ary, paintAll);
         if (!finished) {
             let self = this;
             RAF(function() {
-                self._paintList(list, paintAll, redrawId);
+                self._paintList(ele_ary, paintAll, redrawId);
             });
         }
     }
 
     //1.2_1 更新图层状态 动态创建图层
-    _updateLayerStatus(list) {
-        //1.2_1_2所有图层的更新和使用 标记都设置为false
-        this.eachBuiltinLayer(function(layer, z) {
+    _updateLayerStatus(ele_ary) {
+        this._eachBuiltinLayer(function(layer, z) {
             layer.__dirty = layer.__used = false;
         });
-
         let prevLayer = null;
         let idx = 0;
-        for (let i = 0; i < list.length; ) {
-            let ele = list[i];
+        for (let i = 0; i < ele_ary.length; ) {
+            let ele = ele_ary[i];
             let hLevel = ele.hLevel; //图形对应的图层
-
             let tmp_id = 0;
-            //1.2_1_1 为每个图形创建图层
-            console.log(hLevel + tmp_id);
+            //1.2_1_1 同一个图层的元素只创建一次图层，否则就创建过个图层
             let layer = this.getLayer(hLevel + tmp_id, this._needsManuallyCompositing);
-
-            if (!layer.__builtin__) {
-                console.log("HLevel" + hLevel + "has been used by unknow layer" + layer.id);
-            }
-
-            //为新建立的图层，增加绘制编号
             if (layer !== prevLayer) {
                 layer.__used = true;
                 if (layer.__startIndex !== i) {
@@ -156,12 +137,8 @@ class CanvasPainter {
             i++;
             idx = i;
         }
-
-        console.log(this.layer_id_list);
-
         updatePrevLayer(idx);
-
-        this.eachBuiltinLayer(function(layer, z) {
+        this._eachBuiltinLayer(function(layer, z) {
             // Used in last frame but not in this frame. Needs clear
             if (!layer.__used && layer.getElementCount() > 0) {
                 layer.__dirty = true;
@@ -187,8 +164,9 @@ class CanvasPainter {
         // console.log(this.layers_map);
     }
 
-    //1.2_1_2tools ---遍历图层的id 列表，如果图层构建完成，就执行回调
-    eachBuiltinLayer(cb, context) {
+    //1.2_1 tools ---遍历图层的id 列表，如果图层构建完成，就执行回调
+    _eachBuiltinLayer(cb, context) {
+        if (!this.layer_id_list.length) return;
         let layer_id_list = this.layer_id_list;
         let layer;
         for (let i = 0; i < layer_id_list.length; i++) {
@@ -205,18 +183,17 @@ class CanvasPainter {
         if (this._singleCanvas && !this._needsManuallyCompositing) {
             curLevelId = CANVAS_LEVEL_ID;
         }
-
-        let layer = this.layers_map[curLevelId]; //根据id获取图层
-
-        //如果没有初始图层存在就创建一个 canvas 图层
+        //多个元素 同一个图层，id是一样的，就直接返回创建 好的图层。
+        let layer = this.layers_map[curLevelId];
         if (!layer) {
+            //如果没有初始图层存在就创建一个 canvas 图层
             layer = new CanvasLayer("hr_" + curLevelId, this._width, this._height, this.dpr);
             layer.levelId = curLevelId;
             layer.__builtin__ = true;
             if (virtual) {
                 layer.virtual = virtual;
             }
-            //1.5 图层 插入到页面中
+            //1.2_1_1_1图层 插入到页面中
             this.insertLayer(curLevelId, layer);
             layer.initContext();
         }
@@ -225,13 +202,12 @@ class CanvasPainter {
 
     //1.2_1_1_1 图层 插入到页面中
     insertLayer(levelId, layer) {
-        let layersMap = this.layers_map;
+        let layers_map = this.layers_map;
         let layer_id_list = this.layer_id_list;
         let len = layer_id_list.length;
         let prevLayer = null; //插入图层的上一个图层
         let index = -1;
-        if (layersMap[levelId]) {
-            // 图层id 已经被占用
+        if (layers_map[levelId]) {
             console.log("Zlevel" + levelId + "has been used already");
             return;
         }
@@ -244,13 +220,13 @@ class CanvasPainter {
                     break;
                 }
             }
-            prevLayer = layersMap[layer_id_list[index]]; //前一个图层
+            prevLayer = layers_map[layer_id_list[index]]; //获取前一个图层
         }
 
         layer_id_list.splice(index + 1, 0, levelId); //插入 新图层id
-        layersMap[levelId] = layer; // 新图层id 对应图层map
+        layers_map[levelId] = layer; // 新图层id 对应图层map
 
-        //没有虚拟图层
+        //没有需要合并的图层
         if (!layer.virtual) {
             if (prevLayer) {
                 let prevDom = prevLayer.canvasDOM;
@@ -270,7 +246,7 @@ class CanvasPainter {
     }
 
     //1.2_2绘制图形
-    _doPaintList(list, paintAll) {
+    _doPaintList(ele_ary, paintAll) {
         let layerList = [];
         for (let i = 0; i < this.layer_id_list.length; i++) {
             let id = this.layer_id_list[i];

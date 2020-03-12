@@ -6,7 +6,7 @@
  * 注意：在微信小程序中不能动态创建 canvas 标签，因为微信小程序不允许 DOM 操作。
  */
 
-import { createCanvas, getContext } from "../tools/canvas_util";
+import { createCanvas, getContext } from "../../tools/canvas_util";
 export default class CanvasLayer {
     constructor(root, width, height, dpr, id) {
         Object.assign(this, { root, width, height, dpr, id });

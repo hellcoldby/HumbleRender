@@ -27,7 +27,7 @@ class Element {
         this.calculateTextPosition = null; //文本位置的字符串，计算实际位置
 
         this.invisible = false; //是否隐藏对象，默认false--不隐藏。（绘制）
-        this.z = 0;
+        this.z = 0; //图层层级
 
         this.hLevel = 0; //确定可显示对象可以在画布的哪一层绘制
 

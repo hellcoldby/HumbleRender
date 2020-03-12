@@ -8,10 +8,10 @@
 
 import env from "./tools/dev_support";
 import guid from "./tools/guid";
-import CanvasPainter from "./view/CanvasPainter"; //视图 view
-import Storage from "./model/Storage"; // 数据模型  model
-import EventProxy from "./control/EventProxy";
-import GlobalAnimationMgr from "./animation/GlobalAnimationMgr"; //动画
+import Storage from "./MVC/Model/Storage"; // 数据模型  model
+import CanvasPainter from "./MVC/View/CanvasPainter"; //视图 view
+import EventProxy from "./MVC/Control/EventProxy";
+import WatchAnim from "./MVC/WatchAnim/WatchAnim"; //动画
 
 //检测浏览器的支持情况
 if (!env.canvasSupported) {
@@ -52,42 +52,33 @@ class HumbleRender {
         if (!renderType || !painterMap[renderType]) {
             renderType = "canvas";
         }
-        //创建数据仓库
+
         this.storage = new Storage();
-        //生成视图实例
         this.painter = new painterMap[renderType](this.root, this.storage, opts, this.id);
 
-        //对浏览器默认事件拦截， 做二次处理
         let handerProxy = null;
         if (typeof this.root.moveTo !== "function") {
             // if (!env.node && !env.worker && !env.wxa) {
             //     handerProxy = new EventProxy(this.painter.root);
             // }
         }
-
-        //生成事件实例
         // this.eventHandler = new HRenderEventHandler(this.storage, this.painter, handerProxy);
 
-        //生成动画实例
-        this.globalAnimationMgr = new GlobalAnimationMgr();
-        this.globalAnimationMgr.on("frame", function() {
-            self.flush(); //每间隔16.7ms 执行一次 flush() 函数
+        this.WatchAnim = new WatchAnim();
+        this.WatchAnim.on("frame", function() {
+            self.flush(); //每间隔16.7ms 监控一次flush
         });
-        this.globalAnimationMgr.start();
+        this.WatchAnim.start();
         this._needRefresh = false;
     }
 
     //监控 this._needRefresh 的开关
     flush() {
-        console.log("123");
-        //全部重绘
         if (this._needRefresh) {
-            console.log("开始刷新");
-            this.refreshImmediately();
+            this.refreshImmediately(); //全部重绘
         }
-        //重绘特定元素
         if (this._needRefreshHover) {
-            this.refreshHoverImmediaterly();
+            this.refreshHoverImmediaterly(); //重绘特定元素
         }
     }
 

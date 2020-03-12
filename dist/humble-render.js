@@ -101,6 +101,915 @@
          return idStart ++;
      }
 
+    /*
+     *
+     * event_simulation(事件模拟) 为不支持事件的类提供事件支持
+     * 订阅发布模式
+     */
+
+    /**
+     * @method constructor Eventful
+     * @param {Object} [eventProcessor] The object eventProcessor is the scope when
+     *        `eventProcessor.xxx` called. 事件处理者，也就是当前事件处理函数执行时的作用域。
+     * @param {Function} [eventProcessor.normalizeQuery]
+     *        param: {String|Object} Raw query.
+     *        return: {String|Object} Normalized query.
+     * @param {Function} [eventProcessor.filter] Event will be dispatched only
+     *        if it returns `true`.
+     *        param: {String} eventType
+     *        param: {String|Object} query
+     *        return: {Boolean}
+     * @param {Function} [eventProcessor.afterTrigger] Called after all handlers called.
+     *        param: {String} eventType
+     * @param {Function} [eventProcessor.afterListenerChanged] Called when any listener added or removed.
+     *        param: {String} eventType
+     */
+    class Eventful {
+        constructor(eventProcessor) {
+            this._handle_map = {}; //订阅的事件列表
+            this._eventProcessor = eventProcessor;
+        }
+
+        /**
+         * 订阅事件
+         *
+         * @param {String} event 事件名称
+         * @param {String | Object} query 事件过滤器条件
+         * @param {Function} handler 事件控制器
+         * @param {Object} context
+         */
+        on(event, query, fn, context) {
+            return on(this, event, query, fn, context, false);
+        }
+
+        once(event, query, fn, context) {
+            return on(this, event, query, fn, context, true);
+        }
+
+        /**
+         * @method
+         * 触发事件（发布）
+         *
+         * @param {String} event --- 事件的名称
+         */
+        trigger(event) {
+            let _map = this._handle_map[event];
+            // console.log(_map[0].fn);
+            let _ev_pro = this._eventProcessor;
+            if (_map) {
+                let args = arguments;
+                // console.log(args);
+                let args_len = args.length;
+
+                if (args_len > 3) {
+                    //如果参数长度超过3个，截取第一个后边的 所有参数
+                    args = Array.prototype.slice.call(args, 1);
+                }
+
+                let _map_len = _map.length;
+                for (let i = 0; i < _map_len; ) {
+                    //遍历事件列表
+                    let item = _map[i];
+                    if (_ev_pro && _ev_pro.filter && item.query !== null && !_ev_pro.filter(event, item.query)) {
+                        i++;
+                        continue;
+                    }
+
+                    switch (args_len) {
+                        case 1:
+                            item.fn.call(item.ctx);
+                            break;
+                        case 2:
+                            item.fn.call(item.ctx, args[1]);
+                            break;
+                        case 3:
+                            item.fn.call(item.ctx, args[2]);
+                            break;
+                        default:
+                            item.fn.apply(item.ctx, args);
+                            break;
+                    }
+
+                    if (item.one) {
+                        //如果只运行一次， 就从订阅列表中移除 当前事件
+                        _map.splice(i, 1);
+                        _map.length--;
+                    } else {
+                        i++;
+                    }
+                }
+            }
+
+            _ev_pro && _ev_pro.afterTigger && _ev_pro.afterTigger(event);
+            return this;
+        }
+    }
+
+    //tools -- 订阅事件
+    function on(_this, event, query, fn, context, isOnce) {
+        let _map = _this._handle_map;
+
+        if (typeof query === "function") {
+            //参数自适应
+            context = fn;
+            fn = query;
+            query = null;
+        }
+
+        if (!fn || !event) {
+            return _this;
+        }
+
+        // console.log(fn);
+
+        query = normalizeQuery(_this, query);
+
+        if (!_map[event]) {
+            //没有相关的订阅事件就 创建订阅列表
+            _map[event] = [];
+        }
+
+        for (let i = 0; i < _map[event].length; i++) {
+            //已经订阅过的事件 不再订阅
+            if (_map[event][i].h === fn) {
+                return _this;
+            }
+        }
+
+        let wrap = {
+            fn,
+            one: isOnce,
+            query,
+            ctx: context || _this,
+            // FIXME
+            // Do not publish this feature util it is proved that it makes sense.  我不知道callAtLast 是干嘛的
+            callAtLast: fn.qrEventfulCallAtLast
+        };
+
+        let lastIndex = _map[event].length - 1;
+        let lastWrap = _map[event][lastIndex];
+
+        if (lastWrap && lastWrap.callAtLast) {
+            // callAtLast 存在，订阅事件就替换它
+            _map[event].splice(lastIndex, 0, wrap);
+        } else {
+            _map[event].push(wrap); // 订阅事件放入对应的列表
+        }
+
+        callListenerChanged(_this, event); // 不知道这是干嘛用的
+        return _this;
+    }
+
+    //tools -- 解析参数
+    function normalizeQuery(host, query) {
+        let eventProcessor = host._$eventProcessor;
+        if (query != null && eventProcessor && eventProcessor.normalizeQuery) {
+            query = eventProcessor.normalizeQuery(query);
+        }
+        return query;
+    }
+
+    //tools --
+    function callListenerChanged(eventful, eventType) {
+        let eventProcessor = eventful._$eventProcessor;
+        if (eventProcessor && eventProcessor.afterListenerChanged) {
+            eventProcessor.afterListenerChanged(eventType);
+        }
+    }
+
+    // https://github.com/mziccard/node-timsort
+    var DEFAULT_MIN_MERGE = 32;
+
+    var DEFAULT_MIN_GALLOPING = 7;
+
+    function minRunLength(n) {
+        var r = 0;
+
+        while (n >= DEFAULT_MIN_MERGE) {
+            r |= n & 1;
+            n >>= 1;
+        }
+
+        return n + r;
+    }
+
+    function makeAscendingRun(array, lo, hi, compare) {
+        var runHi = lo + 1;
+
+        if (runHi === hi) {
+            return 1;
+        }
+
+        if (compare(array[runHi++], array[lo]) < 0) {
+            while (runHi < hi && compare(array[runHi], array[runHi - 1]) < 0) {
+                runHi++;
+            }
+
+            reverseRun(array, lo, runHi);
+        }
+        else {
+            while (runHi < hi && compare(array[runHi], array[runHi - 1]) >= 0) {
+                runHi++;
+            }
+        }
+
+        return runHi - lo;
+    }
+
+    function reverseRun(array, lo, hi) {
+        hi--;
+
+        while (lo < hi) {
+            var t = array[lo];
+            array[lo++] = array[hi];
+            array[hi--] = t;
+        }
+    }
+
+    function binaryInsertionSort(array, lo, hi, start, compare) {
+        if (start === lo) {
+            start++;
+        }
+
+        for (; start < hi; start++) {
+            var pivot = array[start];
+
+            var left = lo;
+            var right = start;
+            var mid;
+
+            while (left < right) {
+                mid = left + right >>> 1;
+
+                if (compare(pivot, array[mid]) < 0) {
+                    right = mid;
+                }
+                else {
+                    left = mid + 1;
+                }
+            }
+
+            var n = start - left;
+
+            switch (n) {
+                case 3:
+                    array[left + 3] = array[left + 2];
+
+                case 2:
+                    array[left + 2] = array[left + 1];
+
+                case 1:
+                    array[left + 1] = array[left];
+                    break;
+                default:
+                    while (n > 0) {
+                        array[left + n] = array[left + n - 1];
+                        n--;
+                    }
+            }
+
+            array[left] = pivot;
+        }
+    }
+
+    function gallopLeft(value, array, start, length, hint, compare) {
+        var lastOffset = 0;
+        var maxOffset = 0;
+        var offset = 1;
+
+        if (compare(value, array[start + hint]) > 0) {
+            maxOffset = length - hint;
+
+            while (offset < maxOffset && compare(value, array[start + hint + offset]) > 0) {
+                lastOffset = offset;
+                offset = (offset << 1) + 1;
+
+                if (offset <= 0) {
+                    offset = maxOffset;
+                }
+            }
+
+            if (offset > maxOffset) {
+                offset = maxOffset;
+            }
+
+            lastOffset += hint;
+            offset += hint;
+        }
+        else {
+            maxOffset = hint + 1;
+            while (offset < maxOffset && compare(value, array[start + hint - offset]) <= 0) {
+                lastOffset = offset;
+                offset = (offset << 1) + 1;
+
+                if (offset <= 0) {
+                    offset = maxOffset;
+                }
+            }
+            if (offset > maxOffset) {
+                offset = maxOffset;
+            }
+
+            var tmp = lastOffset;
+            lastOffset = hint - offset;
+            offset = hint - tmp;
+        }
+
+        lastOffset++;
+        while (lastOffset < offset) {
+            var m = lastOffset + (offset - lastOffset >>> 1);
+
+            if (compare(value, array[start + m]) > 0) {
+                lastOffset = m + 1;
+            }
+            else {
+                offset = m;
+            }
+        }
+        return offset;
+    }
+
+    function gallopRight(value, array, start, length, hint, compare) {
+        var lastOffset = 0;
+        var maxOffset = 0;
+        var offset = 1;
+
+        if (compare(value, array[start + hint]) < 0) {
+            maxOffset = hint + 1;
+
+            while (offset < maxOffset && compare(value, array[start + hint - offset]) < 0) {
+                lastOffset = offset;
+                offset = (offset << 1) + 1;
+
+                if (offset <= 0) {
+                    offset = maxOffset;
+                }
+            }
+
+            if (offset > maxOffset) {
+                offset = maxOffset;
+            }
+
+            var tmp = lastOffset;
+            lastOffset = hint - offset;
+            offset = hint - tmp;
+        }
+        else {
+            maxOffset = length - hint;
+
+            while (offset < maxOffset && compare(value, array[start + hint + offset]) >= 0) {
+                lastOffset = offset;
+                offset = (offset << 1) + 1;
+
+                if (offset <= 0) {
+                    offset = maxOffset;
+                }
+            }
+
+            if (offset > maxOffset) {
+                offset = maxOffset;
+            }
+
+            lastOffset += hint;
+            offset += hint;
+        }
+
+        lastOffset++;
+
+        while (lastOffset < offset) {
+            var m = lastOffset + (offset - lastOffset >>> 1);
+
+            if (compare(value, array[start + m]) < 0) {
+                offset = m;
+            }
+            else {
+                lastOffset = m + 1;
+            }
+        }
+
+        return offset;
+    }
+
+    function TimSort(array, compare) {
+        var minGallop = DEFAULT_MIN_GALLOPING;
+        var length = 0;
+        var runStart;
+        var runLength;
+        var stackSize = 0;
+
+        length = array.length;
+
+        var tmp = [];
+
+        runStart = [];
+        runLength = [];
+
+        function pushRun(_runStart, _runLength) {
+            runStart[stackSize] = _runStart;
+            runLength[stackSize] = _runLength;
+            stackSize += 1;
+        }
+
+        function mergeRuns() {
+            while (stackSize > 1) {
+                var n = stackSize - 2;
+
+                if (
+                    (n >= 1 && runLength[n - 1] <= runLength[n] + runLength[n + 1])
+                    || (n >= 2 && runLength[n - 2] <= runLength[n] + runLength[n - 1])
+                ) {
+                    if (runLength[n - 1] < runLength[n + 1]) {
+                        n--;
+                    }
+                }
+                else if (runLength[n] > runLength[n + 1]) {
+                    break;
+                }
+                mergeAt(n);
+            }
+        }
+
+        function forceMergeRuns() {
+            while (stackSize > 1) {
+                var n = stackSize - 2;
+
+                if (n > 0 && runLength[n - 1] < runLength[n + 1]) {
+                    n--;
+                }
+
+                mergeAt(n);
+            }
+        }
+
+        function mergeAt(i) {
+            var start1 = runStart[i];
+            var length1 = runLength[i];
+            var start2 = runStart[i + 1];
+            var length2 = runLength[i + 1];
+
+            runLength[i] = length1 + length2;
+
+            if (i === stackSize - 3) {
+                runStart[i + 1] = runStart[i + 2];
+                runLength[i + 1] = runLength[i + 2];
+            }
+
+            stackSize--;
+
+            var k = gallopRight(array[start2], array, start1, length1, 0, compare);
+            start1 += k;
+            length1 -= k;
+
+            if (length1 === 0) {
+                return;
+            }
+
+            length2 = gallopLeft(array[start1 + length1 - 1], array, start2, length2, length2 - 1, compare);
+
+            if (length2 === 0) {
+                return;
+            }
+
+            if (length1 <= length2) {
+                mergeLow(start1, length1, start2, length2);
+            }
+            else {
+                mergeHigh(start1, length1, start2, length2);
+            }
+        }
+
+        function mergeLow(start1, length1, start2, length2) {
+            var i = 0;
+
+            for (i = 0; i < length1; i++) {
+                tmp[i] = array[start1 + i];
+            }
+
+            var cursor1 = 0;
+            var cursor2 = start2;
+            var dest = start1;
+
+            array[dest++] = array[cursor2++];
+
+            if (--length2 === 0) {
+                for (i = 0; i < length1; i++) {
+                    array[dest + i] = tmp[cursor1 + i];
+                }
+                return;
+            }
+
+            if (length1 === 1) {
+                for (i = 0; i < length2; i++) {
+                    array[dest + i] = array[cursor2 + i];
+                }
+                array[dest + length2] = tmp[cursor1];
+                return;
+            }
+
+            var _minGallop = minGallop;
+            var count1;
+            var count2;
+            var exit;
+
+            while (1) {
+                count1 = 0;
+                count2 = 0;
+                exit = false;
+
+                do {
+                    if (compare(array[cursor2], tmp[cursor1]) < 0) {
+                        array[dest++] = array[cursor2++];
+                        count2++;
+                        count1 = 0;
+
+                        if (--length2 === 0) {
+                            exit = true;
+                            break;
+                        }
+                    }
+                    else {
+                        array[dest++] = tmp[cursor1++];
+                        count1++;
+                        count2 = 0;
+                        if (--length1 === 1) {
+                            exit = true;
+                            break;
+                        }
+                    }
+                } while ((count1 | count2) < _minGallop);
+
+                if (exit) {
+                    break;
+                }
+
+                do {
+                    count1 = gallopRight(array[cursor2], tmp, cursor1, length1, 0, compare);
+
+                    if (count1 !== 0) {
+                        for (i = 0; i < count1; i++) {
+                            array[dest + i] = tmp[cursor1 + i];
+                        }
+
+                        dest += count1;
+                        cursor1 += count1;
+                        length1 -= count1;
+                        if (length1 <= 1) {
+                            exit = true;
+                            break;
+                        }
+                    }
+
+                    array[dest++] = array[cursor2++];
+
+                    if (--length2 === 0) {
+                        exit = true;
+                        break;
+                    }
+
+                    count2 = gallopLeft(tmp[cursor1], array, cursor2, length2, 0, compare);
+
+                    if (count2 !== 0) {
+                        for (i = 0; i < count2; i++) {
+                            array[dest + i] = array[cursor2 + i];
+                        }
+
+                        dest += count2;
+                        cursor2 += count2;
+                        length2 -= count2;
+
+                        if (length2 === 0) {
+                            exit = true;
+                            break;
+                        }
+                    }
+                    array[dest++] = tmp[cursor1++];
+
+                    if (--length1 === 1) {
+                        exit = true;
+                        break;
+                    }
+
+                    _minGallop--;
+                } while (count1 >= DEFAULT_MIN_GALLOPING || count2 >= DEFAULT_MIN_GALLOPING);
+
+                if (exit) {
+                    break;
+                }
+
+                if (_minGallop < 0) {
+                    _minGallop = 0;
+                }
+
+                _minGallop += 2;
+            }
+
+            minGallop = _minGallop;
+
+            minGallop < 1 && (minGallop = 1);
+
+            if (length1 === 1) {
+                for (i = 0; i < length2; i++) {
+                    array[dest + i] = array[cursor2 + i];
+                }
+                array[dest + length2] = tmp[cursor1];
+            }
+            else if (length1 === 0) {
+                throw new Error();
+                // throw new Error('mergeLow preconditions were not respected');
+            }
+            else {
+                for (i = 0; i < length1; i++) {
+                    array[dest + i] = tmp[cursor1 + i];
+                }
+            }
+        }
+
+        function mergeHigh(start1, length1, start2, length2) {
+            var i = 0;
+
+            for (i = 0; i < length2; i++) {
+                tmp[i] = array[start2 + i];
+            }
+
+            var cursor1 = start1 + length1 - 1;
+            var cursor2 = length2 - 1;
+            var dest = start2 + length2 - 1;
+            var customCursor = 0;
+            var customDest = 0;
+
+            array[dest--] = array[cursor1--];
+
+            if (--length1 === 0) {
+                customCursor = dest - (length2 - 1);
+
+                for (i = 0; i < length2; i++) {
+                    array[customCursor + i] = tmp[i];
+                }
+
+                return;
+            }
+
+            if (length2 === 1) {
+                dest -= length1;
+                cursor1 -= length1;
+                customDest = dest + 1;
+                customCursor = cursor1 + 1;
+
+                for (i = length1 - 1; i >= 0; i--) {
+                    array[customDest + i] = array[customCursor + i];
+                }
+
+                array[dest] = tmp[cursor2];
+                return;
+            }
+
+            var _minGallop = minGallop;
+
+            while (true) {
+                var count1 = 0;
+                var count2 = 0;
+                var exit = false;
+
+                do {
+                    if (compare(tmp[cursor2], array[cursor1]) < 0) {
+                        array[dest--] = array[cursor1--];
+                        count1++;
+                        count2 = 0;
+                        if (--length1 === 0) {
+                            exit = true;
+                            break;
+                        }
+                    }
+                    else {
+                        array[dest--] = tmp[cursor2--];
+                        count2++;
+                        count1 = 0;
+                        if (--length2 === 1) {
+                            exit = true;
+                            break;
+                        }
+                    }
+                } while ((count1 | count2) < _minGallop);
+
+                if (exit) {
+                    break;
+                }
+
+                do {
+                    count1 = length1 - gallopRight(tmp[cursor2], array, start1, length1, length1 - 1, compare);
+
+                    if (count1 !== 0) {
+                        dest -= count1;
+                        cursor1 -= count1;
+                        length1 -= count1;
+                        customDest = dest + 1;
+                        customCursor = cursor1 + 1;
+
+                        for (i = count1 - 1; i >= 0; i--) {
+                            array[customDest + i] = array[customCursor + i];
+                        }
+
+                        if (length1 === 0) {
+                            exit = true;
+                            break;
+                        }
+                    }
+
+                    array[dest--] = tmp[cursor2--];
+
+                    if (--length2 === 1) {
+                        exit = true;
+                        break;
+                    }
+
+                    count2 = length2 - gallopLeft(array[cursor1], tmp, 0, length2, length2 - 1, compare);
+
+                    if (count2 !== 0) {
+                        dest -= count2;
+                        cursor2 -= count2;
+                        length2 -= count2;
+                        customDest = dest + 1;
+                        customCursor = cursor2 + 1;
+
+                        for (i = 0; i < count2; i++) {
+                            array[customDest + i] = tmp[customCursor + i];
+                        }
+
+                        if (length2 <= 1) {
+                            exit = true;
+                            break;
+                        }
+                    }
+
+                    array[dest--] = array[cursor1--];
+
+                    if (--length1 === 0) {
+                        exit = true;
+                        break;
+                    }
+
+                    _minGallop--;
+                } while (count1 >= DEFAULT_MIN_GALLOPING || count2 >= DEFAULT_MIN_GALLOPING);
+
+                if (exit) {
+                    break;
+                }
+
+                if (_minGallop < 0) {
+                    _minGallop = 0;
+                }
+
+                _minGallop += 2;
+            }
+
+            minGallop = _minGallop;
+
+            if (minGallop < 1) {
+                minGallop = 1;
+            }
+
+            if (length2 === 1) {
+                dest -= length1;
+                cursor1 -= length1;
+                customDest = dest + 1;
+                customCursor = cursor1 + 1;
+
+                for (i = length1 - 1; i >= 0; i--) {
+                    array[customDest + i] = array[customCursor + i];
+                }
+
+                array[dest] = tmp[cursor2];
+            }
+            else if (length2 === 0) {
+                throw new Error();
+                // throw new Error('mergeHigh preconditions were not respected');
+            }
+            else {
+                customCursor = dest - (length2 - 1);
+                for (i = 0; i < length2; i++) {
+                    array[customCursor + i] = tmp[i];
+                }
+            }
+        }
+
+        this.mergeRuns = mergeRuns;
+        this.forceMergeRuns = forceMergeRuns;
+        this.pushRun = pushRun;
+    }
+
+    function sort(array, compare, lo, hi) {
+        if (!lo) {
+            lo = 0;
+        }
+        if (!hi) {
+            hi = array.length;
+        }
+
+        var remaining = hi - lo;
+
+        if (remaining < 2) {
+            return;
+        }
+
+        var runLength = 0;
+
+        if (remaining < DEFAULT_MIN_MERGE) {
+            runLength = makeAscendingRun(array, lo, hi, compare);
+            binaryInsertionSort(array, lo, hi, lo + runLength, compare);
+            return;
+        }
+
+        var ts = new TimSort(array, compare);
+
+        var minRun = minRunLength(remaining);
+
+        do {
+            runLength = makeAscendingRun(array, lo, hi, compare);
+            if (runLength < minRun) {
+                var force = remaining;
+                if (force > minRun) {
+                    force = minRun;
+                }
+
+                binaryInsertionSort(array, lo, lo + force, lo + runLength, compare);
+                runLength = force;
+            }
+
+            ts.pushRun(lo, runLength);
+            ts.mergeRuns();
+
+            remaining -= runLength;
+            lo += runLength;
+        } while (remaining !== 0);
+
+        ts.forceMergeRuns();
+    }
+
+    /**
+     *
+     * 内容仓库 (M)，用来存储和管理画布上的所有对象，同时提供绘制和更新队列的功能。
+     * 需要绘制的对象首先存储在 Storage 中，然后 Painter 类会从 Storage 中依次取出进行绘图。
+     * 利用 Storage 作为内存中转站，对于不需要刷新的对象可以不进行绘制，从而可以提升整体性能。
+     *
+     */
+    class Storage extends Eventful {
+        constructor() {
+            super();
+            this.ele_map = new Map(); //图形对象列表 {id: ele}
+            this.ele_ary = []; //包含所有图形的数组
+            this.ele_ary_len = 0; //图形数组的长度
+        }
+
+        addToRoot(ele) {
+            this.addToStorage(ele);
+        }
+
+        addToStorage(ele) {
+            this.ele_map.set(ele.id, ele);
+            return this;
+        }
+
+        /**2.1 返回所有图形的绘制队列
+         * @method getDisplayList
+         * @param {boolean} [needUpdate=false] 是否在返回前更新该数组
+         * @param {boolean} [includeIgnore=false] 是否包含 ignore 的数组, 在 needUpdate 为 true 的时候有效
+         */
+        getDisplayList(needUpdate, includeIgnore = false) {
+            if (needUpdate) {
+                this.updateDisplayList(includeIgnore); //2.1_2更新图形队列
+            }
+            return this.ele_ary;
+        }
+
+        /**
+         * @method updateDisplayList
+         * 2.1_2 更新图形数组队列。
+         * 每次绘制前都会调用，该方法会先深度优先遍历整个树，更新所有Group和Shape的变换并且把所有可见的Shape保存到数组中，
+         * 最后根据绘制的优先级（zlevel > z > 插入顺序）排序得到绘制队列
+         * @param {boolean} [includeIgnore=false] 是否包含 ignore 的数组
+         */
+        updateDisplayList(includeIgnore) {
+            this.ele_map.forEach((ele, id, map) => {
+                this._updateAndAddDisplayable(ele, null, includeIgnore);
+            });
+            sort(this.ele_ary, (a, b) => {
+                if (a.hLevel === b.hLevel) {
+                    if (a.z === b.z) {
+                        return a.z2 - b.z2;
+                    }
+                    return a.z - b.z;
+                }
+                return a.hLevel - b.hLevel;
+            });
+        }
+
+        //2.1_2_1 排除 标记为忽略 的元素，更新元素数组
+        _updateAndAddDisplayable(ele, clipPaths, includeIgnore) {
+            if (ele.ignore && !includeIgnore) return;
+            this.ele_ary[this.ele_ary_len++] = ele;
+        }
+    }
+
     /* 
     *  分辨率检测
     */
@@ -290,24 +1199,18 @@
     class CanvasPainter {
         constructor(root, storage, opts = {}) {
             this.opts = Object.assign({}, opts);
-            // console.log(this.opts);
             this.root = root;
             this.storage = storage;
 
             this.type = "canvas";
-            this.dpr = this.opts.devicePixelRatio || devicePixelRatio; //分辨率
+            this.dpr = this.opts.devicePixelRatio || devicePixelRatio; //分辨率比例
 
-            let layer_id_list = (this.layer_id_list = []); //图层id序列
-            let layers = (this.layers_map = {}); // 图层对象列表
+            this.layers_map = {}; // 图层对象列表
+            this.layer_id_list = []; //图层id数组
             this._layerConfig = {}; //?
-
             this._needsManuallyCompositing = false; //? 是否需要手动合成
-            this._hoverlayer = null; //?
-
-            this._hoverElements = []; //?
 
             this._singleCanvas = !this.root.nodeName || this.root.nodeName.toUpperCase() === "CANVAS"; //根节点canvas
-
             if (this._singleCanvas) {
                 // 如果根节点是一个canvas
                 let width = this.root.width;
@@ -327,7 +1230,7 @@
                 let mainLayer = new CanvasLayer(this.root, this._width, this._height, this.dpr, CANVAS_LEVEL_ID);
                 mainLayer.__builtin__ = true; //标记构建完成
 
-                layers[CANVAS_LEVEL_ID] = mainLayer;
+                layers_map[CANVAS_LEVEL_ID] = mainLayer;
                 layer_id_list.push(CANVAS_LEVEL_ID);
                 this._root = root;
             } else {
@@ -342,18 +1245,15 @@
         }
 
         /**1.1
-         * @method
-         * 刷新
-         * @param {Boolean} [paintAll=false] 是否强制绘制所有displayable 默认false
+         * @param {Boolean} [paintAll=false] 是否强制绘制所有元素
          */
         refresh(paintAll) {
-            //从 storage 中获取 元素列表
-            let list = this.storage.getDisplayList(true);
-            let layer_id_list = this.layer_id_list;
-
+            //从 storage 中获取 元素数组列表
+            let ele_ary = this.storage.getDisplayList(true);
             this._redrawId = Math.random(); // 重绘id
-            this._paintList(list, paintAll, this._redrawId); //1.2 更新图层，动态创建图层， 绘制图层
+            this._paintList(ele_ary, paintAll, this._redrawId); //1.2 更新图层，动态创建图层， 绘制图层
 
+            let layer_id_list = this.layer_id_list;
             for (let i = 0; i < layer_id_list.length; i++) {
                 let id = layer_id_list[i];
                 let layer = this.layers_map[id];
@@ -367,51 +1267,41 @@
 
         /**1.2 更新图层，动态创建图层， 绘制图层
          * @method _paintList
-         * @param {} list --- 要绘制的图形列表
+         * @param {} ele_ary --- 要绘制的图形列表
          * @param {Boolean} [paintAll=false] 是否强制绘制所有displayable
          * @param {} redrawId --- 随机生成的重绘id
          */
-        _paintList(list, paintAll, redrawId) {
+        _paintList(ele_ary, paintAll, redrawId) {
             //如果 redrawId 不一致，说明下一个动画帧已经到来，这里就会直接跳过去，相当于跳过了一帧
             if (this._redrawId !== redrawId) {
                 return;
             }
             paintAll = paintAll || false;
-            //1.2_1 更新图层状态， 动态创建图层
-            this._updateLayerStatus(list);
+            //1.2_1  动态创建图层 更新图层状态
+            this._updateLayerStatus(ele_ary);
             //1.2_2开始绘制图形
-            let finished = this._doPaintList(list, paintAll);
+            let finished = this._doPaintList(ele_ary, paintAll);
             if (!finished) {
                 let self = this;
                 RAF(function() {
-                    self._paintList(list, paintAll, redrawId);
+                    self._paintList(ele_ary, paintAll, redrawId);
                 });
             }
         }
 
         //1.2_1 更新图层状态 动态创建图层
-        _updateLayerStatus(list) {
-            //1.2_1_2所有图层的更新和使用 标记都设置为false
-            this.eachBuiltinLayer(function(layer, z) {
+        _updateLayerStatus(ele_ary) {
+            this._eachBuiltinLayer(function(layer, z) {
                 layer.__dirty = layer.__used = false;
             });
-
             let prevLayer = null;
             let idx = 0;
-            for (let i = 0; i < list.length; ) {
-                let ele = list[i];
+            for (let i = 0; i < ele_ary.length; ) {
+                let ele = ele_ary[i];
                 let hLevel = ele.hLevel; //图形对应的图层
-
                 let tmp_id = 0;
-                //1.2_1_1 为每个图形创建图层
-                console.log(hLevel + tmp_id);
+                //1.2_1_1 同一个图层的元素只创建一次图层，否则就创建过个图层
                 let layer = this.getLayer(hLevel + tmp_id, this._needsManuallyCompositing);
-
-                if (!layer.__builtin__) {
-                    console.log("HLevel" + hLevel + "has been used by unknow layer" + layer.id);
-                }
-
-                //为新建立的图层，增加绘制编号
                 if (layer !== prevLayer) {
                     layer.__used = true;
                     if (layer.__startIndex !== i) {
@@ -439,12 +1329,8 @@
                 i++;
                 idx = i;
             }
-
-            console.log(this.layer_id_list);
-
             updatePrevLayer(idx);
-
-            this.eachBuiltinLayer(function(layer, z) {
+            this._eachBuiltinLayer(function(layer, z) {
                 // Used in last frame but not in this frame. Needs clear
                 if (!layer.__used && layer.getElementCount() > 0) {
                     layer.__dirty = true;
@@ -470,8 +1356,9 @@
             // console.log(this.layers_map);
         }
 
-        //1.2_1_2tools ---遍历图层的id 列表，如果图层构建完成，就执行回调
-        eachBuiltinLayer(cb, context) {
+        //1.2_1 tools ---遍历图层的id 列表，如果图层构建完成，就执行回调
+        _eachBuiltinLayer(cb, context) {
+            if (!this.layer_id_list.length) return;
             let layer_id_list = this.layer_id_list;
             let layer;
             for (let i = 0; i < layer_id_list.length; i++) {
@@ -488,18 +1375,17 @@
             if (this._singleCanvas && !this._needsManuallyCompositing) {
                 curLevelId = CANVAS_LEVEL_ID;
             }
-
-            let layer = this.layers_map[curLevelId]; //根据id获取图层
-
-            //如果没有初始图层存在就创建一个 canvas 图层
+            //多个元素 同一个图层，id是一样的，就直接返回创建 好的图层。
+            let layer = this.layers_map[curLevelId];
             if (!layer) {
+                //如果没有初始图层存在就创建一个 canvas 图层
                 layer = new CanvasLayer("hr_" + curLevelId, this._width, this._height, this.dpr);
                 layer.levelId = curLevelId;
                 layer.__builtin__ = true;
                 if (virtual) {
                     layer.virtual = virtual;
                 }
-                //1.5 图层 插入到页面中
+                //1.2_1_1_1图层 插入到页面中
                 this.insertLayer(curLevelId, layer);
                 layer.initContext();
             }
@@ -508,13 +1394,12 @@
 
         //1.2_1_1_1 图层 插入到页面中
         insertLayer(levelId, layer) {
-            let layersMap = this.layers_map;
+            let layers_map = this.layers_map;
             let layer_id_list = this.layer_id_list;
             let len = layer_id_list.length;
             let prevLayer = null; //插入图层的上一个图层
             let index = -1;
-            if (layersMap[levelId]) {
-                // 图层id 已经被占用
+            if (layers_map[levelId]) {
                 console.log("Zlevel" + levelId + "has been used already");
                 return;
             }
@@ -527,13 +1412,13 @@
                         break;
                     }
                 }
-                prevLayer = layersMap[layer_id_list[index]]; //前一个图层
+                prevLayer = layers_map[layer_id_list[index]]; //获取前一个图层
             }
 
             layer_id_list.splice(index + 1, 0, levelId); //插入 新图层id
-            layersMap[levelId] = layer; // 新图层id 对应图层map
+            layers_map[levelId] = layer; // 新图层id 对应图层map
 
-            //没有虚拟图层
+            //没有需要合并的图层
             if (!layer.virtual) {
                 if (prevLayer) {
                     let prevDom = prevLayer.canvasDOM;
@@ -553,7 +1438,7 @@
         }
 
         //1.2_2绘制图形
-        _doPaintList(list, paintAll) {
+        _doPaintList(ele_ary, paintAll) {
             let layerList = [];
             for (let i = 0; i < this.layer_id_list.length; i++) {
                 let id = this.layer_id_list[i];
@@ -682,333 +1567,41 @@
     }
 
     /*
-     *
-     * event_simulation(事件模拟) 为不支持事件的类提供事件支持
-     * 订阅发布模式
-     */
-
-    /**
-     * @method constructor Eventful
-     * @param {Object} [eventProcessor] The object eventProcessor is the scope when
-     *        `eventProcessor.xxx` called. 事件处理者，也就是当前事件处理函数执行时的作用域。
-     * @param {Function} [eventProcessor.normalizeQuery]
-     *        param: {String|Object} Raw query.
-     *        return: {String|Object} Normalized query.
-     * @param {Function} [eventProcessor.filter] Event will be dispatched only
-     *        if it returns `true`.
-     *        param: {String} eventType
-     *        param: {String|Object} query
-     *        return: {Boolean}
-     * @param {Function} [eventProcessor.afterTrigger] Called after all handlers called.
-     *        param: {String} eventType
-     * @param {Function} [eventProcessor.afterListenerChanged] Called when any listener added or removed.
-     *        param: {String} eventType
-     */
-    class Eventful {
-        constructor(eventProcessor) {
-            this._handle_map = {}; //订阅的事件列表
-            this._eventProcessor = eventProcessor;
-        }
-
-        /**
-         * 订阅事件
-         *
-         * @param {String} event 事件名称
-         * @param {String | Object} query 事件过滤器条件
-         * @param {Function} handler 事件控制器
-         * @param {Object} context
-         */
-        on(event, query, fn, context) {
-            return on(this, event, query, fn, context, false);
-        }
-
-        once(event, query, fn, context) {
-            return on(this, event, query, fn, context, true);
-        }
-
-        /**
-         * @method
-         * 触发事件（发布）
-         *
-         * @param {String} event --- 事件的名称
-         */
-        trigger(event) {
-            let _map = this._handle_map[event];
-            // console.log(_map[0].fn);
-            let _ev_pro = this._eventProcessor;
-            if (_map) {
-                let args = arguments;
-                // console.log(args);
-                let args_len = args.length;
-
-                if (args_len > 3) {
-                    //如果参数长度超过3个，截取第一个后边的 所有参数
-                    args = Array.prototype.slice.call(args, 1);
-                }
-
-                let _map_len = _map.length;
-                for (let i = 0; i < _map_len; ) {
-                    //遍历事件列表
-                    let item = _map[i];
-                    if (_ev_pro && _ev_pro.filter && item.query !== null && !_ev_pro.filter(event, item.query)) {
-                        i++;
-                        continue;
-                    }
-
-                    switch (args_len) {
-                        case 1:
-                            item.fn.call(item.ctx);
-                            break;
-                        case 2:
-                            item.fn.call(item.ctx, args[1]);
-                            break;
-                        case 3:
-                            item.fn.call(item.ctx, args[2]);
-                            break;
-                        default:
-                            item.fn.apply(item.ctx, args);
-                            break;
-                    }
-
-                    if (item.one) {
-                        //如果只运行一次， 就从订阅列表中移除 当前事件
-                        _map.splice(i, 1);
-                        _map.length--;
-                    } else {
-                        i++;
-                    }
-                }
-            }
-
-            _ev_pro && _ev_pro.afterTigger && _ev_pro.afterTigger(event);
-            return this;
-        }
-    }
-
-    //tools -- 订阅事件
-    function on(_this, event, query, fn, context, isOnce) {
-        let _map = _this._handle_map;
-
-        if (typeof query === "function") {
-            //参数自适应
-            context = fn;
-            fn = query;
-            query = null;
-        }
-
-        if (!fn || !event) {
-            return _this;
-        }
-
-        // console.log(fn);
-
-        query = normalizeQuery(_this, query);
-
-        if (!_map[event]) {
-            //没有相关的订阅事件就 创建订阅列表
-            _map[event] = [];
-        }
-
-        for (let i = 0; i < _map[event].length; i++) {
-            //已经订阅过的事件 不再订阅
-            if (_map[event][i].h === fn) {
-                return _this;
-            }
-        }
-
-        let wrap = {
-            fn,
-            one: isOnce,
-            query,
-            ctx: context || _this,
-            // FIXME
-            // Do not publish this feature util it is proved that it makes sense.  我不知道callAtLast 是干嘛的
-            callAtLast: fn.qrEventfulCallAtLast
-        };
-
-        let lastIndex = _map[event].length - 1;
-        let lastWrap = _map[event][lastIndex];
-
-        if (lastWrap && lastWrap.callAtLast) {
-            // callAtLast 存在，订阅事件就替换它
-            _map[event].splice(lastIndex, 0, wrap);
-        } else {
-            _map[event].push(wrap); // 订阅事件放入对应的列表
-        }
-
-        callListenerChanged(_this, event); // 不知道这是干嘛用的
-        return _this;
-    }
-
-    //tools -- 解析参数
-    function normalizeQuery(host, query) {
-        let eventProcessor = host._$eventProcessor;
-        if (query != null && eventProcessor && eventProcessor.normalizeQuery) {
-            query = eventProcessor.normalizeQuery(query);
-        }
-        return query;
-    }
-
-    //tools --
-    function callListenerChanged(eventful, eventType) {
-        let eventProcessor = eventful._$eventProcessor;
-        if (eventProcessor && eventProcessor.afterListenerChanged) {
-            eventProcessor.afterListenerChanged(eventType);
-        }
-    }
-
-    /**
-     *
-     * 内容仓库 (M)，用来存储和管理画布上的所有对象，同时提供绘制和更新队列的功能。
-     * 需要绘制的对象首先存储在 Storage 中，然后 Painter 类会从 Storage 中依次取出进行绘图。
-     * 利用 Storage 作为内存中转站，对于不需要刷新的对象可以不进行绘制，从而可以提升整体性能。
-     *
-     */
-    class Storage extends Eventful {
-        constructor() {
-            super();
-            this._roots = new Map(); //元素id 地图map
-            this._displayList = []; //所有图形的绘制队列
-            this._displayList_len = 0; // 图形队列的长度
-        }
-
-        //1.1增加 图像 到元素的id列表
-        addToRoot(ele) {
-            if (ele._storage === this) {
-                return;
-            }
-            // this.trigger("beforeAddToRoot");
-            // ele.trigger("beforeAddToRoot");
-            this.addToStorage(ele);
-        }
-
-        /**
-         * 1.2增加 图像 到元素的id列表
-         * 创建基础图形的时候，基础图形订阅了"addToStorage"
-         * @param {*} ele
-         */
-        addToStorage(ele) {
-            this._roots.set(ele.id, ele);
-            // this.trigger("addToStorage");
-            // ele.trigger("addToStorage");
-            return this;
-        }
-
-        /**2.1 返回所有图形的绘制队列
-         * @method getDisplayList
-         * @param {boolean} [needUpdate=false] 是否在返回前更新该数组
-         * @param {boolean} [includeIgnore=false] 是否包含 ignore 的数组, 在 needUpdate 为 true 的时候有效
-         */
-        getDisplayList(needUpdate, includeIgnore = false) {
-            if (needUpdate) {
-                this.updateDisplayList(includeIgnore); //2.1_2更新图形队列,并按照优先级排序， 更新完成后返回最新排序的 图形队列
-            }
-            return this._displayList;
-        }
-
-        /**
-         * @method updateDisplayList
-         * 2.1_2 更新图形的绘制队列。
-         * 每次绘制前都会调用，该方法会先深度优先遍历整个树，更新所有Group和Shape的变换并且把所有可见的Shape保存到数组中，
-         * 最后根据绘制的优先级（zlevel > z > 插入顺序）排序得到绘制队列
-         * @param {boolean} [includeIgnore=false] 是否包含 ignore 的数组
-         */
-        updateDisplayList(includeIgnore) {
-            this._displayList_len = 0;
-            let displayList = this._displayList;
-            //遍历元素的id 列表
-            this._roots.forEach((ele, id, map) => {
-                this._updateAndAddDisplayable(ele, null, includeIgnore);
-            });
-
-            displayList.length = this._displayList_len;
-            //队列排序
-            // env.canvasSupported && (displayList, this._displayList_sort);
-        }
-
-        //2.1_2_1
-        _updateAndAddDisplayable(ele, clipPaths, includeIgnore) {
-            if (ele.ignore && !includeIgnore) {
-                return;
-            }
-            if (ele.__dirty) ;
-            ele.clipPaths = clipPaths;
-            this._displayList[this._displayList_len++] = ele;
-        }
-
-        //tools -- 对图形队列排序
-        _displayList_sort(a, b) {
-            if (a.qlevel === b.qlevel) {
-                if (a.z === b.z) {
-                    return a.z2 - b.z2;
-                }
-                return a.z - b.z;
-            }
-            return a.qlevel - b.qlevel;
-        }
-    }
-
-    /*
      *  用来记录 动画开关， 时间戳， 添加动画序列
      */
 
-    class GlobalAnimationMgr extends Eventful {
+    class WatchAnim extends Eventful {
         constructor(opts) {
-            super(); //调用父类的
-            this._running = false; //动画启动开关
-            this._timestamp; //时间戳(记录动画启动时间)
-            this._pause = {
-                duration: 0, //暂停持续时间
-                start: 0, //暂停时间戳
-                flag: false //暂停开关标记
-            };
-            this._animatableMap = new Map(); //动画对象列表
+            super();
+            this._running = false; //动画启动
+            this._pause = false; //动画暂停
         }
 
-        //启动动画
+        //启动监控
         start() {
-            this._pause.duration = 0;
-            this._timestamp = new Date().getTime();
             this._startLoop();
         }
-
-        //暂停动画
+        //暂停监控
         pause() {
-            if (!this._pause.flag) {
-                this._pause.start = new Date().getTime();
-                this._pause.flag = true; //暂停
+            if (this._paused) {
+                this._paused = true;
             }
         }
 
-        // RAF (requestAnimationFrame) 递归执行动画
         _startLoop() {
             let self = this;
             this._running = true;
             function nextFrame() {
                 if (self._running) {
                     RAF(nextFrame);
-                    !self._pause.flag && self._update();
+                    !self._paused && self._update();
                 }
             }
             RAF(nextFrame);
         }
 
-        //
         _update() {
-            let time = new Date().getTime() - this._pause.duration;
-            let delta = time - this._timestamp;
-            this._timestamp = time;
-            this.trigger("frame", delta);
-        }
-
-        //向动画列表中增加 动画方案（特征）
-        addAnimatable(animatable) {
-            this._animatableMap.set(animatable.id, animatable);
-        }
-
-        //从动画列表中移除 动画方案（特征）
-        removeAnimatable(animatable) {
-            this._animatableMap.delete(animatable.id);
+            this.trigger("frame"); //激活订阅的frame 事件，触发视图刷新
         }
     }
 
@@ -1055,35 +1648,27 @@
             if (!renderType || !painterMap[renderType]) {
                 renderType = "canvas";
             }
-            //创建数据仓库
+
             this.storage = new Storage();
-            //生成视图实例
             this.painter = new painterMap[renderType](this.root, this.storage, opts, this.id);
             if (typeof this.root.moveTo !== "function") ;
-
-            //生成事件实例
             // this.eventHandler = new HRenderEventHandler(this.storage, this.painter, handerProxy);
 
-            //生成动画实例
-            this.globalAnimationMgr = new GlobalAnimationMgr();
-            this.globalAnimationMgr.on("frame", function() {
-                self.flush(); //每间隔16.7ms 执行一次 flush() 函数
+            this.WatchAnim = new WatchAnim();
+            this.WatchAnim.on("frame", function() {
+                self.flush(); //每间隔16.7ms 监控一次flush
             });
-            this.globalAnimationMgr.start();
+            this.WatchAnim.start();
             this._needRefresh = false;
         }
 
         //监控 this._needRefresh 的开关
         flush() {
-            console.log("123");
-            //全部重绘
             if (this._needRefresh) {
-                console.log("开始刷新");
-                this.refreshImmediately();
+                this.refreshImmediately(); //全部重绘
             }
-            //重绘特定元素
             if (this._needRefreshHover) {
-                this.refreshHoverImmediaterly();
+                this.refreshHoverImmediaterly(); //重绘特定元素
             }
         }
 
@@ -1485,7 +2070,7 @@
             this.calculateTextPosition = null; //文本位置的字符串，计算实际位置
 
             this.invisible = false; //是否隐藏对象，默认false--不隐藏。（绘制）
-            this.z = 0;
+            this.z = 0; //图层层级
 
             this.hLevel = 0; //确定可显示对象可以在画布的哪一层绘制
 
