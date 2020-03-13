@@ -259,6 +259,7 @@ class CanvasPainter {
         // console.log(layerList);
 
         let finished = true;
+        //遍历所有的图层
         for (let j = 0; j < layerList.length; j++) {
             let cur_layer = layerList[j];
             let ctx = cur_layer.ctx;
@@ -287,9 +288,8 @@ class CanvasPainter {
                 start = cur_layer.__startIndex;
             }
 
-            //遍历所有的图层,开始绘制元素
+            //遍历图层中所有的元素
             let i = start;
-            // console.log(cur_layer);
             for (; i < cur_layer.__endIndex; i++) {
                 let ele = list[i];
                 //1.2_2_1绘制图形
