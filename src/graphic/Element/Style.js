@@ -1,3 +1,4 @@
+import { mixin } from "../../tools/data_util";
 let STYLE_COMMON_PROPS = [
     ["shadowBlur", 0],
     ["shadowOffsetX", 0],
@@ -13,7 +14,8 @@ let STYLE_COMMON_PROPS = [
  * @param {} opts --- 用户自定义的样式
  */
 export default function Style(opts) {
-    extendStyle(this, opts, false);
+    mixin(this, opts, false);
+    // console.log(res);
 }
 
 Style.prototype = {
@@ -83,21 +85,23 @@ Style.prototype = {
     bind: function(ctx, ele, prevEl) {
         // console.log(this);
         let prevStyle = prevEl && prevEl.style;
+        //检查当前ctx的样式 是否需要更新
+        let styleNeedChange = !prevStyle || ctx._stylehasChanged === false;
+        ctx._stylehasChanged = true;
 
-        //如果没有上一个样式，就代表绘制第一个元素
-
-        if (!prevEl) {
+        if (styleNeedChange || this.fill !== prevStyle.fill) {
             ctx.fillStyle = this.fill;
+        }
+        if (styleNeedChange || this.stroke !== prevStyle.stroke) {
             ctx.strokeStyle = this.stroke;
+        }
+        if (styleNeedChange || this.opacity !== prevStyle.opacity) {
             ctx.globalAlpha = this.opacity == null ? 1 : this.opacity;
-
-            ctx.globalCompositeOperation = this.blend || "source-over";
         }
 
-        // if(this.hasStroke()) {
-        //     let lineWidth = this.lineWidth;
-        //     ctx.lineWidth = lineWidth / (this.strokeNoScale && ele && ele.getLineScale)?
-        // }
+        if (styleNeedChange || this.blend !== prevStyle.blend) {
+            ctx.globalCompositeOperation = this.blend || "source-over";
+        }
     },
 
     hasFill: function() {
@@ -130,18 +134,18 @@ for (let i = 0; i < STYLE_COMMON_PROPS.length; i++) {
  * @param source --- 传递来的属性
  * @param overwrite --- 是否覆盖   true -- 全部覆盖   false --- 仅复制target没有的属性
  */
-const extendStyle = function(target, source, overwrite) {
-    if (!source) return;
-    if (overwrite) {
-        //全覆盖
-        target = Object.assign(target, source);
-    } else {
-        for (let prop in source) {
-            //仅复制target已经有的属性
-            if (!target.hasOwnProperty(prop) && source[prop]) {
-                target[prop] = source[prop];
-            }
-        }
-    }
-    return target;
-};
+// const extendStyle = function(target, source, overwrite) {
+//     if (!source) return;
+//     if (overwrite) {
+//         //全覆盖
+//         target = Object.assign(target, source);
+//     } else {
+//         for (let prop in source) {
+//             //仅复制target已经有的属性
+//             if (!target.hasOwnProperty(prop) && source[prop]) {
+//                 target[prop] = source[prop];
+//             }
+//         }
+//     }
+//     return target;
+// };

@@ -277,7 +277,7 @@ class CanvasPainter {
             if (cur_layer.__startIndex === cur_layer.__endIndex) {
                 cur_layer.clear(false, clearColor);
             } else if (start === cur_layer.__startIndex) {
-                let firstEl = list[start];
+                let firstEl = ele_ary[start];
                 if (!firstEl.incremental || paintAll) {
                     cur_layer.clear(false, clearColor);
                 }
@@ -291,7 +291,7 @@ class CanvasPainter {
             //遍历图层中所有的元素
             let i = start;
             for (; i < cur_layer.__endIndex; i++) {
-                let ele = list[i];
+                let ele = ele_ary[i];
                 //1.2_2_1绘制图形
                 this._doPaintEl(ele, cur_layer, paintAll, scope);
                 //绘制完成标记为不更新

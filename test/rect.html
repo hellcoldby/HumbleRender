@@ -40,11 +40,13 @@
             }); 
 
             let rect1 = new HumbleRneder.Rect({
+                position: [0, 200],
                 shape: {
                     x: 50,
                     y: 200,
                     width: 200,
                     height: 100,
+                    r:10
                 },
                 style: {
                     fill: '#0000ff',
@@ -53,6 +55,20 @@
                 }
             }); 
 
+
+            let circle= new HumbleRneder.Circle({
+                position: [200, 200],
+                shape: {
+                    cx: 350,
+                    cy: 150,
+                    r: 60,
+                },
+                style: {
+                    fill: '#c03',
+
+                }
+            })
+            hr.add(circle);
             hr.add(rect);
             hr.add(rect1);
 

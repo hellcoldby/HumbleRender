@@ -72,7 +72,7 @@ export function inheritProperties(target, source, opts) {
     }
 }
 
-//5. 从目标对象上拷贝属性
+//5. 从目标对象上拷贝非继承的属性
 export function copyOwnProperties(target, source, excludes = []) {
     for (let key in source) {
         if (source.hasOwnProperty(key)) {
@@ -87,7 +87,7 @@ export function copyOwnProperties(target, source, excludes = []) {
     return target;
 }
 
-//6. 继承多个实例的（非继承）属性 参数（targe, obj1, obj2, ..., overWrite)
+//6. 拷贝多个对象的（非继承）属性。 参数（targe, obj1, obj2, ..., overWrite)
 export function mixin() {
     let lastArgs = arguments[arguments.length - 1];
     let overwrite = false;
@@ -98,15 +98,17 @@ export function mixin() {
     let i = 1;
     let tmp = null;
     let tmp_keys = [];
-    for (i; i < arguments.length; i++) {
+    for (i; i < arguments.length - 1; i++) {
         tmp = arguments[i];
-        // console.log(tmp);
 
         tmp_keys = Object.getOwnPropertyNames(tmp);
         if (tmp_keys.length) {
-            tmp_keys.forEach(function(prop, index) {
-                if (tmp.hasOwnProperty(prop) && (overwrite ? tmp[prop] != null : target[prop] == null)) {
-                    target[prop] = tmp[prop];
+            tmp_keys.forEach(function(prop) {
+                if (prop !== "constructor" && prop !== "prototype" && prop !== "name") {
+                    if (tmp.hasOwnProperty(prop) && (overwrite ? tmp[prop] != null : target.hasOwnProperty(prop) === false)) {
+                        target[prop] = tmp[prop];
+                        // console.log(target[prop]);
+                    }
                 }
             });
         }

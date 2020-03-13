@@ -7,10 +7,10 @@
  * 注意： Element 同时继承多个类，并且只继承用户传递来的属性
  */
 import Eventful from "../../tools/EventEmitter";
-import Transformable from "../transform/Transformable";
-import Animatable from "../Animatable/Animatable";
+import Transformable from "../mixin/Transformable";
+import Animatable from "../mixin/Animatable";
 import guid from "../../tools/guid";
-import { inheritProperties, mixin } from "../../tools/data_util";
+import { inheritProperties, mixin, copyOwnProperties } from "../../tools/data_util";
 import Style from "./Style";
 
 class Element {
@@ -71,7 +71,7 @@ class Element {
         inheritProperties(this, Transformable, this.opts);
         inheritProperties(this, Eventful, this.opts);
         inheritProperties(this, Animatable, this.opts);
-        // copyOwnProperties(this, this.opts, ["style", "shape"]);
+        copyOwnProperties(this, this.opts, ["style", "shape"]);
 
         // console.log(this);
         // this.on("addToStorage", this.addToStorageHandler);

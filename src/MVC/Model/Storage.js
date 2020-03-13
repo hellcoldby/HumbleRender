@@ -24,11 +24,7 @@ class Storage extends Eventful {
         return this;
     }
 
-    /**2.1 返回所有图形的绘制队列
-     * @method getDisplayList
-     * @param {boolean} [needUpdate=false] 是否在返回前更新该数组
-     * @param {boolean} [includeIgnore=false] 是否包含 ignore 的数组, 在 needUpdate 为 true 的时候有效
-     */
+    //2.1 返回所有图形的绘制队列 参数(是否更新图形数组， 是否包含忽略)
     getDisplayList(needUpdate, includeIgnore = false) {
         if (needUpdate) {
             this.updateDisplayList(includeIgnore); //2.1_2更新图形队列
@@ -61,6 +57,11 @@ class Storage extends Eventful {
     //2.1_2_1 排除 标记为忽略 的元素，更新元素数组
     _updateAndAddDisplayable(ele, clipPaths, includeIgnore) {
         if (ele.ignore && !includeIgnore) return;
+        //计算图形偏移矩阵
+        if (ele.__dirty) {
+            ele.updateTransform();
+        }
+        //添加元素到 数组队列中
         this.ele_ary[this.ele_ary_len++] = ele;
     }
 }

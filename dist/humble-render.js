@@ -969,11 +969,7 @@
             return this;
         }
 
-        /**2.1 返回所有图形的绘制队列
-         * @method getDisplayList
-         * @param {boolean} [needUpdate=false] 是否在返回前更新该数组
-         * @param {boolean} [includeIgnore=false] 是否包含 ignore 的数组, 在 needUpdate 为 true 的时候有效
-         */
+        //2.1 返回所有图形的绘制队列 参数(是否更新图形数组， 是否包含忽略)
         getDisplayList(needUpdate, includeIgnore = false) {
             if (needUpdate) {
                 this.updateDisplayList(includeIgnore); //2.1_2更新图形队列
@@ -1006,6 +1002,11 @@
         //2.1_2_1 排除 标记为忽略 的元素，更新元素数组
         _updateAndAddDisplayable(ele, clipPaths, includeIgnore) {
             if (ele.ignore && !includeIgnore) return;
+            //计算图形偏移矩阵
+            if (ele.__dirty) {
+                ele.updateTransform();
+            }
+            //添加元素到 数组队列中
             this.ele_ary[this.ele_ary_len++] = ele;
         }
     }
@@ -1451,6 +1452,7 @@
             // console.log(layerList);
 
             let finished = true;
+            //遍历所有的图层
             for (let j = 0; j < layerList.length; j++) {
                 let cur_layer = layerList[j];
                 let ctx = cur_layer.ctx;
@@ -1468,7 +1470,7 @@
                 if (cur_layer.__startIndex === cur_layer.__endIndex) {
                     cur_layer.clear(false, clearColor);
                 } else if (start === cur_layer.__startIndex) {
-                    let firstEl = list[start];
+                    let firstEl = ele_ary[start];
                     if (!firstEl.incremental || paintAll) {
                         cur_layer.clear(false, clearColor);
                     }
@@ -1479,11 +1481,10 @@
                     start = cur_layer.__startIndex;
                 }
 
-                //遍历所有的图层,开始绘制元素
+                //遍历图层中所有的元素
                 let i = start;
-                // console.log(cur_layer);
                 for (; i < cur_layer.__endIndex; i++) {
-                    let ele = list[i];
+                    let ele = ele_ary[i];
                     //1.2_2_1绘制图形
                     this._doPaintEl(ele, cur_layer, paintAll, scope);
                     //绘制完成标记为不更新
@@ -1864,7 +1865,22 @@
         }
     }
 
-    //6. 继承多个实例的（非继承）属性 参数（targe, obj1, obj2, ..., overWrite)
+    //5. 从目标对象上拷贝非继承的属性
+    function copyOwnProperties(target, source, excludes = []) {
+        for (let key in source) {
+            if (source.hasOwnProperty(key)) {
+                if (excludes && excludes.length) {
+                    if (excludes.indexOf(key) !== -1) {
+                        continue;
+                    }
+                }
+                target[key] = source[key];
+            }
+        }
+        return target;
+    }
+
+    //6. 拷贝多个对象的（非继承）属性。 参数（targe, obj1, obj2, ..., overWrite)
     function mixin() {
         let lastArgs = arguments[arguments.length - 1];
         let overwrite = false;
@@ -1875,15 +1891,17 @@
         let i = 1;
         let tmp = null;
         let tmp_keys = [];
-        for (i; i < arguments.length; i++) {
+        for (i; i < arguments.length - 1; i++) {
             tmp = arguments[i];
-            // console.log(tmp);
 
             tmp_keys = Object.getOwnPropertyNames(tmp);
             if (tmp_keys.length) {
-                tmp_keys.forEach(function(prop, index) {
-                    if (tmp.hasOwnProperty(prop) && (overwrite ? tmp[prop] != null : target[prop] == null)) {
-                        target[prop] = tmp[prop];
+                tmp_keys.forEach(function(prop) {
+                    if (prop !== "constructor" && prop !== "prototype" && prop !== "name") {
+                        if (tmp.hasOwnProperty(prop) && (overwrite ? tmp[prop] != null : target.hasOwnProperty(prop) === false)) {
+                            target[prop] = tmp[prop];
+                            // console.log(target[prop]);
+                        }
                     }
                 });
             }
@@ -1891,9 +1909,22 @@
         return target;
     }
 
-    class Transformable {
-        constructor() {}
-    }
+    let Transformable = function(opts = {}) {
+        this.origin = opts.origin === null || pots.origin === undefined ? [0, 0] : opts.origin;
+        this.rotation = opts.rotation === null || opts.rotation === undefined ? 0 : opts.rotation;
+        this.positon = opts.position === null || opts.position === undefined ? [0, 0] : opts.position;
+        this.scale = opts.scale === null || opts.scale === undefined ? [1, 1] : opts.scale;
+
+        this.skew = opts.skew === null || opts.skew === undefined ? [0, 0] : opts.skew;
+        this.globalScaleRatio = 1;
+    };
+
+    Transformable.prototype = {
+        constructor: Transformable,
+
+        //
+        composeLocalTransform() {}
+    };
 
     class Animatable {
         constructor() {}
@@ -1914,7 +1945,8 @@
      * @param {} opts --- 用户自定义的样式
      */
     function Style(opts) {
-        extendStyle(this, opts, false);
+        mixin(this, opts, false);
+        // console.log(res);
     }
 
     Style.prototype = {
@@ -1984,21 +2016,23 @@
         bind: function(ctx, ele, prevEl) {
             // console.log(this);
             let prevStyle = prevEl && prevEl.style;
+            //检查当前ctx的样式 是否需要更新
+            let styleNeedChange = !prevStyle || ctx._stylehasChanged === false;
+            ctx._stylehasChanged = true;
 
-            //如果没有上一个样式，就代表绘制第一个元素
-
-            if (!prevEl) {
+            if (styleNeedChange || this.fill !== prevStyle.fill) {
                 ctx.fillStyle = this.fill;
+            }
+            if (styleNeedChange || this.stroke !== prevStyle.stroke) {
                 ctx.strokeStyle = this.stroke;
+            }
+            if (styleNeedChange || this.opacity !== prevStyle.opacity) {
                 ctx.globalAlpha = this.opacity == null ? 1 : this.opacity;
-
-                ctx.globalCompositeOperation = this.blend || "source-over";
             }
 
-            // if(this.hasStroke()) {
-            //     let lineWidth = this.lineWidth;
-            //     ctx.lineWidth = lineWidth / (this.strokeNoScale && ele && ele.getLineScale)?
-            // }
+            if (styleNeedChange || this.blend !== prevStyle.blend) {
+                ctx.globalCompositeOperation = this.blend || "source-over";
+            }
         },
 
         hasFill: function() {
@@ -2031,21 +2065,21 @@
      * @param source --- 传递来的属性
      * @param overwrite --- 是否覆盖   true -- 全部覆盖   false --- 仅复制target没有的属性
      */
-    const extendStyle = function(target, source, overwrite) {
-        if (!source) return;
-        if (overwrite) {
-            //全覆盖
-            target = Object.assign(target, source);
-        } else {
-            for (let prop in source) {
-                //仅复制target已经有的属性
-                if (!target.hasOwnProperty(prop) && source[prop]) {
-                    target[prop] = source[prop];
-                }
-            }
-        }
-        return target;
-    };
+    // const extendStyle = function(target, source, overwrite) {
+    //     if (!source) return;
+    //     if (overwrite) {
+    //         //全覆盖
+    //         target = Object.assign(target, source);
+    //     } else {
+    //         for (let prop in source) {
+    //             //仅复制target已经有的属性
+    //             if (!target.hasOwnProperty(prop) && source[prop]) {
+    //                 target[prop] = source[prop];
+    //             }
+    //         }
+    //     }
+    //     return target;
+    // };
 
     /*
      * HRenderer 中所有图形对象都是 Element 的子类。这是一个抽象类，请不要直接创建这个类的实例。
@@ -2114,7 +2148,7 @@
             inheritProperties(this, Transformable, this.opts);
             inheritProperties(this, Eventful, this.opts);
             inheritProperties(this, Animatable, this.opts);
-            // copyOwnProperties(this, this.opts, ["style", "shape"]);
+            copyOwnProperties(this, this.opts, ["style", "shape"]);
 
             // console.log(this);
             // this.on("addToStorage", this.addToStorageHandler);
@@ -2139,22 +2173,37 @@
         Z: 6,
         R: 7
     };
-    class pathProxy {
-        constructor(notSaveData) {
-            this._saveData = !(notSaveData || false);
 
-            if (this._saveData) {
-                this.data = [];
-            }
-
-            this.ctx = null;
+    function PathProxy(notSaveData) {
+        this._saveData = !(notSaveData || false);
+        if (this._saveData) {
+            this.data = [];
         }
+        this._ctx = null;
+    }
 
-        getContext() {
+    PathProxy.prototype = {
+        constructor: PathProxy,
+        _xi: 0, // xi, yi 记录当前点
+        _yi: 0,
+        _x0: 0, // x0, y0 记录起始点
+        _y0: 0,
+
+        _ux: 0, //线段的最小值
+        _uy: 0,
+
+        _len: 0,
+        _lineDash: null, // 设置虚线，数组格式
+
+        _dashOffset: 0,
+        _dashIdx: 0,
+        _dashSum: 0,
+
+        getContext: function() {
             return this._ctx;
-        }
+        },
 
-        beginPath(ctx) {
+        beginPath: function(ctx) {
             this._ctx = ctx;
             ctx && ctx.beginPath();
             ctx && (this.dpr = ctx.dpr);
@@ -2169,20 +2218,52 @@
                 this._dashOffset = 0;
             }
             return this;
-        }
+        },
 
-        moveTo(x, y) {
+        moveTo: function(x, y) {
             this.addData(CMD, x, y);
             this._ctx && this._ctx.moveTo(x, y);
-        }
+            // x0, y0, xi, yi 是记录在 _dashedXXXXTo 方法中使用
+            // xi, yi 记录当前点, x0, y0 在 closePath 的时候回到起始点。
+            // 有可能在 beginPath 之后直接调用 lineTo，这时候 x0, y0 需要
+            // 在 lineTo 方法中记录，这里先不考虑这种情况，dashed line 也只在 IE10- 中不支持
+            this._x0 = x;
+            this._y0 = y;
 
-        fill(ctx) {
+            this._xi = x;
+            this._yi = y;
+
+            return this;
+        },
+
+        lineTo: function(x, y) {
+            //判断是否超过 线段的最小值
+            let exceedUnit = Math.abs(x - this.xi) > this._ux || Math.abs(y - this._yi) > this._uy || this._len < 5;
+            if (exceedUnit) {
+                this._xi = x;
+                this._yi = y;
+            }
+            if (this._ctx && exceedUnit) {
+                this._ctx.lineTo(x, y);
+            }
+
+            return this;
+        },
+
+        arc: function(cx, cy, r, startAngle, endAngle, anticlockwise) {
+            this._ctx && this._ctx.arc(cx, cy, r, startAngle, endAngle, anticlockwise);
+            this._xi = Math.cos(endAngle) * r + cx; //??? 这个坐标的计算有=疑问
+            this._yi = Math.sin(endAngle) * r + cy; //??
+            return this;
+        },
+
+        fill: function(ctx) {
             ctx && ctx.fill();
-            this.toStatic();
-        }
+            // this.toStatic();
+        },
 
-        closePath() {
-            this.addData(CMD.Z);
+        closePath: function() {
+            // this.addData(CMD.Z);
 
             var ctx = this._ctx;
             var x0 = this._x0;
@@ -2195,19 +2276,19 @@
             this._xi = x0;
             this._yi = y0;
             return this;
-        }
+        },
 
-        toStatic() {
-            let data = this.data;
-            if (data instanceof Array) {
-                data.length = this._len;
-                if (hasTypeArray) {
-                    this.data = new Float32Array(data);
-                }
-            }
-        }
+        rect: function(x, y, w, h) {
+            this._ctx && this._ctx.rect(x, y, w, h);
+            // this.addData(CMD.R, x, y, w, h);
+            return this;
+        },
 
-        addData(cmd) {
+        _needsDash: function() {
+            return this._lineDash;
+        },
+
+        addData: function(cmd) {
             if (!this._saveData) {
                 return;
             }
@@ -2224,9 +2305,9 @@
             }
 
             this._prevCmd = cmd;
-        }
+        },
 
-        _expandData() {
+        _expandData: function() {
             // Only if data is Float32Array
             if (!(this.data instanceof Array)) {
                 var newData = [];
@@ -2236,13 +2317,7 @@
                 this.data = newData;
             }
         }
-
-        rect(x, y, w, h) {
-            this._ctx && this._ctx.rect(x, y, w, h);
-            this.addData(CMD.R, x, y, w, h);
-            return this;
-        }
-    }
+    };
 
     /*
      *
@@ -2260,7 +2335,7 @@
         }
 
         brush(ctx, prevEl) {
-            let path = this.path || new pathProxy(true);
+            let path = this.path || new PathProxy(true);
             let hasStroke = this.style.hasStroke(); //绘制需求
             let hasFill = this.style.hasFill(); //填充需求
 
@@ -2273,8 +2348,9 @@
             let hasFillPattern = hasFill && !!fill.image;
             let hasStrokePattern = hasStroke && !!stroke.image;
 
+            //在style.bind()中完成 fillSytle  和 strokeStyle的设置
             this.style.bind(ctx, this, prevEl);
-            // console.log(this);
+            // this.setTransform(ctx);
 
             if (this.__dirty) {
                 let rect;
@@ -2299,7 +2375,6 @@
 
             //更新路径
             if (this.__dirtyPath) {
-                // console.log(this);
                 path.beginPath(ctx);
                 this.buildPath(path, this.shape, false);
                 if (this.path) {
@@ -2362,6 +2437,7 @@
             if (!shape.r) {
                 ctx.rect(x, y, width, height);
             } else {
+                console.log(ctx);
                 round_rect(ctx, shape);
             }
             ctx.closePath();
@@ -2369,6 +2445,28 @@
         }
     }
 
+    let defaultConfig$1 = {
+        shape: {
+            cx: 0,
+            cy: 0,
+            r: 0
+        }
+    };
+    class Circle extends Path {
+        constructor(opts) {
+            super(merge(defaultConfig$1, opts, true));
+            this.type = "circle";
+        }
+
+        buildPath(ctx, shape, inBundle) {
+            if (inBundle) {
+                ctx.moveTo(shape.cx + shape.r, shape.cy);
+            }
+            ctx.arc(shape.cx, shape.cy, shape.r, 0, Math.PI * 2, true);
+        }
+    }
+
+    exports.Circle = Circle;
     exports.Rect = Rect;
     exports.init = init;
     exports.version = version;
