@@ -57,8 +57,8 @@ class Storage extends Eventful {
     //2.1_2_1 排除 标记为忽略 的元素，更新元素数组
     _updateAndAddDisplayable(ele, clipPaths, includeIgnore) {
         if (ele.ignore && !includeIgnore) return;
-        //计算图形偏移矩阵
-        if (ele.__dirty) {
+        //计算图形transform矩阵
+        if (ele._dirty) {
             ele.updateTransform();
         }
         //添加元素到 数组队列中

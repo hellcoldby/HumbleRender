@@ -31,7 +31,7 @@ class Path extends Element {
 
         //在style.bind()中完成 fillSytle  和 strokeStyle的设置
         this.style.bind(ctx, this, prevEl);
-        // this.setTransform(ctx);
+        this.setTransform(ctx);
 
         if (this.__dirty) {
             let rect;

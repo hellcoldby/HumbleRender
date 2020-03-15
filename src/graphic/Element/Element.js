@@ -7,8 +7,8 @@
  * 注意： Element 同时继承多个类，并且只继承用户传递来的属性
  */
 import Eventful from "../../tools/EventEmitter";
-import Transformable from "../mixin/Transformable";
-import Animatable from "../mixin/Animatable";
+import Transformable from "../mixin/Transformable/Transformable";
+import Animatable from "../mixin/Animatable/Animatable";
 import guid from "../../tools/guid";
 import { inheritProperties, mixin, copyOwnProperties } from "../../tools/data_util";
 import Style from "./Style";

@@ -1002,8 +1002,8 @@
         //2.1_2_1 排除 标记为忽略 的元素，更新元素数组
         _updateAndAddDisplayable(ele, clipPaths, includeIgnore) {
             if (ele.ignore && !includeIgnore) return;
-            //计算图形偏移矩阵
-            if (ele.__dirty) {
+            //计算图形transform矩阵
+            if (ele._dirty) {
                 ele.updateTransform();
             }
             //添加元素到 数组队列中
@@ -1859,7 +1859,7 @@
     function inheritProperties(target, source, opts) {
         let src = new source(opts);
         for (let name in src) {
-            if (target.hasOwnProperty(name)) {
+            if (src.hasOwnProperty(name)) {
                 target[name] = src[name];
             }
         }
@@ -1909,22 +1909,199 @@
         return target;
     }
 
-    let Transformable = function(opts = {}) {
-        this.origin = opts.origin === null || pots.origin === undefined ? [0, 0] : opts.origin;
-        this.rotation = opts.rotation === null || opts.rotation === undefined ? 0 : opts.rotation;
-        this.positon = opts.position === null || opts.position === undefined ? [0, 0] : opts.position;
-        this.scale = opts.scale === null || opts.scale === undefined ? [1, 1] : opts.scale;
+    let ArrayCtor = typeof Float32Array === "undefined" ? Array : Float32Array;
 
-        this.skew = opts.skew === null || opts.skew === undefined ? [0, 0] : opts.skew;
+    function create() {
+        let out = new ArrayCtor(6);
+        identity(out);
+        return out;
+    }
+
+    //设置矩阵
+    function identity(out) {
+        out[0] = 1;
+        out[1] = 0;
+        out[2] = 0;
+        out[3] = 1;
+        out[4] = 0;
+        out[5] = 0;
+        return out;
+    }
+
+    /**
+     * 缩放变换
+     * @param {Float32Array|Array.<number>} out
+     * @param {Float32Array|Array.<number>} a
+     * @param {Float32Array|Array.<number>} v
+     */
+    function scale(out, a, v) {
+        var vx = v[0];
+        var vy = v[1];
+        out[0] = a[0] * vx;
+        out[1] = a[1] * vy;
+        out[2] = a[2] * vx;
+        out[3] = a[3] * vy;
+        out[4] = a[4] * vx;
+        out[5] = a[5] * vy;
+        return out;
+    }
+
+    /**
+     * 旋转变换
+     * @param {Float32Array|Array.<number>} out
+     * @param {Float32Array|Array.<number>} a
+     * @param {number} rad
+     */
+    function rotate(out, a, rad) {
+        var aa = a[0];
+        var ac = a[2];
+        var atx = a[4];
+        var ab = a[1];
+        var ad = a[3];
+        var aty = a[5];
+        var st = Math.sin(rad);
+        var ct = Math.cos(rad);
+
+        out[0] = aa * ct + ab * st;
+        out[1] = -aa * st + ab * ct;
+        out[2] = ac * ct + ad * st;
+        out[3] = -ac * st + ct * ad;
+        out[4] = ct * atx + st * aty;
+        out[5] = ct * aty - st * atx;
+        return out;
+    }
+
+    /**
+     * 求逆矩阵
+     * @param {Float32Array|Array.<number>} out
+     * @param {Float32Array|Array.<number>} a
+     */
+    function invert(out, a) {
+        var aa = a[0];
+        var ac = a[2];
+        var atx = a[4];
+        var ab = a[1];
+        var ad = a[3];
+        var aty = a[5];
+
+        var det = aa * ad - ab * ac;
+        if (!det) {
+            return null;
+        }
+        det = 1.0 / det;
+
+        out[0] = ad * det;
+        out[1] = -ab * det;
+        out[2] = -ac * det;
+        out[3] = aa * det;
+        out[4] = (ac * aty - ad * atx) * det;
+        out[5] = (ab * atx - aa * aty) * det;
+        return out;
+    }
+
+    var EPSILON = 5e-5;
+    function Transformable(opts = {}) {
+        this.origin = !opts.origin ? [0, 0] : opts.origin;
+        this.rotation = !opts.rotation ? 0 : opts.rotation;
+        this.position = !opts.position ? [0, 0] : opts.position;
+        this.scale = !opts.scale ? [1, 1] : opts.scale;
+        this.skew = !opts.skew ? [0, 0] : opts.skew;
         this.globalScaleRatio = 1;
-    };
+        // console.log(this.position);
+    }
 
     Transformable.prototype = {
         constructor: Transformable,
 
-        //
-        composeLocalTransform() {}
+        //是否需要
+        needLocalTransform() {
+            // console.log(this);
+            return (
+                isNotAroundZero(this.rotation) ||
+                isNotAroundZero(this.position[0]) ||
+                isNotAroundZero(this.position[1]) ||
+                isNotAroundZero(this.scale[0] - 1) ||
+                isNotAroundZero(this.scale[1] - 1)
+            );
+        },
+
+        //更新图形的偏移矩阵
+        updateTransform() {
+            let parent = this.parent;
+            let parent_trans = parent && parent.transform;
+            // 判断是位置是否接近0, 接近0为false (不变化矩阵)
+            let needLocalTransform = this.needLocalTransform();
+
+            let m = this.transform;
+            if (!(needLocalTransform || parent_trans)) {
+                m && identity(m);
+                return;
+            }
+            //创建矩阵
+            m = m || create();
+            // console.log(m);
+
+            if (needLocalTransform) {
+                this.getLocalTransform(m);
+            } else {
+                identity(m);
+            }
+
+            this.transform = m;
+            // var globalScaleRatio = this.globalScaleRatio;
+
+            this.invTransform = this.invTransform || create();
+            invert(this.invTransform, m);
+        },
+
+        /**
+         * 将自己的transform应用到context上
+         * @param {CanvasRenderingContext2D} ctx
+         */
+        setTransform(ctx) {
+            let m = this.transform;
+            let dpr = ctx.dpr || 1;
+            console.log(m);
+            if (m) {
+                ctx.setTransform(dpr * m[0], dpr * m[1], dpr * m[2], dpr * m[3], dpr * m[4], dpr * m[5]);
+            } else {
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+        },
+
+        getLocalTransform(m = []) {
+            identity(m);
+
+            let origin = this.origin;
+            let scale$1 = this.scale || [1, 1];
+            let rotation = this.rotation || 0;
+            let position = this.position || [0, 0];
+
+            if (origin) {
+                m[4] -= origin[0];
+                m[5] -= origin[1];
+            }
+
+            scale(m, m, scale$1);
+            if (rotation) {
+                rotate(m, m, rotation);
+            }
+
+            if (origin) {
+                m[4] += origin[0];
+                m[5] += origin[1];
+            }
+
+            m[4] += position[0];
+            m[5] += position[1];
+            return m;
+        }
     };
+
+    //tools --- 判断不在0附近
+    function isNotAroundZero(val) {
+        return val > EPSILON || val < -EPSILON;
+    }
 
     class Animatable {
         constructor() {}
@@ -2350,7 +2527,7 @@
 
             //在style.bind()中完成 fillSytle  和 strokeStyle的设置
             this.style.bind(ctx, this, prevEl);
-            // this.setTransform(ctx);
+            this.setTransform(ctx);
 
             if (this.__dirty) {
                 let rect;

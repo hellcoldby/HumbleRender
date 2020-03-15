@@ -66,7 +66,7 @@ export function merge(target, source, overwrite) {
 export function inheritProperties(target, source, opts) {
     let src = new source(opts);
     for (let name in src) {
-        if (target.hasOwnProperty(name)) {
+        if (src.hasOwnProperty(name)) {
             target[name] = src[name];
         }
     }
