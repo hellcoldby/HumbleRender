@@ -1003,7 +1003,7 @@
         _updateAndAddDisplayable(ele, clipPaths, includeIgnore) {
             if (ele.ignore && !includeIgnore) return;
             //计算图形transform矩阵
-            if (ele._dirty) {
+            if (ele.__dirty) {
                 ele.updateTransform();
             }
             //添加元素到 数组队列中
@@ -1320,6 +1320,7 @@
                     prevLayer = layer;
                 }
 
+                //判断元素的属性发生变化， 标记图层为待更新。
                 if (ele.__dirty) {
                     layer.__dirty = true;
                     if (layer.incremental && layer.__drawIndex < 0) {
@@ -1803,6 +1804,7 @@
         return res === "function" || (!!val && res === "object");
     }
 
+
     //2. 判断数据类型
     function judgeType(val) {
         return Object.prototype.toString.call(val);
@@ -2042,7 +2044,7 @@
             // console.log(m);
 
             if (needLocalTransform) {
-                this.getLocalTransform(m);
+               m = this.getLocalTransform(m);
             } else {
                 identity(m);
             }
@@ -2061,7 +2063,7 @@
         setTransform(ctx) {
             let m = this.transform;
             let dpr = ctx.dpr || 1;
-            console.log(m);
+            // console.log(this.type, m);
             if (m) {
                 ctx.setTransform(dpr * m[0], dpr * m[1], dpr * m[2], dpr * m[3], dpr * m[4], dpr * m[5]);
             } else {
@@ -2302,7 +2304,7 @@
 
             this._hr = null; //元素被添加到 HumbleRender 实例后，自动赋值
 
-            this._dirty = true; //下一帧渲染的元素，标记为 dirty（true)
+            this.__dirty = true; //下一帧渲染的元素，标记为 dirty（true)
 
             this._rect = null;
 
@@ -2332,11 +2334,46 @@
             // this.on("delFromStorage", this.delFromStorageHandler);
         }
 
-        beforeBrush(ctx) {}
 
-        afterBrush(ctx) {}
+        //标记元素需要更新
+        dirty() {
+            this.__dirty = this.__dirtyText = true;
+            this._rect  = null;
+        }
 
-        brush() {}
+        //设置元素的属性
+        attr(key, value) {
+            if(judgeType(key) === '[Object String]'){
+                this._setProp(key, value);
+            }else if(isObject(key)){
+                for(let name in key) {
+                    if(key.hasOwnProperty(name)){
+                        this._setProp(name, key[name]);
+                    }
+                }
+            }
+            // console.log(this._dirty);
+            this.dirty();
+        }
+
+        //tools 设置属性
+        _setProp(key, val) {
+            switch (key) {
+                case 'style':
+                    copyOwnProperties(this.style, val);
+                    break;
+                case 'positon':  case 'scale':  case 'origin':
+                case 'skew': case 'translate':
+                    let target = this[key]? this[key] : [];
+                    target[0] = val[0];
+                    target[1] = val[1];
+                default:
+                    this[key] = val;
+                    break;
+            }
+         
+        }
+
     }
 
     mixin(Element.prototype, Animatable.prototype, Transformable.prototype, Eventful.prototype);
@@ -2437,6 +2474,10 @@
         fill: function(ctx) {
             ctx && ctx.fill();
             // this.toStatic();
+        },
+
+        stroke: function(ctx){
+            ctx && ctx.stroke();
         },
 
         closePath: function() {
@@ -2553,6 +2594,7 @@
             //更新路径
             if (this.__dirtyPath) {
                 path.beginPath(ctx);
+                console.log(this);
                 this.buildPath(path, this.shape, false);
                 if (this.path) {
                     this.__dirtyPath = false;
@@ -2614,7 +2656,7 @@
             if (!shape.r) {
                 ctx.rect(x, y, width, height);
             } else {
-                console.log(ctx);
+                // console.log(ctx);
                 round_rect(ctx, shape);
             }
             ctx.closePath();
@@ -2643,8 +2685,95 @@
         }
     }
 
+    /**
+     * 弧形
+     */
+    let defaultConfig$2={
+        shape: {
+            cx: 0,
+            cy: 0,
+            r: 0,
+            startAngle: 0,
+            endAngle: Math.PI * 2,
+            clockwise: true
+        },
+        style: {
+            stroke: '#000',
+            fill: null
+        }
+    };
+
+    class Arc extends Path {
+        constructor(opts) {
+            super(merge(defaultConfig$2, opts, true));
+            this.type = 'arc';
+        }
+        /**
+         * @method buildPath
+         * 绘制元素路径
+         * @param {Object} ctx 
+         * @param {String} shape 
+         */
+        buildPath(ctx, shape){
+            let x = shape.cx;
+            let y = shape.cy;
+            let r = Math.max(shape.r, 0);
+            let startAngle = shape.startAngle;
+            let endAngle = shape.endAngle;
+            let clockwise = shape.clockwise;
+
+            ctx.arc(x, y, r, startAngle, endAngle, !clockwise);
+        }
+    }
+
+    /**
+     * 扇形
+     */
+    let defaultConfig$3={
+        shape: {
+            cx: 0,
+            cy: 0,
+            r: 0,
+            startAngle: 0,
+            endAngle: Math.PI * 2,
+            clockwise: true
+        },
+        style: {
+            stroke: '#000',
+            fill: null
+        }
+    };
+
+    class Sector extends Path {
+        constructor(opts) {
+            super(merge(defaultConfig$3, opts, true));
+            this.type = 'arc';
+        }
+        /**
+         * @method buildPath
+         * 绘制元素路径
+         * @param {Object} ctx 
+         * @param {String} shape 
+         */
+        buildPath(ctx, shape){
+            let x = shape.cx;
+            let y = shape.cy;
+            let r = Math.max(shape.r, 0);
+            let startAngle = shape.startAngle;
+            let endAngle = shape.endAngle;
+            let clockwise = shape.clockwise;
+
+
+            ctx.moveTo(x,y);
+            ctx.arc(x, y, r, startAngle, endAngle, !clockwise);
+            ctx.closePath();
+        }
+    }
+
+    exports.Arc = Arc;
     exports.Circle = Circle;
     exports.Rect = Rect;
+    exports.Sector = Sector;
     exports.init = init;
     exports.version = version;
 

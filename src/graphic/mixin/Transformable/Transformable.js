@@ -43,7 +43,7 @@ Transformable.prototype = {
         // console.log(m);
 
         if (needLocalTransform) {
-            this.getLocalTransform(m);
+           m = this.getLocalTransform(m);
         } else {
             matrix.identity(m);
         }
@@ -62,7 +62,7 @@ Transformable.prototype = {
     setTransform(ctx) {
         let m = this.transform;
         let dpr = ctx.dpr || 1;
-        console.log(m);
+        // console.log(this.type, m);
         if (m) {
             ctx.setTransform(dpr * m[0], dpr * m[1], dpr * m[2], dpr * m[3], dpr * m[4], dpr * m[5]);
         } else {

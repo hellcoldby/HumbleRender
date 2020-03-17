@@ -57,6 +57,7 @@ class Path extends Element {
         //更新路径
         if (this.__dirtyPath) {
             path.beginPath(ctx);
+            console.log(this);
             this.buildPath(path, this.shape, false);
             if (this.path) {
                 this.__dirtyPath = false;

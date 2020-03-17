@@ -58,7 +58,7 @@ class Storage extends Eventful {
     _updateAndAddDisplayable(ele, clipPaths, includeIgnore) {
         if (ele.ignore && !includeIgnore) return;
         //计算图形transform矩阵
-        if (ele._dirty) {
+        if (ele.__dirty) {
             ele.updateTransform();
         }
         //添加元素到 数组队列中

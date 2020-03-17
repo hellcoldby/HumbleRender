@@ -1,3 +1,7 @@
+
+/**
+ *  圆形
+ */
 import Path from "../../Path/Path";
 import { merge } from "../../../tools/data_util";
 let defaultConfig = {

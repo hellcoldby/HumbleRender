@@ -127,6 +127,7 @@ class CanvasPainter {
                 prevLayer = layer;
             }
 
+            //判断元素的属性发生变化， 标记图层为待更新。
             if (ele.__dirty) {
                 layer.__dirty = true;
                 if (layer.incremental && layer.__drawIndex < 0) {

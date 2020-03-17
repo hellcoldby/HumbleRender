@@ -96,6 +96,10 @@ PathProxy.prototype = {
         // this.toStatic();
     },
 
+    stroke: function(ctx){
+        ctx && ctx.stroke();
+    },
+
     closePath: function() {
         // this.addData(CMD.Z);
 

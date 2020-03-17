@@ -11,7 +11,7 @@
             height: 100%;
         }
         #box{
-            width: 500px;
+            width: 700px;
             height: 500px;
             margin: 0 auto;
             border: 1px dashed darkcyan;
@@ -34,8 +34,8 @@
                 },
                 style: {
                     fill: '#AE0217',
-                    lineWidth : 5
-                    
+                    lineWidth : 5,
+                    // stroke: 'green'
                 }
             }); 
 
@@ -58,7 +58,7 @@
 
             let circle= new HumbleRneder.Circle({
                 position: [0, 50],
-                scale:[2,2],
+                scale:[1.1,1.1],
                 shape: {
                     cx: 350,
                     cy: 150,
@@ -69,12 +69,58 @@
 
                 }
             })
+       
+
+            
+            let arc = new HumbleRneder.Arc({
+                shape: {
+                    cx: 400,
+                    cy: 100,
+                    r: 50,
+                    startAngle: 0,
+                    endAngle: Math.PI * 60/180,
+                    clockwise: false,
+                },
+                style: {
+                    
+                    fill: '#E27474',
+                }
+            });
+
+            let sector = new HumbleRneder.Sector({
+                shape: {
+                    cx: 600,
+                    cy: 100,
+                    r: 50,
+                    startAngle: 0,
+                    endAngle: Math.PI * 60/180,
+                    clockwise: true,
+                },
+                style: {
+                    
+                    fill: '#E27474',
+                }
+            });
+
+
+
             hr.add(circle);
             hr.add(rect);
             hr.add(rect1);
+            hr.add(arc);
+            hr.add(sector);
 
-            
+            rect.attr({
+                style: {
+                    fill: 'yellow'
+                }
+            });
 
+            sector.attr({
+                style: {
+                    fill: '#FD8424'
+                }
+            })
         </script>
 </body>
 </html>

@@ -45,7 +45,7 @@ export default class Rect extends Path {
         if (!shape.r) {
             ctx.rect(x, y, width, height);
         } else {
-            console.log(ctx);
+            // console.log(ctx);
             round_rect(ctx, shape);
         }
         ctx.closePath();

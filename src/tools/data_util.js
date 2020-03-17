@@ -10,6 +10,7 @@ export function isObject(val) {
     return res === "function" || (!!val && res === "object");
 }
 
+
 //2. 判断数据类型
 export function judgeType(val) {
     return Object.prototype.toString.call(val);

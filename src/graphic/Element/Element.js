@@ -10,7 +10,7 @@ import Eventful from "../../tools/EventEmitter";
 import Transformable from "../mixin/Transformable/Transformable";
 import Animatable from "../mixin/Animatable/Animatable";
 import guid from "../../tools/guid";
-import { inheritProperties, mixin, copyOwnProperties } from "../../tools/data_util";
+import { inheritProperties, mixin, copyOwnProperties, isObject, judgeType } from "../../tools/data_util";
 import Style from "./Style";
 
 class Element {
@@ -48,7 +48,7 @@ class Element {
 
         this._hr = null; //元素被添加到 HumbleRender 实例后，自动赋值
 
-        this._dirty = true; //下一帧渲染的元素，标记为 dirty（true)
+        this.__dirty = true; //下一帧渲染的元素，标记为 dirty（true)
 
         this._rect = null;
 
@@ -78,11 +78,46 @@ class Element {
         // this.on("delFromStorage", this.delFromStorageHandler);
     }
 
-    beforeBrush(ctx) {}
 
-    afterBrush(ctx) {}
+    //标记元素需要更新
+    dirty() {
+        this.__dirty = this.__dirtyText = true;
+        this._rect  = null;
+    }
 
-    brush() {}
+    //设置元素的属性
+    attr(key, value) {
+        if(judgeType(key) === '[Object String]'){
+            this._setProp(key, value);
+        }else if(isObject(key)){
+            for(let name in key) {
+                if(key.hasOwnProperty(name)){
+                    this._setProp(name, key[name])
+                }
+            }
+        }
+        // console.log(this._dirty);
+        this.dirty();
+    }
+
+    //tools 设置属性
+    _setProp(key, val) {
+        switch (key) {
+            case 'style':
+                copyOwnProperties(this.style, val)
+                break;
+            case 'positon':  case 'scale':  case 'origin':
+            case 'skew': case 'translate':
+                let target = this[key]? this[key] : [];
+                target[0] = val[0];
+                target[1] = val[1];
+            default:
+                this[key] = val;
+                break;
+        }
+     
+    }
+
 }
 
 mixin(Element.prototype, Animatable.prototype, Transformable.prototype, Eventful.prototype);
