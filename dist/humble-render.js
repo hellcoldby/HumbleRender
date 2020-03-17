@@ -2195,9 +2195,9 @@
         bind: function(ctx, ele, prevEl) {
             // console.log(this);
             let prevStyle = prevEl && prevEl.style;
-            //检查当前ctx的样式 是否需要更新
-            let styleNeedChange = !prevStyle || ctx._stylehasChanged === false;
-            ctx._stylehasChanged = true;
+            //检查当前元素的样式 是否已经改变
+            let styleNeedChange = ( !prevStyle || ctx._stylehasChanged === false );
+            
 
             if (styleNeedChange || this.fill !== prevStyle.fill) {
                 ctx.fillStyle = this.fill;
@@ -2212,6 +2212,16 @@
             if (styleNeedChange || this.blend !== prevStyle.blend) {
                 ctx.globalCompositeOperation = this.blend || "source-over";
             }
+            
+            if(this.hasStroke()){
+                let lineWidth = this.lineWidth;
+                let scaleLine  = this.strokeNoScale && el && el.getLineScale();
+                ctx.lineWidth = lineWidth / (scaleLine? scaleLine : 1);
+
+            }
+
+            //标记当前元素的样式已经改变
+            ctx._stylehasChanged = true;
         },
 
         hasFill: function() {
@@ -2552,6 +2562,8 @@
             this.subPixelOptimize = false; //设备优化
         }
 
+
+        //处理图形 填充和描边 颜色，并绘制图形
         brush(ctx, prevEl) {
             let path = this.path || new PathProxy(true);
             let hasStroke = this.style.hasStroke(); //绘制需求
@@ -2611,6 +2623,15 @@
                 path.stroke(ctx);
             }
         }
+
+
+        //
+        getLineScale() {
+            let m = this.transform;
+            return m && Math.abs(m[0] - 1) > 1e-10 && Math.abs(m[3] - 1) > 1e-10 ?
+            Math.sqrt(Math.abs(m[0] * m[3] - m[2] * m[1])) : 1
+        }
+
     }
 
     //tools -- 默认配置
@@ -2631,8 +2652,10 @@
 
     class Rect extends Path {
         constructor(opts) {
-            super(merge(defaultConfig, opts, true));
+            let config =  merge(defaultConfig, opts, true);
+            super(config);
             this.type = "rect";
+            console.log(config);
         }
 
         /**
@@ -2656,7 +2679,7 @@
             if (!shape.r) {
                 ctx.rect(x, y, width, height);
             } else {
-                // console.log(ctx);
+                
                 round_rect(ctx, shape);
             }
             ctx.closePath();

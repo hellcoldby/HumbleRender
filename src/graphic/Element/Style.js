@@ -85,9 +85,9 @@ Style.prototype = {
     bind: function(ctx, ele, prevEl) {
         // console.log(this);
         let prevStyle = prevEl && prevEl.style;
-        //检查当前ctx的样式 是否需要更新
-        let styleNeedChange = !prevStyle || ctx._stylehasChanged === false;
-        ctx._stylehasChanged = true;
+        //检查当前元素的样式 是否已经改变
+        let styleNeedChange = ( !prevStyle || ctx._stylehasChanged === false );
+        
 
         if (styleNeedChange || this.fill !== prevStyle.fill) {
             ctx.fillStyle = this.fill;
@@ -102,6 +102,16 @@ Style.prototype = {
         if (styleNeedChange || this.blend !== prevStyle.blend) {
             ctx.globalCompositeOperation = this.blend || "source-over";
         }
+        
+        if(this.hasStroke()){
+            let lineWidth = this.lineWidth;
+            let scaleLine  = this.strokeNoScale && el && el.getLineScale();
+            ctx.lineWidth = lineWidth / (scaleLine? scaleLine : 1);
+
+        }
+
+        //标记当前元素的样式已经改变
+        ctx._stylehasChanged = true;
     },
 
     hasFill: function() {

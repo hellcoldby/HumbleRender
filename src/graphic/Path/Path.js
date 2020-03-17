@@ -15,6 +15,8 @@ class Path extends Element {
         this.subPixelOptimize = false; //设备优化
     }
 
+
+    //处理图形 填充和描边 颜色，并绘制图形
     brush(ctx, prevEl) {
         let path = this.path || new pathProxy(true);
         let hasStroke = this.style.hasStroke(); //绘制需求
@@ -74,5 +76,14 @@ class Path extends Element {
             path.stroke(ctx);
         }
     }
+
+
+    //
+    getLineScale() {
+        let m = this.transform;
+        return m && Math.abs(m[0] - 1) > 1e-10 && Math.abs(m[3] - 1) > 1e-10 ?
+        Math.sqrt(Math.abs(m[0] * m[3] - m[2] * m[1])) : 1
+    }
+
 }
 export default Path;
