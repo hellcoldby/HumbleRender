@@ -10,7 +10,6 @@ export function isObject(val) {
     return res === "function" || (!!val && res === "object");
 }
 
-
 //2. 判断数据类型
 export function judgeType(val) {
     return Object.prototype.toString.call(val);
@@ -63,9 +62,14 @@ export function merge(target, source, overwrite) {
     return target;
 }
 
-//4. 从父类继承 并覆盖taget内置的属性
-export function inheritProperties(target, source, opts) {
-    let src = new source(opts);
+/** 拷贝父类上的属性，此方法用来支持那么没有按照 ES6 语法编写的类。
+ *
+ * @param {*} target 子类的实例
+ * @param {*} SuperClass 父类的构造函数
+ * @param {*} opts 父类构造参数
+ */
+export function inheritProperties(target, SuperClass, opts) {
+    let src = new SuperClass(opts);
     for (let name in src) {
         if (src.hasOwnProperty(name)) {
             target[name] = src[name];
@@ -91,21 +95,23 @@ export function copyOwnProperties(target, source, excludes = []) {
 //6. 拷贝多个对象的（非继承）属性。 参数（targe, obj1, obj2, ..., overWrite)
 export function mixin() {
     let lastArgs = arguments[arguments.length - 1];
+    let argLen = arguments.length;
     let overwrite = false;
     if (typeof lastArgs === "boolean") {
         overwrite = lastArgs;
+        argLen -= 1;
     }
     let target = arguments[0];
     let i = 1;
     let tmp = null;
     let tmp_keys = [];
-    for (i; i < arguments.length - 1; i++) {
+    for (i; i < argLen; i++) {
         tmp = arguments[i];
 
         tmp_keys = Object.getOwnPropertyNames(tmp);
         if (tmp_keys.length) {
             tmp_keys.forEach(function(prop) {
-                if (prop !== "constructor" && prop !== "prototype" && prop !== "name") {
+                if (prop !== "constructor" && prop !== "prototype") {
                     if (tmp.hasOwnProperty(prop) && (overwrite ? tmp[prop] != null : target.hasOwnProperty(prop) === false)) {
                         target[prop] = tmp[prop];
                         // console.log(target[prop]);
@@ -116,3 +122,5 @@ export function mixin() {
     }
     return target;
 }
+
+//7.

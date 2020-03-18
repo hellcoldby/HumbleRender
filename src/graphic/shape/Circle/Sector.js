@@ -14,7 +14,7 @@ let defaultConfig={
         clockwise: true
     },
     style: {
-        stroke: '#000',
+        stroke: null,
         fill: null
     }
 };

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEST ANIM</title>
+    <script type="text/javascript" src="../dist/humble-render.js"></script>
+    <style>
+        html, body{
+            width: 100%;
+            height: 100%;
+        }
+        #box{
+            width: 900px;
+            height: 500px;
+            margin: 0 auto;
+            border: 1px dashed darkcyan;
+        }
+    </style>
+</head>
+<body>  
+    <div id="box"></div>
+    <script type="text/javascript">
+            let main = document.querySelector('#box');
+            let hr = HumbleRneder.init(main);
+            let rect = new HumbleRneder.Rect({
+                shape: {
+                    x: 50,
+                    y: 50,
+                    width: 200,
+                    height: 100,
+                    r: [10, 25, 10]
+                },
+                style: {
+                    fill: 'yellow',
+                    lineWidth : 10,
+                    stroke: 'green'
+                }
+            }); 
+            hr.add(rect);
+
+            rect.animate('shape', true)
+                .when(1000, {x: 100})
+    </script>
+</body>
+</html>

@@ -1576,17 +1576,28 @@
         constructor(opts) {
             super();
             this._running = false; //动画启动
-            this._pause = false; //动画暂停
+
+            this._startTime = 0; //开始时间
+            this._pause = {
+                startTime: 0, //暂停开始时间
+                flag: false, //暂停开关
+                duration: 0 //暂停持续时间
+            };
+
+            this._animatableMap = new Map();
         }
 
         //启动监控
         start() {
+            this._startTime = new Date().getTime();
+            this._pause.duration = 0;
             this._startLoop();
         }
         //暂停监控
         pause() {
-            if (this._paused) {
-                this._paused = true;
+            if (!this._pause.flag) {
+                this._pause.startTime = new Date().getTime();
+                this._pause.flag = true;
             }
         }
 
@@ -1596,14 +1607,45 @@
             function nextFrame() {
                 if (self._running) {
                     RAF(nextFrame);
-                    !self._paused && self._update();
+                    !self._pause.flag && self._update();
                 }
             }
             RAF(nextFrame);
         }
 
+        //动画循环中的更新逻辑
         _update() {
+            let time = new Date().getTime() - this._pause.duration;
+            let delta = time - this._startTime;
+            this._animatableMap.forEach((ele, id, map) => {
+                let ele_anim_process = ele.animationProcessList[0];
+                if (!ele_anim_process) {
+                    this.removeAnimatable(ele);
+                    return;
+                } else {
+                    ele_anim_process.nextFrame(time, delta);
+                }
+            });
+
+            // this._startTime = time;
+
             this.trigger("frame"); //激活订阅的frame 事件，触发视图刷新
+        }
+
+        //重置动画
+        resume() {
+            if (this._pause.flag) {
+                this._pause.duration += new Date().getTime() - this._pause.startTime;
+                this._pause.flag = false;
+            }
+        }
+
+        addAnimatable(ele) {
+            this._animatableMap.set(ele.id, ele);
+        }
+
+        removeAnimatable(ele) {
+            this._animatableMap.delete(ele.id);
         }
     }
 
@@ -1656,11 +1698,11 @@
             if (typeof this.root.moveTo !== "function") ;
             // this.eventHandler = new HRenderEventHandler(this.storage, this.painter, handerProxy);
 
-            this.WatchAnim = new WatchAnim();
-            this.WatchAnim.on("frame", function() {
+            this.watchAnim = new WatchAnim();
+            this.watchAnim.on("frame", function() {
                 self.flush(); //每间隔16.7ms 监控一次flush
             });
-            this.WatchAnim.start();
+            this.watchAnim.start();
             this._needRefresh = false;
         }
 
@@ -1681,6 +1723,7 @@
 
         //向数据仓库storage中添加元素，并开启刷新
         add(ele) {
+            ele.__hr = this; //保存当前元素的绘图环境
             this.storage.addToRoot(ele);
             this.refresh();
         }
@@ -1804,7 +1847,6 @@
         return res === "function" || (!!val && res === "object");
     }
 
-
     //2. 判断数据类型
     function judgeType(val) {
         return Object.prototype.toString.call(val);
@@ -1857,9 +1899,14 @@
         return target;
     }
 
-    //4. 从父类继承 并覆盖taget内置的属性
-    function inheritProperties(target, source, opts) {
-        let src = new source(opts);
+    /** 拷贝父类上的属性，此方法用来支持那么没有按照 ES6 语法编写的类。
+     *
+     * @param {*} target 子类的实例
+     * @param {*} SuperClass 父类的构造函数
+     * @param {*} opts 父类构造参数
+     */
+    function inheritProperties(target, SuperClass, opts) {
+        let src = new SuperClass(opts);
         for (let name in src) {
             if (src.hasOwnProperty(name)) {
                 target[name] = src[name];
@@ -1885,21 +1932,23 @@
     //6. 拷贝多个对象的（非继承）属性。 参数（targe, obj1, obj2, ..., overWrite)
     function mixin() {
         let lastArgs = arguments[arguments.length - 1];
+        let argLen = arguments.length;
         let overwrite = false;
         if (typeof lastArgs === "boolean") {
             overwrite = lastArgs;
+            argLen -= 1;
         }
         let target = arguments[0];
         let i = 1;
         let tmp = null;
         let tmp_keys = [];
-        for (i; i < arguments.length - 1; i++) {
+        for (i; i < argLen; i++) {
             tmp = arguments[i];
 
             tmp_keys = Object.getOwnPropertyNames(tmp);
             if (tmp_keys.length) {
                 tmp_keys.forEach(function(prop) {
-                    if (prop !== "constructor" && prop !== "prototype" && prop !== "name") {
+                    if (prop !== "constructor" && prop !== "prototype") {
                         if (tmp.hasOwnProperty(prop) && (overwrite ? tmp[prop] != null : target.hasOwnProperty(prop) === false)) {
                             target[prop] = tmp[prop];
                             // console.log(target[prop]);
@@ -1910,6 +1959,8 @@
         }
         return target;
     }
+
+    //7.
 
     let ArrayCtor = typeof Float32Array === "undefined" ? Array : Float32Array;
 
@@ -2105,9 +2156,162 @@
         return val > EPSILON || val < -EPSILON;
     }
 
-    class Animatable {
-        constructor() {}
+    class Track {
+        constructor(opts) {
+            this._target = opts._target;
+            this._delay = opts._delay;
+
+            this.isFinished = false;
+            this.keyFrames = [];
+            this.timeline;
+        }
+
+        addKeyFrame(kf) {
+            this.keyFrames.push(kf);
+        }
+
+        nextFrame(time, delta) {}
     }
+
+    /**
+     * 每个元素element 实例中都有一个列表，用来存储实例上的动画过程。
+     * 列表中的动画按照顺序获得运行机会，  在特定的时间点上只有一个 AnimationPrcoss 处于运行状态，运行的过程由
+     * GlobalAnimationMgr 来进行调度。
+     *
+     * AinmationPrcoss 运行完成后会触发 done 事件， Element 监听done事件后，把对应的动画过程从列表中删除。
+     * 如果 Element 实例的动画过程列表中存在多个实例，其中某个过程是无限循环运行的，那么后续所有动画过程都不会获得到运行机会
+     *
+     * @class AnimationProcess
+     */
+
+    class AnimationProcess {
+        constructor(target) {
+            this._trackCacheMap = new Map();
+            this._target = target; // shape={}  or style={}
+            this._delay = 0;
+            this._running = false;
+            this._paused = false;
+            inheritProperties(this, Eventful, this.opts);
+        }
+
+        when(time, props) {
+            for (let name in props) {
+                if (!props.hasOwnProperty(name)) {
+                    continue;
+                }
+
+                let value = this._target[name];
+                if (value === null || value === undefined) {
+                    continue;
+                }
+
+                let track = this._trackCacheMap.get(name);
+                if (!track) {
+                    track = new Track({
+                        _target: this._target,
+                        _delay: this._delay
+                    });
+                }
+
+                if (time !== 0) {
+                    track.addKeyFrame({
+                        time: 0,
+                        value: value
+                    });
+                }
+
+                track.addKeyFrame({
+                    time: time,
+                    value: props[name]
+                });
+
+                this._trackCacheMap.set(name, track);
+                return this;
+            }
+        }
+
+        start(loop = false, easing = "", forceAnima = false) {
+            this._running = true;
+            this._paused = false;
+            let keys = [...this._trackCacheMap.keys()];
+            if (!keys.length) {
+                this.trigger("done");
+                return this;
+            }
+            keys.forEach((name, index) => {
+                let track = this._trackCacheMap.get(name);
+                track && track.start(name, loop, easing, forceAnima);
+            });
+            return this;
+        }
+
+        /**
+         * 进入到下一帧
+         *
+         * @param {Number} time 当前时间
+         * @param {Number} delta 时间的偏移量
+         * @memberof AnimationProcess
+         */
+        nextFrame(time, delta) {
+            this._running = true;
+            this._paused = false;
+        }
+
+        during(cb) {
+            this.on("during", cb);
+            return this;
+        }
+    }
+
+    mixin(AnimationProcess.prototype, Eventful.prototype);
+
+    let Animatable = function() {
+        this.animationProcessList = []; //动画实例列表
+    };
+
+    Animatable.prototype = {
+        /**
+         * 设置循环动画
+         * @param {string} path --- 元素的属性 shape.width   style.fill
+         * @param {boolean} loop --- 动画循环
+         */
+        animate: function(path, loop) {
+            let target = this;
+            if (path) {
+                let path_split = path.split(".");
+                for (let i = 0; i < path_split.length; i++) {
+                    let item = path_split[i]; //'shape' or 'style'...
+                    if (!this[item]) {
+                        continue;
+                    } else {
+                        target = this[item];
+                        break;
+                    }
+                }
+            }
+
+            //创建动画实例
+            let animationProcess = new AnimationProcess(target);
+            animationProcess.during(target => {
+                target.dirty();
+            });
+            animationProcess.on("done", () => {
+                target.removeAnimationProcess(animationProcess);
+            });
+            animationProcess.on("stop", () => {
+                target.removeAnimationProcess(animationProcess);
+            });
+
+            this.animationProcessList.push(animationProcess);
+            if (this.__hr) {
+                console.log(this.__hr);
+                this.__hr.watchAnim.addAnimatable(this);
+            }
+            return animationProcess;
+        },
+
+        removeAnimationProcess(animationProcess) {}
+    };
 
     let STYLE_COMMON_PROPS = [
         ["shadowBlur", 0],
@@ -2124,8 +2328,8 @@
      * @param {} opts --- 用户自定义的样式
      */
     function Style(opts) {
-        mixin(this, opts, false);
-        // console.log(res);
+        let res = mixin(this, opts, false);
+       
     }
 
     Style.prototype = {
@@ -2312,7 +2516,7 @@
 
             this.animationProcessList = []; //元素上所有的动画处理列表
 
-            this._hr = null; //元素被添加到 HumbleRender 实例后，自动赋值
+            this.__hr = null; //元素被添加到 HumbleRender 实例后，自动赋值
 
             this.__dirty = true; //下一帧渲染的元素，标记为 dirty（true)
 
@@ -2344,20 +2548,19 @@
             // this.on("delFromStorage", this.delFromStorageHandler);
         }
 
-
         //标记元素需要更新
         dirty() {
             this.__dirty = this.__dirtyText = true;
-            this._rect  = null;
+            this._rect = null;
         }
 
         //设置元素的属性
         attr(key, value) {
-            if(judgeType(key) === '[Object String]'){
+            if (judgeType(key) === "[Object String]") {
                 this._setProp(key, value);
-            }else if(isObject(key)){
-                for(let name in key) {
-                    if(key.hasOwnProperty(name)){
+            } else if (isObject(key)) {
+                for (let name in key) {
+                    if (key.hasOwnProperty(name)) {
                         this._setProp(name, key[name]);
                     }
                 }
@@ -2369,21 +2572,22 @@
         //tools 设置属性
         _setProp(key, val) {
             switch (key) {
-                case 'style':
+                case "style":
                     copyOwnProperties(this.style, val);
                     break;
-                case 'positon':  case 'scale':  case 'origin':
-                case 'skew': case 'translate':
-                    let target = this[key]? this[key] : [];
+                case "positon":
+                case "scale":
+                case "origin":
+                case "skew":
+                case "translate":
+                    let target = this[key] ? this[key] : [];
                     target[0] = val[0];
                     target[1] = val[1];
                 default:
                     this[key] = val;
                     break;
             }
-         
         }
-
     }
 
     mixin(Element.prototype, Animatable.prototype, Transformable.prototype, Eventful.prototype);
@@ -2563,9 +2767,9 @@
         }
 
 
-        //处理图形 填充和描边 颜色，并绘制图形
+        //调用canvas API 绘制i
         brush(ctx, prevEl) {
-            let path = this.path || new PathProxy(true);
+            let path = this.path || new PathProxy(true);  //拦截api,增加功能
             let hasStroke = this.style.hasStroke(); //绘制需求
             let hasFill = this.style.hasFill(); //填充需求
 
@@ -2579,6 +2783,8 @@
             let hasStrokePattern = hasStroke && !!stroke.image;
 
             //在style.bind()中完成 fillSytle  和 strokeStyle的设置
+
+
             this.style.bind(ctx, this, prevEl);
             this.setTransform(ctx);
 
@@ -2603,10 +2809,10 @@
                 ctx.strokeStyle = this.__strokeGradient;
             }
 
-            //更新路径
+            //
             if (this.__dirtyPath) {
                 path.beginPath(ctx);
-                console.log(this);
+                // console.log(this);
                 this.buildPath(path, this.shape, false);
                 if (this.path) {
                     this.__dirtyPath = false;
@@ -2634,28 +2840,28 @@
 
     }
 
+    // 左上、右上、右下、左下角的半径依次为r1、r2、r3、r4
+    // r缩写为1         相当于 [1, 1, 1, 1]
+    // r缩写为[1]       相当于 [1, 1, 1, 1]
+    // r缩写为[1, 2]    相当于 [1, 2, 1, 2]
+    // r缩写为[1, 2, 3] 相当于 [1, 2, 3, 2]
+
     //tools -- 默认配置
-    let defaultConfig = {
-        shape: {
-            // 左上、右上、右下、左下角的半径依次为r1、r2、r3、r4
-            // r缩写为1         相当于 [1, 1, 1, 1]
-            // r缩写为[1]       相当于 [1, 1, 1, 1]
-            // r缩写为[1, 2]    相当于 [1, 2, 1, 2]
-            // r缩写为[1, 2, 3] 相当于 [1, 2, 3, 2]
-            r: 0,
-            x: 0,
-            y: 0,
-            width: 0,
-            height: 0
-        }
-    };
 
     class Rect extends Path {
         constructor(opts) {
+            let defaultConfig = {
+                shape: {
+                    r: 0,
+                    x: 0,
+                    y: 0,
+                    width: 0,
+                    height: 0
+                }
+            };
             let config =  merge(defaultConfig, opts, true);
             super(config);
             this.type = "rect";
-            console.log(config);
         }
 
         /**
@@ -2687,7 +2893,7 @@
         }
     }
 
-    let defaultConfig$1 = {
+    let defaultConfig = {
         shape: {
             cx: 0,
             cy: 0,
@@ -2696,7 +2902,7 @@
     };
     class Circle extends Path {
         constructor(opts) {
-            super(merge(defaultConfig$1, opts, true));
+            super(merge(defaultConfig, opts, true));
             this.type = "circle";
         }
 
@@ -2711,7 +2917,7 @@
     /**
      * 弧形
      */
-    let defaultConfig$2={
+    let defaultConfig$1={
         shape: {
             cx: 0,
             cy: 0,
@@ -2721,14 +2927,14 @@
             clockwise: true
         },
         style: {
-            stroke: '#000',
+            stroke: null,
             fill: null
         }
     };
 
     class Arc extends Path {
         constructor(opts) {
-            super(merge(defaultConfig$2, opts, true));
+            super(merge(defaultConfig$1, opts, true));
             this.type = 'arc';
         }
         /**
@@ -2752,7 +2958,7 @@
     /**
      * 扇形
      */
-    let defaultConfig$3={
+    let defaultConfig$2={
         shape: {
             cx: 0,
             cy: 0,
@@ -2762,14 +2968,14 @@
             clockwise: true
         },
         style: {
-            stroke: '#000',
+            stroke: null,
             fill: null
         }
     };
 
     class Sector extends Path {
         constructor(opts) {
-            super(merge(defaultConfig$3, opts, true));
+            super(merge(defaultConfig$2, opts, true));
             this.type = 'arc';
         }
         /**

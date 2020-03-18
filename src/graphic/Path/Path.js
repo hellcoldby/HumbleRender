@@ -16,9 +16,9 @@ class Path extends Element {
     }
 
 
-    //处理图形 填充和描边 颜色，并绘制图形
+    //调用canvas API 绘制i
     brush(ctx, prevEl) {
-        let path = this.path || new pathProxy(true);
+        let path = this.path || new pathProxy(true);  //拦截api,增加功能
         let hasStroke = this.style.hasStroke(); //绘制需求
         let hasFill = this.style.hasFill(); //填充需求
 
@@ -32,6 +32,8 @@ class Path extends Element {
         let hasStrokePattern = hasStroke && !!stroke.image;
 
         //在style.bind()中完成 fillSytle  和 strokeStyle的设置
+
+
         this.style.bind(ctx, this, prevEl);
         this.setTransform(ctx);
 
@@ -56,10 +58,10 @@ class Path extends Element {
             ctx.strokeStyle = this.__strokeGradient;
         }
 
-        //更新路径
+        //
         if (this.__dirtyPath) {
             path.beginPath(ctx);
-            console.log(this);
+            // console.log(this);
             this.buildPath(path, this.shape, false);
             if (this.path) {
                 this.__dirtyPath = false;

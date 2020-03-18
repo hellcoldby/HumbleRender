@@ -46,7 +46,7 @@ class Element {
 
         this.animationProcessList = []; //元素上所有的动画处理列表
 
-        this._hr = null; //元素被添加到 HumbleRender 实例后，自动赋值
+        this.__hr = null; //元素被添加到 HumbleRender 实例后，自动赋值
 
         this.__dirty = true; //下一帧渲染的元素，标记为 dirty（true)
 
@@ -78,21 +78,20 @@ class Element {
         // this.on("delFromStorage", this.delFromStorageHandler);
     }
 
-
     //标记元素需要更新
     dirty() {
         this.__dirty = this.__dirtyText = true;
-        this._rect  = null;
+        this._rect = null;
     }
 
     //设置元素的属性
     attr(key, value) {
-        if(judgeType(key) === '[Object String]'){
+        if (judgeType(key) === "[Object String]") {
             this._setProp(key, value);
-        }else if(isObject(key)){
-            for(let name in key) {
-                if(key.hasOwnProperty(name)){
-                    this._setProp(name, key[name])
+        } else if (isObject(key)) {
+            for (let name in key) {
+                if (key.hasOwnProperty(name)) {
+                    this._setProp(name, key[name]);
                 }
             }
         }
@@ -103,21 +102,22 @@ class Element {
     //tools 设置属性
     _setProp(key, val) {
         switch (key) {
-            case 'style':
-                copyOwnProperties(this.style, val)
+            case "style":
+                copyOwnProperties(this.style, val);
                 break;
-            case 'positon':  case 'scale':  case 'origin':
-            case 'skew': case 'translate':
-                let target = this[key]? this[key] : [];
+            case "positon":
+            case "scale":
+            case "origin":
+            case "skew":
+            case "translate":
+                let target = this[key] ? this[key] : [];
                 target[0] = val[0];
                 target[1] = val[1];
             default:
                 this[key] = val;
                 break;
         }
-     
     }
-
 }
 
 mixin(Element.prototype, Animatable.prototype, Transformable.prototype, Eventful.prototype);

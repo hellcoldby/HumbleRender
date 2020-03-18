@@ -10,17 +10,28 @@ export default class WatchAnim extends Eventful {
         super();
         opts = opts || {};
         this._running = false; //动画启动
-        this._pause = false; //动画暂停
+
+        this._startTime = 0; //开始时间
+        this._pause = {
+            startTime: 0, //暂停开始时间
+            flag: false, //暂停开关
+            duration: 0 //暂停持续时间
+        };
+
+        this._animatableMap = new Map();
     }
 
     //启动监控
     start() {
+        this._startTime = new Date().getTime();
+        this._pause.duration = 0;
         this._startLoop();
     }
     //暂停监控
     pause() {
-        if (this._paused) {
-            this._paused = true;
+        if (!this._pause.flag) {
+            this._pause.startTime = new Date().getTime();
+            this._pause.flag = true;
         }
     }
 
@@ -30,13 +41,44 @@ export default class WatchAnim extends Eventful {
         function nextFrame() {
             if (self._running) {
                 RAF(nextFrame);
-                !self._paused && self._update();
+                !self._pause.flag && self._update();
             }
         }
         RAF(nextFrame);
     }
 
+    //动画循环中的更新逻辑
     _update() {
+        let time = new Date().getTime() - this._pause.duration;
+        let delta = time - this._startTime;
+        this._animatableMap.forEach((ele, id, map) => {
+            let ele_anim_process = ele.animationProcessList[0];
+            if (!ele_anim_process) {
+                this.removeAnimatable(ele);
+                return;
+            } else {
+                ele_anim_process.nextFrame(time, delta);
+            }
+        });
+
+        // this._startTime = time;
+
         this.trigger("frame"); //激活订阅的frame 事件，触发视图刷新
+    }
+
+    //重置动画
+    resume() {
+        if (this._pause.flag) {
+            this._pause.duration += new Date().getTime() - this._pause.startTime;
+            this._pause.flag = false;
+        }
+    }
+
+    addAnimatable(ele) {
+        this._animatableMap.set(ele.id, ele);
+    }
+
+    removeAnimatable(ele) {
+        this._animatableMap.delete(ele.id);
     }
 }

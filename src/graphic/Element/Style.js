@@ -14,8 +14,8 @@ let STYLE_COMMON_PROPS = [
  * @param {} opts --- 用户自定义的样式
  */
 export default function Style(opts) {
-    mixin(this, opts, false);
-    // console.log(res);
+    let res = mixin(this, opts, false);
+   
 }
 
 Style.prototype = {

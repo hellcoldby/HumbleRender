@@ -64,11 +64,11 @@ class HumbleRender {
         }
         // this.eventHandler = new HRenderEventHandler(this.storage, this.painter, handerProxy);
 
-        this.WatchAnim = new WatchAnim();
-        this.WatchAnim.on("frame", function() {
+        this.watchAnim = new WatchAnim();
+        this.watchAnim.on("frame", function() {
             self.flush(); //每间隔16.7ms 监控一次flush
         });
-        this.WatchAnim.start();
+        this.watchAnim.start();
         this._needRefresh = false;
     }
 
@@ -89,6 +89,7 @@ class HumbleRender {
 
     //向数据仓库storage中添加元素，并开启刷新
     add(ele) {
+        ele.__hr = this; //保存当前元素的绘图环境
         this.storage.addToRoot(ele);
         this.refresh();
     }
