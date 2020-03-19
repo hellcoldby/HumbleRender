@@ -1618,11 +1618,13 @@
             let time = new Date().getTime() - this._pause.duration;
             let delta = time - this._startTime;
             this._animatableMap.forEach((ele, id, map) => {
+                //查找当前元素的动画系统是否存在
                 let ele_anim_process = ele.animationProcessList[0];
                 if (!ele_anim_process) {
                     this.removeAnimatable(ele);
                     return;
                 } else {
+                    //存在动画系统，就在下一帧渲染（AnimationProcess.js）
                     ele_anim_process.nextFrame(time, delta);
                 }
             });
@@ -1960,7 +1962,12 @@
         return target;
     }
 
-    //7.
+    //7.判断是否为类数组
+    function isArrayLike(data) {
+        if (!data) return;
+        if (typeof data === "string") return;
+        return typeof data.length === "number";
+    }
 
     let ArrayCtor = typeof Float32Array === "undefined" ? Array : Float32Array;
 
@@ -2156,6 +2163,570 @@
         return val > EPSILON || val < -EPSILON;
     }
 
+    /**
+     * @class qrenderer.animation.Timeline
+     * Timeline，时间线，用来计算元素上的某个属性在指定时间点的数值。
+     *
+     */
+
+    class Timeline {
+        constructor(options) {
+            this._target = options.target;
+            this._lifeTime = options.lifeTime || 1000;
+            this._delay = options.delay || 0;
+            this._initialized = false;
+            this.loop = options.loop == null ? false : options.loop;
+            this.gap = options.gap || 0;
+            this.easing = options.easing || "Linear";
+            this.onframe = options.onframe;
+            this.ondestroy = options.ondestroy;
+            this.onrestart = options.onrestart;
+
+            this._pausedTime = 0;
+            this._paused = false;
+        }
+    }
+
+    // Simple LRU cache use doubly linked list
+
+    /**
+     * Simple double linked list. Compared with array, it has O(1) remove operation.
+     * @constructor
+     */
+    var LinkedList = function () {
+
+        /**
+         * @property {LRU~Entry}
+         */
+        this.head = null;
+
+        /**
+         * @property {LRU~Entry}
+         */
+        this.tail = null;
+
+        this._len = 0;
+    };
+
+    var linkedListProto = LinkedList.prototype;
+    /**
+     * Insert a new value at the tail
+     * @param  {} val
+     * @return {LRU~Entry}
+     */
+    linkedListProto.insert = function (val) {
+        var entry = new Entry(val);
+        this.insertEntry(entry);
+        return entry;
+    };
+
+    /**
+     * Insert an entry at the tail
+     * @param  {LRU~Entry} entry
+     */
+    linkedListProto.insertEntry = function (entry) {
+        if (!this.head) {
+            this.head = this.tail = entry;
+        }
+        else {
+            this.tail.next = entry;
+            entry.prev = this.tail;
+            entry.next = null;
+            this.tail = entry;
+        }
+        this._len++;
+    };
+
+    /**
+     * Remove entry.
+     * @param  {LRU~Entry} entry
+     */
+    linkedListProto.remove = function (entry) {
+        var prev = entry.prev;
+        var next = entry.next;
+        if (prev) {
+            prev.next = next;
+        }
+        else {
+            // Is head
+            this.head = next;
+        }
+        if (next) {
+            next.prev = prev;
+        }
+        else {
+            // Is tail
+            this.tail = prev;
+        }
+        entry.next = entry.prev = null;
+        this._len--;
+    };
+
+    /**
+     * @return {Number}
+     */
+    linkedListProto.len = function () {
+        return this._len;
+    };
+
+    /**
+     * Clear list
+     */
+    linkedListProto.clear = function () {
+        this.head = this.tail = null;
+        this._len = 0;
+    };
+
+    /**
+     * @constructor
+     * @param {} val
+     */
+    var Entry = function (val) {
+        /**
+         * @property {}
+         */
+        this.value = val;
+
+        /**
+         * @property {LRU~Entry}
+         */
+        this.next;
+
+        /**
+         * @property {LRU~Entry}
+         */
+        this.prev;
+    };
+
+    /**
+     * LRU Cache
+     * @constructor
+     * @alias LRU
+     */
+    var LRU = function (maxSize) {
+
+        this._list = new LinkedList();
+
+        this._map = {};
+
+        this._maxSize = maxSize || 10;
+
+        this._lastRemovedEntry = null;
+    };
+
+    var LRUProto = LRU.prototype;
+
+    /**
+     * @param  {String} key
+     * @param  {} value
+     * @return {} Removed value
+     */
+    LRUProto.put = function (key, value) {
+        var list = this._list;
+        var map = this._map;
+        var removed = null;
+        if (map[key] == null) {
+            var len = list.len();
+            // Reuse last removed entry
+            var entry = this._lastRemovedEntry;
+
+            if (len >= this._maxSize && len > 0) {
+                // Remove the least recently used
+                var leastUsedEntry = list.head;
+                list.remove(leastUsedEntry);
+                delete map[leastUsedEntry.key];
+
+                removed = leastUsedEntry.value;
+                this._lastRemovedEntry = leastUsedEntry;
+            }
+
+            if (entry) {
+                entry.value = value;
+            }
+            else {
+                entry = new Entry(value);
+            }
+            entry.key = key;
+            list.insertEntry(entry);
+            map[key] = entry;
+        }
+
+        return removed;
+    };
+
+    /**
+     * @param  {String} key
+     * @return {}
+     */
+    LRUProto.get = function (key) {
+        var entry = this._map[key];
+        var list = this._list;
+        if (entry != null) {
+            // Put the latest used entry in the tail
+            if (entry !== list.tail) {
+                list.remove(entry);
+                list.insertEntry(entry);
+            }
+
+            return entry.value;
+        }
+    };
+
+    /**
+     * Clear the cache
+     */
+    LRUProto.clear = function () {
+        this._list.clear();
+        this._map = {};
+    };
+
+    var kCSSColorTable = {
+        transparent: [0, 0, 0, 0],
+        aliceblue: [240, 248, 255, 1],
+        antiquewhite: [250, 235, 215, 1],
+        aqua: [0, 255, 255, 1],
+        aquamarine: [127, 255, 212, 1],
+        azure: [240, 255, 255, 1],
+        beige: [245, 245, 220, 1],
+        bisque: [255, 228, 196, 1],
+        black: [0, 0, 0, 1],
+        blanchedalmond: [255, 235, 205, 1],
+        blue: [0, 0, 255, 1],
+        blueviolet: [138, 43, 226, 1],
+        brown: [165, 42, 42, 1],
+        burlywood: [222, 184, 135, 1],
+        cadetblue: [95, 158, 160, 1],
+        chartreuse: [127, 255, 0, 1],
+        chocolate: [210, 105, 30, 1],
+        coral: [255, 127, 80, 1],
+        cornflowerblue: [100, 149, 237, 1],
+        cornsilk: [255, 248, 220, 1],
+        crimson: [220, 20, 60, 1],
+        cyan: [0, 255, 255, 1],
+        darkblue: [0, 0, 139, 1],
+        darkcyan: [0, 139, 139, 1],
+        darkgoldenrod: [184, 134, 11, 1],
+        darkgray: [169, 169, 169, 1],
+        darkgreen: [0, 100, 0, 1],
+        darkgrey: [169, 169, 169, 1],
+        darkkhaki: [189, 183, 107, 1],
+        darkmagenta: [139, 0, 139, 1],
+        darkolivegreen: [85, 107, 47, 1],
+        darkorange: [255, 140, 0, 1],
+        darkorchid: [153, 50, 204, 1],
+        darkred: [139, 0, 0, 1],
+        darksalmon: [233, 150, 122, 1],
+        darkseagreen: [143, 188, 143, 1],
+        darkslateblue: [72, 61, 139, 1],
+        darkslategray: [47, 79, 79, 1],
+        darkslategrey: [47, 79, 79, 1],
+        darkturquoise: [0, 206, 209, 1],
+        darkviolet: [148, 0, 211, 1],
+        deeppink: [255, 20, 147, 1],
+        deepskyblue: [0, 191, 255, 1],
+        dimgray: [105, 105, 105, 1],
+        dimgrey: [105, 105, 105, 1],
+        dodgerblue: [30, 144, 255, 1],
+        firebrick: [178, 34, 34, 1],
+        floralwhite: [255, 250, 240, 1],
+        forestgreen: [34, 139, 34, 1],
+        fuchsia: [255, 0, 255, 1],
+        gainsboro: [220, 220, 220, 1],
+        ghostwhite: [248, 248, 255, 1],
+        gold: [255, 215, 0, 1],
+        goldenrod: [218, 165, 32, 1],
+        gray: [128, 128, 128, 1],
+        green: [0, 128, 0, 1],
+        greenyellow: [173, 255, 47, 1],
+        grey: [128, 128, 128, 1],
+        honeydew: [240, 255, 240, 1],
+        hotpink: [255, 105, 180, 1],
+        indianred: [205, 92, 92, 1],
+        indigo: [75, 0, 130, 1],
+        ivory: [255, 255, 240, 1],
+        khaki: [240, 230, 140, 1],
+        lavender: [230, 230, 250, 1],
+        lavenderblush: [255, 240, 245, 1],
+        lawngreen: [124, 252, 0, 1],
+        lemonchiffon: [255, 250, 205, 1],
+        lightblue: [173, 216, 230, 1],
+        lightcoral: [240, 128, 128, 1],
+        lightcyan: [224, 255, 255, 1],
+        lightgoldenrodyellow: [250, 250, 210, 1],
+        lightgray: [211, 211, 211, 1],
+        lightgreen: [144, 238, 144, 1],
+        lightgrey: [211, 211, 211, 1],
+        lightpink: [255, 182, 193, 1],
+        lightsalmon: [255, 160, 122, 1],
+        lightseagreen: [32, 178, 170, 1],
+        lightskyblue: [135, 206, 250, 1],
+        lightslategray: [119, 136, 153, 1],
+        lightslategrey: [119, 136, 153, 1],
+        lightsteelblue: [176, 196, 222, 1],
+        lightyellow: [255, 255, 224, 1],
+        lime: [0, 255, 0, 1],
+        limegreen: [50, 205, 50, 1],
+        linen: [250, 240, 230, 1],
+        magenta: [255, 0, 255, 1],
+        maroon: [128, 0, 0, 1],
+        mediumaquamarine: [102, 205, 170, 1],
+        mediumblue: [0, 0, 205, 1],
+        mediumorchid: [186, 85, 211, 1],
+        mediumpurple: [147, 112, 219, 1],
+        mediumseagreen: [60, 179, 113, 1],
+        mediumslateblue: [123, 104, 238, 1],
+        mediumspringgreen: [0, 250, 154, 1],
+        mediumturquoise: [72, 209, 204, 1],
+        mediumvioletred: [199, 21, 133, 1],
+        midnightblue: [25, 25, 112, 1],
+        mintcream: [245, 255, 250, 1],
+        mistyrose: [255, 228, 225, 1],
+        moccasin: [255, 228, 181, 1],
+        navajowhite: [255, 222, 173, 1],
+        navy: [0, 0, 128, 1],
+        oldlace: [253, 245, 230, 1],
+        olive: [128, 128, 0, 1],
+        olivedrab: [107, 142, 35, 1],
+        orange: [255, 165, 0, 1],
+        orangered: [255, 69, 0, 1],
+        orchid: [218, 112, 214, 1],
+        palegoldenrod: [238, 232, 170, 1],
+        palegreen: [152, 251, 152, 1],
+        paleturquoise: [175, 238, 238, 1],
+        palevioletred: [219, 112, 147, 1],
+        papayawhip: [255, 239, 213, 1],
+        peachpuff: [255, 218, 185, 1],
+        peru: [205, 133, 63, 1],
+        pink: [255, 192, 203, 1],
+        plum: [221, 160, 221, 1],
+        powderblue: [176, 224, 230, 1],
+        purple: [128, 0, 128, 1],
+        red: [255, 0, 0, 1],
+        rosybrown: [188, 143, 143, 1],
+        royalblue: [65, 105, 225, 1],
+        saddlebrown: [139, 69, 19, 1],
+        salmon: [250, 128, 114, 1],
+        sandybrown: [244, 164, 96, 1],
+        seagreen: [46, 139, 87, 1],
+        seashell: [255, 245, 238, 1],
+        sienna: [160, 82, 45, 1],
+        silver: [192, 192, 192, 1],
+        skyblue: [135, 206, 235, 1],
+        slateblue: [106, 90, 205, 1],
+        slategray: [112, 128, 144, 1],
+        slategrey: [112, 128, 144, 1],
+        snow: [255, 250, 250, 1],
+        springgreen: [0, 255, 127, 1],
+        steelblue: [70, 130, 180, 1],
+        tan: [210, 180, 140, 1],
+        teal: [0, 128, 128, 1],
+        thistle: [216, 191, 216, 1],
+        tomato: [255, 99, 71, 1],
+        turquoise: [64, 224, 208, 1],
+        violet: [238, 130, 238, 1],
+        wheat: [245, 222, 179, 1],
+        white: [255, 255, 255, 1],
+        whitesmoke: [245, 245, 245, 1],
+        yellow: [255, 255, 0, 1],
+        yellowgreen: [154, 205, 50, 1]
+    };
+
+    function clampCssByte(i) {
+        // Clamp to integer 0 .. 255.
+        i = Math.round(i); // Seems to be what Chrome does (vs truncation).
+        return i < 0 ? 0 : i > 255 ? 255 : i;
+    }
+
+    function clampCssFloat(f) {
+        // Clamp to float 0.0 .. 1.0.
+        return f < 0 ? 0 : f > 1 ? 1 : f;
+    }
+
+    function parseCssInt(str) {
+        // int or percentage.
+        if (str.length && str.charAt(str.length - 1) === "%") {
+            return clampCssByte((parseFloat(str) / 100) * 255);
+        }
+        return clampCssByte(parseInt(str, 10));
+    }
+
+    function parseCssFloat(str) {
+        // float or percentage.
+        if (str.length && str.charAt(str.length - 1) === "%") {
+            return clampCssFloat(parseFloat(str) / 100);
+        }
+        return clampCssFloat(parseFloat(str));
+    }
+
+    function cssHueToRgb(m1, m2, h) {
+        if (h < 0) {
+            h += 1;
+        } else if (h > 1) {
+            h -= 1;
+        }
+
+        if (h * 6 < 1) {
+            return m1 + (m2 - m1) * h * 6;
+        }
+        if (h * 2 < 1) {
+            return m2;
+        }
+        if (h * 3 < 2) {
+            return m1 + (m2 - m1) * (2 / 3 - h) * 6;
+        }
+        return m1;
+    }
+
+    function setRgba(out, r, g, b, a) {
+        out[0] = r;
+        out[1] = g;
+        out[2] = b;
+        out[3] = a;
+        return out;
+    }
+    function copyRgba(out, a) {
+        out[0] = a[0];
+        out[1] = a[1];
+        out[2] = a[2];
+        out[3] = a[3];
+        return out;
+    }
+
+    var colorCache = new LRU(20);
+    var lastRemovedArr = null;
+
+    function putToCache(colorStr, rgbaArr) {
+        // Reuse removed array
+        if (lastRemovedArr) {
+            copyRgba(lastRemovedArr, rgbaArr);
+        }
+        lastRemovedArr = colorCache.put(colorStr, lastRemovedArr || rgbaArr.slice());
+    }
+
+    /**
+     * @param {String} colorStr
+     * @param {Array<Number>} out
+     * @return {Array<Number>}
+     */
+    function parse(colorStr, rgbaArr) {
+        if (!colorStr) {
+            return;
+        }
+        rgbaArr = rgbaArr || [];
+
+        var cached = colorCache.get(colorStr);
+        if (cached) {
+            return copyRgba(rgbaArr, cached);
+        }
+
+        // colorStr may be not string
+        colorStr = colorStr + "";
+        // Remove all whitespace, not compliant, but should just be more accepting.
+        var str = colorStr.replace(/ /g, "").toLowerCase();
+
+        // Color keywords (and transparent) lookup.
+        if (str in kCSSColorTable) {
+            copyRgba(rgbaArr, kCSSColorTable[str]);
+            putToCache(colorStr, rgbaArr);
+            return rgbaArr;
+        }
+
+        // #abc and #abc123 syntax.
+        if (str.charAt(0) === "#") {
+            if (str.length === 4) {
+                var iv = parseInt(str.substr(1), 16); // TODO(deanm): Stricter parsing.
+                if (!(iv >= 0 && iv <= 0xfff)) {
+                    setRgba(rgbaArr, 0, 0, 0, 1);
+                    return; // Covers NaN.
+                }
+                setRgba(rgbaArr, ((iv & 0xf00) >> 4) | ((iv & 0xf00) >> 8), (iv & 0xf0) | ((iv & 0xf0) >> 4), (iv & 0xf) | ((iv & 0xf) << 4), 1);
+                putToCache(colorStr, rgbaArr);
+                return rgbaArr;
+            } else if (str.length === 7) {
+                var iv = parseInt(str.substr(1), 16); // TODO(deanm): Stricter parsing.
+                if (!(iv >= 0 && iv <= 0xffffff)) {
+                    setRgba(rgbaArr, 0, 0, 0, 1);
+                    return; // Covers NaN.
+                }
+                setRgba(rgbaArr, (iv & 0xff0000) >> 16, (iv & 0xff00) >> 8, iv & 0xff, 1);
+                putToCache(colorStr, rgbaArr);
+                return rgbaArr;
+            }
+
+            return;
+        }
+        var op = str.indexOf("(");
+        var ep = str.indexOf(")");
+        if (op !== -1 && ep + 1 === str.length) {
+            var fname = str.substr(0, op);
+            var params = str.substr(op + 1, ep - (op + 1)).split(",");
+            var alpha = 1; // To allow case fallthrough.
+            switch (fname) {
+                case "rgba":
+                    if (params.length !== 4) {
+                        setRgba(rgbaArr, 0, 0, 0, 1);
+                        return;
+                    }
+                    alpha = parseCssFloat(params.pop()); // jshint ignore:line
+                // Fall through.
+                case "rgb":
+                    if (params.length !== 3) {
+                        setRgba(rgbaArr, 0, 0, 0, 1);
+                        return;
+                    }
+                    setRgba(rgbaArr, parseCssInt(params[0]), parseCssInt(params[1]), parseCssInt(params[2]), alpha);
+                    putToCache(colorStr, rgbaArr);
+                    return rgbaArr;
+                case "hsla":
+                    if (params.length !== 4) {
+                        setRgba(rgbaArr, 0, 0, 0, 1);
+                        return;
+                    }
+                    params[3] = parseCssFloat(params[3]);
+                    hsla2rgba(params, rgbaArr);
+                    putToCache(colorStr, rgbaArr);
+                    return rgbaArr;
+                case "hsl":
+                    if (params.length !== 3) {
+                        setRgba(rgbaArr, 0, 0, 0, 1);
+                        return;
+                    }
+                    hsla2rgba(params, rgbaArr);
+                    putToCache(colorStr, rgbaArr);
+                    return rgbaArr;
+                default:
+                    return;
+            }
+        }
+
+        setRgba(rgbaArr, 0, 0, 0, 1);
+        return;
+    }
+
+    /**
+     * @param {Array<Number>} hsla
+     * @param {Array<Number>} rgba
+     * @return {Array<Number>} rgba
+     */
+    function hsla2rgba(hsla, rgba) {
+        var h = (((parseFloat(hsla[0]) % 360) + 360) % 360) / 360; // 0 .. 1
+        // NOTE(deanm): According to the CSS spec s/l should only be
+        // percentages, but we don't bother and let float or percentage.
+        var s = parseCssFloat(hsla[1]);
+        var l = parseCssFloat(hsla[2]);
+        var m2 = l <= 0.5 ? l * (s + 1) : l + s - l * s;
+        var m1 = l * 2 - m2;
+
+        rgba = rgba || [];
+        setRgba(rgba, clampCssByte(cssHueToRgb(m1, m2, h + 1 / 3) * 255), clampCssByte(cssHueToRgb(m1, m2, h) * 255), clampCssByte(cssHueToRgb(m1, m2, h - 1 / 3) * 255), 1);
+
+        if (hsla.length === 4) {
+            rgba[3] = hsla[3];
+        }
+
+        return rgba;
+    }
+
     class Track {
         constructor(opts) {
             this._target = opts._target;
@@ -2170,10 +2741,142 @@
             this.keyFrames.push(kf);
         }
 
-        nextFrame(time, delta) {}
+        start(propName, loop = false, easing = "", forceAnimate = false) {
+            let options = this._parseKeyFrames(propName, easing, loop, forceAnimate);
+            console.log(options);
+            if (!options) {
+                return null;
+            }
+
+            let timeLine = new Timeline(options);
+            this.timeLine = timeLine;
+        }
+
+        nextFrame(time, delta) {
+            // console.log(time, delta);
+            if (!this.timeline) {
+                return;
+            }
+
+            let result = this.timeline.nextFrame(time, delta);
+            // this.isFinished = true;
+
+            return result;
+        }
+
+        /**
+         * @private
+         * @method _parseKeyFrames
+         * 解析关键帧，创建时间线
+         * @param {String} easing 缓动函数名称
+         * @param {String} propName 属性名称
+         * @param {Boolean} forceAnimate 是否强制开启动画
+         * //TODO:try move this into webworker
+         */
+        _parseKeyFrames(propName, easing, loop, forceAnimate) {
+            let target = this._target;
+            let kfLength = this.keyFrames.length;
+            if (!kfLength) return;
+
+            let firstVal = this.keyFrames[0].value;
+            let isValueArray = isArrayLike(firstVal);
+            let isValueColor = false;
+            let isValueString = false;
+
+            this.keyFrames.sort((a, b) => {
+                return a.time - b.time;
+            });
+            console.log(this.keyFrames);
+
+            let trackMaxTime = this.keyFrames[kfLength - 1].time; //最后一帧时间
+            let kfPercents = []; //所有关键帧的时间转化为百分比
+            let kfValues = []; //所有关键帧的值
+            let preValue; //前一帧的值
+            let isAllValuesEqual = false; //所有的值都相等
+
+            for (let i = 0; i < kfLength; i++) {
+                kfPercents.push(this.keyFrames[i].time / trackMaxTime);
+                let curVal = this.keyFrames[i].value;
+
+                preValue = i > 0 ? this.keyFrames[i - 1].value : this.keyFrames[0].value;
+                if (!isValueArray && curVal === preValue) {
+                    //？？
+                    isAllValuesEqual = false;
+                }
+
+                //尝试转换 字符串颜色
+                if (typeof curVal === "string") {
+                    let colorArray = parse(curVal);
+                    if (colorArray) {
+                        curVal = colorArray;
+                        isValueColor = true;
+                    } else {
+                        isValueString = true;
+                    }
+                }
+                kfValues.push(curVal);
+            }
+
+            if (!forceAnimate && isAllValuesEqual) {
+                return;
+            }
+
+            let lastValue = kfValues[kfLength - 1];
+            for (let i = 0; i < kfLength; i++) {
+                if (isValueArray) ; else {
+                    if (isNaN(kfValues[i] && !isNaN(lastValue) && !isValueString && !isValueColor)) {
+                        kfValues[i] = lastValue;
+                    }
+                }
+            }
+            //isValueArray && dataUtil.fillArr(target[propName], lastValue, arrDim); //??
+
+            //缓存最后一帧的关键帧，加快动画播放时的速度
+            let lastFrame = 0;
+            let lastFramePercent = 0;
+            let start;
+
+            let onframe = function(target, percent) {
+                let frame;
+
+                if (percent < 0) {
+                    frame = 0;
+                } else if (percent < lastFramePercent) {
+                    start = Math.min(lastFrame + 1, kfLength - 1);
+                    for (frame = start; frame >= 0; frame--) {
+                        if (kfLength[frame] <= percent) {
+                            break;
+                        }
+                        frame = Math.min(frame, kfLength - 2);
+                    }
+                } else {
+                    for (frame = lastFrame; frame < kfLength; frame++) {
+                        if (kfPercents[frame] > percent) {
+                            break;
+                        }
+                    }
+                    frame = Math.min(frame - 1, kfLength - 2);
+                }
+                lastFrame = frame;
+                lastFramePercent = percent;
+            };
+
+            let options = {
+                target: target,
+                lifeTime: trackMaxTime,
+                loop: loop,
+                delay: this._delay,
+                onframe: onframe,
+                easing: easing && easing !== "spline" ? easing : "Linear"
+            };
+            return options;
+        }
     }
 
     /**
+     * 动画控制系统，为动画设置关键帧
+     * 引用: Track.js  为每个属性建立各自的动画轨道
+     *
      * 每个元素element 实例中都有一个列表，用来存储实例上的动画过程。
      * 列表中的动画按照顺序获得运行机会，  在特定的时间点上只有一个 AnimationPrcoss 处于运行状态，运行的过程由
      * GlobalAnimationMgr 来进行调度。
@@ -2185,9 +2888,10 @@
      */
 
     class AnimationProcess {
-        constructor(target) {
-            this._trackCacheMap = new Map();
+        constructor(target, loop) {
+            this._trackCacheMap = new Map(); //属性轨道Map {属性名： 对应的track}
             this._target = target; // shape={}  or style={}
+            this._loop = loop || false;
             this._delay = 0;
             this._running = false;
             this._paused = false;
@@ -2206,6 +2910,7 @@
                 }
 
                 let track = this._trackCacheMap.get(name);
+                //为每一个变化的 属性，建立动画时间线轨道
                 if (!track) {
                     track = new Track({
                         _target: this._target,
@@ -2214,12 +2919,17 @@
                 }
 
                 if (time !== 0) {
-                    track.addKeyFrame({
-                        time: 0,
-                        value: value
-                    });
+                    //标记第一个关键帧的time为0
+                    let first_key = track.keyFrames.length && track.keyFrames[0];
+                    if (!first_key) {
+                        track.addKeyFrame({
+                            time: 0,
+                            value: value
+                        });
+                    }
                 }
 
+                //添加关键帧：记录自定义时间 的值
                 track.addKeyFrame({
                     time: time,
                     value: props[name]
@@ -2230,24 +2940,35 @@
             }
         }
 
+        /**
+         * @method start
+         * 开始执行动画
+         * @param  {Boolean} loop 是否循环
+         * @param  {String|Function} [easing] 缓动函数名称，详见{@link qrenderer.animation.easing 缓动引擎}
+         * @param  {Boolean} forceAnimate 是否强制开启动画
+         * @return {qrenderer.animation.AnimationProcess}
+         */
         start(loop = false, easing = "", forceAnima = false) {
             this._running = true;
             this._paused = false;
+
             let keys = [...this._trackCacheMap.keys()];
+            console.log(keys);
             if (!keys.length) {
                 this.trigger("done");
                 return this;
             }
+            //遍历带有 动画轨道的属性， 读取轨道上的动画信息
             keys.forEach((name, index) => {
-                let track = this._trackCacheMap.get(name);
-                track && track.start(name, loop, easing, forceAnima);
+                let cur_track = this._trackCacheMap.get(name);
+                cur_track && cur_track.start(name, loop, easing, forceAnima);
             });
             return this;
         }
 
         /**
          * 进入到下一帧
-         *
+         * 在全局的WatchAnim.js 的 update 中 循环监控元素 身上的动画系统，如果存在就执行 nextFrame
          * @param {Number} time 当前时间
          * @param {Number} delta 时间的偏移量
          * @memberof AnimationProcess
@@ -2255,6 +2976,12 @@
         nextFrame(time, delta) {
             this._running = true;
             this._paused = false;
+
+            let track_values = [...this._trackCacheMap.values()];
+
+            track_values.forEach((track, index) => {
+                let result = track.nextFrame(time, delta);
+            });
         }
 
         during(cb) {
@@ -2265,6 +2992,10 @@
 
     mixin(AnimationProcess.prototype, Eventful.prototype);
 
+    /**
+     * 动画功能的入口
+     * 引用AnimationProcess.js 为元素的属性生成 对应的动画系统
+     */
     let Animatable = function() {
         this.animationProcessList = []; //动画实例列表
     };
@@ -2279,6 +3010,8 @@
             let target = this;
             if (path) {
                 let path_split = path.split(".");
+                console.log(path_split);
+                console.log(this);
                 for (let i = 0; i < path_split.length; i++) {
                     let item = path_split[i]; //'shape' or 'style'...
                     if (!this[item]) {
@@ -2292,25 +3025,30 @@
 
             //创建动画实例
             let animationProcess = new AnimationProcess(target);
-            animationProcess.during(target => {
-                target.dirty();
+            animationProcess.during(() => {
+                this.dirty();
             });
             animationProcess.on("done", () => {
-                target.removeAnimationProcess(animationProcess);
+                this.removeAnimationProcess(animationProcess);
             });
             animationProcess.on("stop", () => {
-                target.removeAnimationProcess(animationProcess);
+                this.removeAnimationProcess(animationProcess);
             });
 
             this.animationProcessList.push(animationProcess);
             if (this.__hr) {
-                console.log(this.__hr);
+                // 元素绑定的环境new HumbleRneder的实例，？？？为什么要加入绘图监控系统呢？
                 this.__hr.watchAnim.addAnimatable(this);
             }
             return animationProcess;
         },
 
-        removeAnimationProcess(animationProcess) {}
+        removeAnimationProcess(animationProcess) {
+            let index = this.animationProcessList.indexOf(animationProcess);
+            if (index >= 0) {
+                this.animationProcessList.splice(index, 1);
+            }
+        }
     };
 
     let STYLE_COMMON_PROPS = [

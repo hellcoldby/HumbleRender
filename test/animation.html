@@ -39,8 +39,16 @@
             }); 
             hr.add(rect);
 
-            rect.animate('shape', true)
-                .when(1000, {x: 100})
+            rect.animate()
+                .when(1000, {
+                    position:[200, 0],
+                    scale: [2, 1]
+                })
+                .when(2000, {
+                    position: [200, 200],
+                    scale: [1, 1]
+                })
+                .start();
     </script>
 </body>
 </html>

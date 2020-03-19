@@ -52,11 +52,13 @@ export default class WatchAnim extends Eventful {
         let time = new Date().getTime() - this._pause.duration;
         let delta = time - this._startTime;
         this._animatableMap.forEach((ele, id, map) => {
+            //查找当前元素的动画系统是否存在
             let ele_anim_process = ele.animationProcessList[0];
             if (!ele_anim_process) {
                 this.removeAnimatable(ele);
                 return;
             } else {
+                //存在动画系统，就在下一帧渲染（AnimationProcess.js）
                 ele_anim_process.nextFrame(time, delta);
             }
         });

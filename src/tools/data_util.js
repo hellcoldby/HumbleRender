@@ -123,4 +123,9 @@ export function mixin() {
     return target;
 }
 
-//7.
+//7.判断是否为类数组
+export function isArrayLike(data) {
+    if (!data) return;
+    if (typeof data === "string") return;
+    return typeof data.length === "number";
+}
