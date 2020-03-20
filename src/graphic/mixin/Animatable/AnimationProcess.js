@@ -11,7 +11,7 @@
  *
  * @class AnimationProcess
  */
-import { inheritProperties, mixin } from "../../../tools/data_util";
+import { inheritProperties, mixin, isString, isNumber } from "../../../tools/data_util";
 import Eventful from "../../../tools/EventEmitter";
 import Track from "./Track";
 
@@ -104,17 +104,45 @@ class AnimationProcess {
     nextFrame(time, delta) {
         this._running = true;
         this._paused = false;
+        let percent = "";
 
         let track_values = [...this._trackCacheMap.values()];
 
         track_values.forEach((track, index) => {
+            //时间线返回动画执行的进度： 进度百分比 or  'restart' or 'destory'
             let result = track.nextFrame(time, delta);
+            if (isString(result)) {
+            } else if (isNumber(result)) {
+                percent = result;
+            }
         });
+
+        console.log(time, delta);
+
+        if (isNumber(percent)) {
+            this.trigger("during", this._target, percent);
+        }
+
+        if (this.isFinished()) {
+            this.trigger("done");
+        }
     }
 
     during(cb) {
         this.on("during", cb);
         return this;
+    }
+
+    //判断整个动画过程是否已经完成，所有Track上的动画完成，则整个动画过程完成
+    isFinished() {
+        let isFinished = true;
+        let track_values = [...this._trackCacheMap.values()];
+        track_values.forEach((track, index) => {
+            if (!track.isFinished) {
+                isFinished = false;
+            }
+        });
+        return (isFinished = true);
     }
 }
 

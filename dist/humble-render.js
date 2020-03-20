@@ -1615,8 +1615,8 @@
 
         //动画循环中的更新逻辑
         _update() {
-            let time = new Date().getTime() - this._pause.duration;
-            let delta = time - this._startTime;
+            let time = new Date().getTime() - this._pause.duration; //从暂停位置开始计时，没有暂停就是当前事件
+            let delta = time - this._startTime; // 监控持续时间
             this._animatableMap.forEach((ele, id, map) => {
                 //查找当前元素的动画系统是否存在
                 let ele_anim_process = ele.animationProcessList[0];
@@ -1629,7 +1629,7 @@
                 }
             });
 
-            // this._startTime = time;
+            this._startTime = time;
 
             this.trigger("frame"); //激活订阅的frame 事件，触发视图刷新
         }
@@ -1847,6 +1847,12 @@
     function isObject(val) {
         let res = typeof val;
         return res === "function" || (!!val && res === "object");
+    }
+    function isString(val) {
+        return Object.prototype.toString.call(val) === "[object string]";
+    }
+    function isNumber(val) {
+        return !isNaN(parseFloat(val)) && isFinite(val);
     }
 
     //2. 判断数据类型
@@ -2184,6 +2190,49 @@
 
             this._pausedTime = 0;
             this._paused = false;
+        }
+        /**
+         *
+         * @param {Number} globalTime  监控 开始更新的时间
+         * @param {Number} deltaTime  监控的持续时间
+         */
+        nextFrame(globalTime, deltaTime) {
+            if (!this._initialized) {
+                this._startTime = globalTime + this._delay;
+                this._initialized = true;
+            }
+            if (this._paused) {
+                this._pausedTime += deltaTime;
+                return;
+            }
+
+            let percent = (globalTime - this._startTime - this._pausedTime) / this._lifeTime;
+
+            //还没开始
+            if (percent < 0) {
+                return;
+            }
+            let easing = this.easing;
+            let easingFunc = typeof easing === "string" ? easingFunc[easing] : easing; //调取缓动函数
+            let schedule = typeof easingFunc === "function" ? easingFunc(percent) : percent; //返回缓动的数据
+            //将缓动的数据传递给 关键帧函数 onframe(target, percent)
+            this.fire("frame", schedule);
+
+            if (percent === 1) {
+                if (this.loop) {
+                    this.restart(globalTime);
+                    return "restart";
+                }
+                return "destroy";
+            }
+            return percent;
+        }
+
+        fire(eventType, arg) {
+            eventType = "on" + eventType;
+            if (this[eventType]) {
+                this[eventType](this._target, arg);
+            }
         }
     }
 
@@ -2757,11 +2806,16 @@
             if (!this.timeline) {
                 return;
             }
-
+            //时间线返回动画执行的进度： 进度百分比 or  'restart' or 'destory'
             let result = this.timeline.nextFrame(time, delta);
-            // this.isFinished = true;
-
+            if (isString(result) && result === "destroy") {
+                this.isFinished = true;
+            }
             return result;
+        }
+
+        fire(eventType, arg) {
+            this.timeline.fire(eventType, arg);
         }
 
         /**
@@ -2976,17 +3030,44 @@
         nextFrame(time, delta) {
             this._running = true;
             this._paused = false;
+            let percent = "";
 
             let track_values = [...this._trackCacheMap.values()];
 
             track_values.forEach((track, index) => {
+                //时间线返回动画执行的进度： 进度百分比 or  'restart' or 'destory'
                 let result = track.nextFrame(time, delta);
+                if (isString(result)) ; else if (isNumber(result)) {
+                    percent = result;
+                }
             });
+
+            console.log(time, delta);
+
+            if (isNumber(percent)) {
+                this.trigger("during", this._target, percent);
+            }
+
+            if (this.isFinished()) {
+                this.trigger("done");
+            }
         }
 
         during(cb) {
             this.on("during", cb);
             return this;
+        }
+
+        //判断整个动画过程是否已经完成，所有Track上的动画完成，则整个动画过程完成
+        isFinished() {
+            let isFinished = true;
+            let track_values = [...this._trackCacheMap.values()];
+            track_values.forEach((track, index) => {
+                if (!track.isFinished) {
+                    isFinished = false;
+                }
+            });
+            return (isFinished = true);
         }
     }
 

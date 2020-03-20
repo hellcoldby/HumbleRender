@@ -1,4 +1,4 @@
-import eadingFuncs from "./effect/easing";
+import easingFunc from "./effect/easing";
 
 /**
  * @class qrenderer.animation.Timeline
@@ -21,5 +21,48 @@ export default class Timeline {
 
         this._pausedTime = 0;
         this._paused = false;
+    }
+    /**
+     *
+     * @param {Number} globalTime  监控 开始更新的时间
+     * @param {Number} deltaTime  监控的持续时间
+     */
+    nextFrame(globalTime, deltaTime) {
+        if (!this._initialized) {
+            this._startTime = globalTime + this._delay;
+            this._initialized = true;
+        }
+        if (this._paused) {
+            this._pausedTime += deltaTime;
+            return;
+        }
+
+        let percent = (globalTime - this._startTime - this._pausedTime) / this._lifeTime;
+
+        //还没开始
+        if (percent < 0) {
+            return;
+        }
+        let easing = this.easing;
+        let easingFunc = typeof easing === "string" ? easingFunc[easing] : easing; //调取缓动函数
+        let schedule = typeof easingFunc === "function" ? easingFunc(percent) : percent; //返回缓动的数据
+        //将缓动的数据传递给 关键帧函数 onframe(target, percent)
+        this.fire("frame", schedule);
+
+        if (percent === 1) {
+            if (this.loop) {
+                this.restart(globalTime);
+                return "restart";
+            }
+            return "destroy";
+        }
+        return percent;
+    }
+
+    fire(eventType, arg) {
+        eventType = "on" + eventType;
+        if (this[eventType]) {
+            this[eventType](this._target, arg);
+        }
     }
 }

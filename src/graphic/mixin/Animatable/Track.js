@@ -1,5 +1,5 @@
 import Timline from "./TimeLine";
-import { isArrayLike } from "../../../tools/data_util";
+import { isArrayLike, isString } from "../../../tools/data_util";
 import * as colorUtil from "../../../tools/color_util";
 export default class Track {
     constructor(opts) {
@@ -31,11 +31,16 @@ export default class Track {
         if (!this.timeline) {
             return;
         }
-
+        //时间线返回动画执行的进度： 进度百分比 or  'restart' or 'destory'
         let result = this.timeline.nextFrame(time, delta);
-        // this.isFinished = true;
-
+        if (isString(result) && result === "destroy") {
+            this.isFinished = true;
+        }
         return result;
+    }
+
+    fire(eventType, arg) {
+        this.timeline.fire(eventType, arg);
     }
 
     /**

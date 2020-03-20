@@ -9,6 +9,12 @@ export function isObject(val) {
     let res = typeof val;
     return res === "function" || (!!val && res === "object");
 }
+export function isString(val) {
+    return Object.prototype.toString.call(val) === "[object string]";
+}
+export function isNumber(val) {
+    return !isNaN(parseFloat(val)) && isFinite(val);
+}
 
 //2. 判断数据类型
 export function judgeType(val) {

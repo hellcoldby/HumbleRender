@@ -49,8 +49,8 @@ export default class WatchAnim extends Eventful {
 
     //动画循环中的更新逻辑
     _update() {
-        let time = new Date().getTime() - this._pause.duration;
-        let delta = time - this._startTime;
+        let time = new Date().getTime() - this._pause.duration; //从暂停位置开始计时，没有暂停就是当前事件
+        let delta = time - this._startTime; // 监控持续时间
         this._animatableMap.forEach((ele, id, map) => {
             //查找当前元素的动画系统是否存在
             let ele_anim_process = ele.animationProcessList[0];
@@ -63,7 +63,7 @@ export default class WatchAnim extends Eventful {
             }
         });
 
-        // this._startTime = time;
+        this._startTime = time;
 
         this.trigger("frame"); //激活订阅的frame 事件，触发视图刷新
     }
