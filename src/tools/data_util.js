@@ -4,6 +4,8 @@
  * 判断对象类型
  */
 
+import { fastLerp } from "./color_util";
+
 //1. 判断对象类型
 export function isObject(val) {
     let res = typeof val;
@@ -134,4 +136,69 @@ export function isArrayLike(data) {
     if (!data) return;
     if (typeof data === "string") return;
     return typeof data.length === "number";
+}
+
+//8. 最后一帧的第一项，如果是数组，就返回2
+export function getArrayDim(keyframes) {
+    let lastValue = keyframes[keyframes.length - 1].lastValue;
+    return isArrayLike(lastValue && lastValue[0]) ? 2 : 1;
+}
+
+export function isArraySame(arr0, arr1, arrDim) {
+    if (arr0 === arr1) return true;
+    let len = arr0.length;
+    if (len !== arr1.length) return false;
+    //最后一个值不是数组
+    if (arrDim === 1) {
+        for (let i = 0; i < len; i++) {
+            if (arr0[i] !== arr1[i]) {
+                //两个数组不一样
+                return false;
+            }
+        }
+    } else {
+        //最后一个值是数组
+        let len2 = arr0[0].length;
+        for (let i = 0; i < len; i++) {
+            for (let j = 0; j < len2; j++) {
+                if (arr0[i][j] !== arr1[i][j]) {
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+export function fillArr(arr0, arr1, arrDim) {
+    let len0 = arr0.length;
+    let len1 = arr1.length;
+    if (len0 !== len1) {
+        //对比数组的长度，统一为最小长度
+        let len0_isLarger = len0 > len1 ? true : false;
+        if (len0_isLarger) {
+            //第一个数组比较长,裁切数组长度。
+            arr0.length = len1;
+        } else {
+            // 用后一个数组填充前一个数组
+            for (let i = len0; i < len1; i++) {
+                arr0.push(arrDim === 1 ? arr1[i] : Array.prototype.slice.call(arr1[i]));
+            }
+        }
+    }
+
+    let = arr0[0] && arr0[0].length;
+    for (var i = 0; i < arr0.length; i++) {
+        if (arrDim === 1) {
+            if (isNaN(arr0[i])) {
+                arr0[i] = arr1[i];
+            }
+        } else {
+            for (var j = 0; j < len2; j++) {
+                if (isNaN(arr0[i][j])) {
+                    arr0[i][j] = arr1[i][j];
+                }
+            }
+        }
+    }
 }

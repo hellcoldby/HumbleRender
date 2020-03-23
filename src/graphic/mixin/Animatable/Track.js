@@ -1,5 +1,5 @@
 import Timline from "./TimeLine";
-import { isArrayLike, isString } from "../../../tools/data_util";
+import { isArrayLike, isString, fillArr } from "../../../tools/data_util";
 import * as colorUtil from "../../../tools/color_util";
 export default class Track {
     constructor(opts) {
@@ -48,20 +48,22 @@ export default class Track {
      * @method _parseKeyFrames
      * 解析关键帧，创建时间线
      * @param {String} easing 缓动函数名称
-     * @param {String} propName 属性名称
+     * @param {String} path 属性名称
      * @param {Boolean} forceAnimate 是否强制开启动画
      * //TODO:try move this into webworker
      */
-    _parseKeyFrames(propName, easing, loop, forceAnimate) {
+    _parseKeyFrames(path, easing, loop, forceAnimate) {
         let target = this._target;
         let kfLength = this.keyFrames.length;
         if (!kfLength) return;
 
-        let firstVal = this.keyFrames[0].value;
-        let isValueArray = isArrayLike(firstVal);
+        let firstVal = this.keyFrames[0].value; //第一帧的值
+        let isValueArray = isArrayLike(firstVal); //第一帧的值是否为数组
         let isValueColor = false;
         let isValueString = false;
-
+        // 判断最后一帧的值为数组的话，数组的第一个是不是还是数组
+        let arrDim = isValueArray ? getArrayDim(this.keyFrames) : 0;
+        //把所有的帧进行排序
         this.keyFrames.sort((a, b) => {
             return a.time - b.time;
         });
@@ -74,12 +76,12 @@ export default class Track {
         let isAllValuesEqual = false; //所有的值都相等
 
         for (let i = 0; i < kfLength; i++) {
-            kfPercents.push(this.keyFrames[i].time / trackMaxTime);
+            kfPercents.push(this.keyFrames[i].time / trackMaxTime); //将所有的帧，转换为百分比
             let curVal = this.keyFrames[i].value;
 
-            preValue = i > 0 ? this.keyFrames[i - 1].value : this.keyFrames[0].value;
-            if (!isValueArray && curVal === preValue) {
-                //？？
+            preValue = i > 0 ? this.keyFrames[i - 1].value : null;
+            //检测上一帧 和 当前帧 是否一致
+            if (!(isValueArray && isArraySame(curVal, preValue, arrDim)) || (!isValueArray && curVal !== preValue)) {
                 isAllValuesEqual = false;
             }
 
@@ -100,9 +102,10 @@ export default class Track {
             return;
         }
 
-        let lastValue = kfValues[kfLength - 1];
+        let lastValue = kfValues[kfLength - 1]; //最后一帧的值
         for (let i = 0; i < kfLength; i++) {
             if (isValueArray) {
+                fillArr(kfValues[i], lastValue, arrDim);
             } else {
                 if (isNaN(kfValues[i] && !isNaN(lastValue) && !isValueString && !isValueColor)) {
                     kfValues[i] = lastValue;
