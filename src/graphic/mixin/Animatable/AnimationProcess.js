@@ -27,17 +27,17 @@ class AnimationProcess {
     }
 
     when(time, props) {
-        for (let name in props) {
-            if (!props.hasOwnProperty(name)) {
+        for (let propName in props) {
+            if (!props.hasOwnProperty(propName)) {
                 continue;
             }
 
-            let value = this._target[name];
+            let value = this._target[propName];
             if (value === null || value === undefined) {
                 continue;
             }
 
-            let track = this._trackCacheMap.get(name);
+            let track = this._trackCacheMap.get(propName);
             //为每一个变化的 属性，建立动画时间线轨道
             if (!track) {
                 track = new Track({
@@ -60,10 +60,12 @@ class AnimationProcess {
             //添加关键帧：记录自定义时间 的值
             track.addKeyFrame({
                 time: time,
-                value: props[name]
+                value: props[propName]
             });
 
-            this._trackCacheMap.set(name, track);
+            console.log(track.keyFrames);
+
+            this._trackCacheMap.set(propName, track);
             return this;
         }
     }
@@ -86,8 +88,9 @@ class AnimationProcess {
             this.trigger("done");
             return this;
         }
-        //遍历带有 动画轨道的属性， 读取轨道上的动画信息
+
         keys.forEach((name, index) => {
+            //获取属性身上的 track
             let cur_track = this._trackCacheMap.get(name);
             cur_track && cur_track.start(name, loop, easing, forceAnima);
         });
@@ -104,20 +107,33 @@ class AnimationProcess {
     nextFrame(time, delta) {
         this._running = true;
         this._paused = false;
+
+        let deferredEvents = [];
+        let deferredTracks = [];
         let percent = "";
 
         let track_values = [...this._trackCacheMap.values()];
+        // console.log(track_values);
 
         track_values.forEach((track, index) => {
             //时间线返回动画执行的进度： 进度百分比 or  'restart' or 'destory'
+
             let result = track.nextFrame(time, delta);
+            console.log(result);
             if (isString(result)) {
+                //当返回的是 ‘resstart' or 'destory'  ，保存
+                deferredEvents.push(result);
+                deferredTracks.push(track);
             } else if (isNumber(result)) {
                 percent = result;
             }
         });
 
-        console.log(time, delta);
+        // console.log(deferredEvents);
+        // let len = deferredEvents.length;
+        // for (let i = 0; i < len; i++) {
+        //     deferredTracks[i].fire(deferredEvents[i]);
+        // }
 
         if (isNumber(percent)) {
             this.trigger("during", this._target, percent);
@@ -142,7 +158,7 @@ class AnimationProcess {
                 isFinished = false;
             }
         });
-        return (isFinished = true);
+        return isFinished;
     }
 }
 

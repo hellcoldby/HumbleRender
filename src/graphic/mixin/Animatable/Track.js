@@ -1,5 +1,5 @@
 import Timline from "./TimeLine";
-import { isArrayLike, isString, fillArr } from "../../../tools/data_util";
+import { isArrayLike, isString, getArrayDim, isArraySame, fillArr, interpolateArray, interpolateString, interpolateNumber } from "../../../tools/data_util";
 import * as colorUtil from "../../../tools/color_util";
 export default class Track {
     constructor(opts) {
@@ -16,14 +16,15 @@ export default class Track {
     }
 
     start(propName, loop = false, easing = "", forceAnimate = false) {
-        let options = this._parseKeyFrames(propName, easing, loop, forceAnimate);
-        console.log(options);
+        //将所有关键帧的值，统一长度，填充空缺。
+        let options = this._parseKeyFrames(easing, propName, loop, forceAnimate);
+        // console.log(options);
         if (!options) {
             return null;
         }
 
-        let timeLine = new Timline(options);
-        this.timeLine = timeLine;
+        let timeline = new Timline(options);
+        this.timeline = timeline;
     }
 
     nextFrame(time, delta) {
@@ -33,9 +34,11 @@ export default class Track {
         }
         //时间线返回动画执行的进度： 进度百分比 or  'restart' or 'destory'
         let result = this.timeline.nextFrame(time, delta);
+
         if (isString(result) && result === "destroy") {
             this.isFinished = true;
         }
+        // console.log(result);
         return result;
     }
 
@@ -48,12 +51,13 @@ export default class Track {
      * @method _parseKeyFrames
      * 解析关键帧，创建时间线
      * @param {String} easing 缓动函数名称
-     * @param {String} path 属性名称
+     * @param {String} propName 属性名称
      * @param {Boolean} forceAnimate 是否强制开启动画
      * //TODO:try move this into webworker
      */
-    _parseKeyFrames(path, easing, loop, forceAnimate) {
+    _parseKeyFrames(easing, propName, loop, forceAnimate) {
         let target = this._target;
+        let useSpline = easing === "spline";
         let kfLength = this.keyFrames.length;
         if (!kfLength) return;
 
@@ -67,7 +71,6 @@ export default class Track {
         this.keyFrames.sort((a, b) => {
             return a.time - b.time;
         });
-        console.log(this.keyFrames);
 
         let trackMaxTime = this.keyFrames[kfLength - 1].time; //最后一帧时间
         let kfPercents = []; //所有关键帧的时间转化为百分比
@@ -79,7 +82,7 @@ export default class Track {
             kfPercents.push(this.keyFrames[i].time / trackMaxTime); //将所有的帧，转换为百分比
             let curVal = this.keyFrames[i].value;
 
-            preValue = i > 0 ? this.keyFrames[i - 1].value : null;
+            preValue = i > 0 ? this.keyFrames[i - 1].value : [];
             //检测上一帧 和 当前帧 是否一致
             if (!(isValueArray && isArraySame(curVal, preValue, arrDim)) || (!isValueArray && curVal !== preValue)) {
                 isAllValuesEqual = false;
@@ -103,6 +106,7 @@ export default class Track {
         }
 
         let lastValue = kfValues[kfLength - 1]; //最后一帧的值
+        //循环，补全空缺的数值，让所有的数值长度都统一
         for (let i = 0; i < kfLength; i++) {
             if (isValueArray) {
                 fillArr(kfValues[i], lastValue, arrDim);
@@ -112,11 +116,12 @@ export default class Track {
                 }
             }
         }
-        //isValueArray && dataUtil.fillArr(target[propName], lastValue, arrDim); //??
+        // console.log(propName);
+        isValueArray && fillArr(target[propName], lastValue, arrDim); //将元素的属性指定定格到最后一帧。
 
         //缓存最后一帧的关键帧，加快动画播放时的速度
         let lastFrame = 0;
-        let lastFramePercent = 0;
+        let lastFramePercent = 0; //
         let start;
         let w;
         let p0;
@@ -124,21 +129,26 @@ export default class Track {
         let p2;
         let p3;
         let rgba = [0, 0, 0, 0];
-
+        //参数： （元素， 经过数学计算之后的数据）
         let onframe = function(target, percent) {
-            let frame;
+            // console.log(percent);
+            let frame; //保存最后一帧的序列
 
             if (percent < 0) {
+                //当前时间帧小于0，frame 就是第一帧
                 frame = 0;
             } else if (percent < lastFramePercent) {
-                start = Math.min(lastFrame + 1, kfLength - 1);
+                //当前时间小于 最后一帧时间，
+
+                start = Math.min(lastFrame + 1, kfLength - 1); //倒数第一帧
                 for (frame = start; frame >= 0; frame--) {
                     if (kfLength[frame] <= percent) {
                         break;
                     }
-                    frame = Math.min(frame, kfLength - 2);
+                    frame = Math.min(frame, kfLength - 2); //倒数第二帧
                 }
             } else {
+                //当前时间 大于  最后一帧时间
                 for (frame = lastFrame; frame < kfLength; frame++) {
                     if (kfPercents[frame] > percent) {
                         break;
@@ -148,6 +158,52 @@ export default class Track {
             }
             lastFrame = frame;
             lastFramePercent = percent;
+
+            let range = kfPercents[frame + 1] - kfPercents[frame];
+            if (range === 0) {
+                return;
+            } else {
+                w = (percent - kfPercents[frame]) / range;
+            }
+
+            if (useSpline) {
+                p1 = kfValues[frame];
+                p0 = kfValues[frame === 0 ? frame : frame - 1];
+                p2 = kfValues[frame > kfLength - 2 ? kfLength - 1 : frame + 1];
+                p3 = kfValues[frame > kfLength - 3 ? kfLength - 1 : frame + 2];
+                if (isValueArray) {
+                    dataUtil.catmullRomInterpolateArray(p0, p1, p2, p3, w, w * w, w * w * w, target[propName], arrDim);
+                } else {
+                    let value;
+                    if (isValueColor) {
+                        value = dataUtil.catmullRomInterpolateArray(p0, p1, p2, p3, w, w * w, w * w * w, rgba, 1);
+                        value = dataUtil.rgba2String(rgba);
+                    } else if (isValueString) {
+                        // String is step(0.5)
+                        return dataUtil.interpolateString(p1, p2, w);
+                    } else {
+                        value = dataUtil.catmullRomInterpolate(p0, p1, p2, p3, w, w * w, w * w * w);
+                    }
+                    target[propName] = value;
+                }
+            } else {
+                if (isValueArray) {
+                    let res = interpolateArray(kfValues[frame], kfValues[frame + 1], w, target[propName], arrDim);
+                    console.log(res);
+                } else {
+                    let value;
+                    if (isValueColor) {
+                        interpolateArray(kfValues[frame], kfValues[frame + 1], w, rgba, 1);
+                        value = dataUtil.rgba2String(rgba);
+                    } else if (isValueString) {
+                        // String is step(0.5)
+                        return interpolateString(kfValues[frame], kfValues[frame + 1], w);
+                    } else {
+                        value = interpolateNumber(kfValues[frame], kfValues[frame + 1], w);
+                    }
+                    target[propName] = value;
+                }
+            }
         };
 
         let options = {

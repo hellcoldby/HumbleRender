@@ -12,7 +12,7 @@ export function isObject(val) {
     return res === "function" || (!!val && res === "object");
 }
 export function isString(val) {
-    return Object.prototype.toString.call(val) === "[object string]";
+    return Object.prototype.toString.call(val) === "[object String]";
 }
 export function isNumber(val) {
     return !isNaN(parseFloat(val)) && isFinite(val);
@@ -187,7 +187,7 @@ export function fillArr(arr0, arr1, arrDim) {
         }
     }
 
-    let = arr0[0] && arr0[0].length;
+    let len2 = arr0[0] && arr0[0].length;
     for (var i = 0; i < arr0.length; i++) {
         if (arrDim === 1) {
             if (isNaN(arr0[i])) {
@@ -201,4 +201,55 @@ export function fillArr(arr0, arr1, arrDim) {
             }
         }
     }
+}
+
+/**
+ * 字符串插值
+ * @param  {String} p0
+ * @param  {String} p1
+ * @param  {Number} percent
+ * @return {String}
+ */
+export function interpolateString(p0, p1, percent) {
+    return percent > 0.5 ? p1 : p0;
+}
+
+/**
+ * 数组插值
+ * @param  {Array} p0
+ * @param  {Array} p1
+ * @param  {Number} percent
+ * @param  {Array} out
+ * @param  {Number} arrDim
+ */
+export function interpolateArray(p0, p1, percent, out, arrDim) {
+    var len = p0.length;
+    if (!len) return;
+    if (arrDim === 1) {
+        for (var i = 0; i < len; i++) {
+            out[i] = interpolateNumber(p0[i], p1[i], percent);
+        }
+    } else {
+        var len2 = p0[0].length;
+        if (!len2) return;
+        for (var i = 0; i < len; i++) {
+            if (out[i] === undefined) {
+                return;
+            }
+            for (var j = 0; j < len2; j++) {
+                out[i][j] = interpolateNumber(p0[i][j], p1[i][j], percent);
+            }
+        }
+    }
+    return out;
+}
+
+/**
+ * @param  {Number} p0
+ * @param  {Number} p1
+ * @param  {Number} percent
+ * @return {Number}
+ */
+export function interpolateNumber(p0, p1, percent) {
+    return (p1 - p0) * percent + p0;
 }

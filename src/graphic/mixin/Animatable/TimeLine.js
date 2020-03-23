@@ -1,4 +1,4 @@
-import easingFunc from "./effect/easing";
+import easingCount from "./effect/easing";
 
 /**
  * @class qrenderer.animation.Timeline
@@ -43,13 +43,20 @@ export default class Timeline {
         if (percent < 0) {
             return;
         }
+
+        //超过 100%，就停止在100%
+        percent = Math.min(percent, 1);
+
         let easing = this.easing;
-        let easingFunc = typeof easing === "string" ? easingFunc[easing] : easing; //调取缓动函数
+        let easingFunc = typeof easing === "string" ? easingCount[easing] : easing; //调取缓动函数
+
         let schedule = typeof easingFunc === "function" ? easingFunc(percent) : percent; //返回缓动的数据
+
         //将缓动的数据传递给 关键帧函数 onframe(target, percent)
         this.fire("frame", schedule);
 
         if (percent === 1) {
+            // console.log(percent);
             if (this.loop) {
                 this.restart(globalTime);
                 return "restart";

@@ -1617,13 +1617,17 @@
         _update() {
             let time = new Date().getTime() - this._pause.duration; //从暂停位置开始计时，没有暂停就是当前事件
             let delta = time - this._startTime; // 监控持续时间
+
             this._animatableMap.forEach((ele, id, map) => {
                 //查找当前元素的动画系统是否存在
+
                 let ele_anim_process = ele.animationProcessList[0];
+
                 if (!ele_anim_process) {
                     this.removeAnimatable(ele);
                     return;
                 } else {
+                    // console.log([...this._animatableMap]);
                     //存在动画系统，就在下一帧渲染（AnimationProcess.js）
                     ele_anim_process.nextFrame(time, delta);
                 }
@@ -1835,405 +1839,6 @@
         r1 !== 0 && ctx.arc(x + r1, y + r1, r1, Math.PI, Math.PI * 1.5);
 
 
-    }
-
-    /*
-     * data_util 数据 相关的 工具集合
-     *
-     * 判断对象类型
-     */
-
-    //1. 判断对象类型
-    function isObject(val) {
-        let res = typeof val;
-        return res === "function" || (!!val && res === "object");
-    }
-    function isString(val) {
-        return Object.prototype.toString.call(val) === "[object string]";
-    }
-    function isNumber(val) {
-        return !isNaN(parseFloat(val)) && isFinite(val);
-    }
-
-    //2. 判断数据类型
-    function judgeType(val) {
-        return Object.prototype.toString.call(val);
-    }
-
-    //3. 深拷贝
-    function deepClone(source) {
-        if (!source || typeof source !== "object") return source;
-
-        let res = source;
-        if (judgeType(source) === "[object Array]") {
-            res = [];
-            for (let i = 0; i < source.length; i++) {
-                res[i] = deepClone(source[i]);
-            }
-        }
-        if (judgeType(source) === "[object Object") {
-            res = {};
-            for (let key in source) {
-                res[key] = deepClone(source[key]);
-            }
-        }
-
-        return res;
-    }
-
-    function merge(target, source, overwrite) {
-        if (!isObject(target) || !isObject(source)) {
-            //如果 overwirte 为true, source 覆盖 target
-            if (overwrite) {
-                return deepClone(source);
-            } else {
-                return target;
-            }
-        }
-
-        for (let key in source) {
-            let source_prop = source[key];
-            let target_prop = target[key];
-            if (judgeType(source_prop) === "[object Object]" && judgeType(target_prop) === "[object Object]") {
-                // 如果需要递归覆盖，就递归调用merge
-                merge(target_prop, source_prop, overwrite);
-            } else if (overwrite || !(key in target)) {
-                // 否则只处理overwrite为true，或者在目标对象中没有此属性的情况
-                // 在 target[key] 不存在的时候也是直接覆盖
-                target[key] = deepClone(source[key]);
-            }
-        }
-
-        return target;
-    }
-
-    /** 拷贝父类上的属性，此方法用来支持那么没有按照 ES6 语法编写的类。
-     *
-     * @param {*} target 子类的实例
-     * @param {*} SuperClass 父类的构造函数
-     * @param {*} opts 父类构造参数
-     */
-    function inheritProperties(target, SuperClass, opts) {
-        let src = new SuperClass(opts);
-        for (let name in src) {
-            if (src.hasOwnProperty(name)) {
-                target[name] = src[name];
-            }
-        }
-    }
-
-    //5. 从目标对象上拷贝非继承的属性
-    function copyOwnProperties(target, source, excludes = []) {
-        for (let key in source) {
-            if (source.hasOwnProperty(key)) {
-                if (excludes && excludes.length) {
-                    if (excludes.indexOf(key) !== -1) {
-                        continue;
-                    }
-                }
-                target[key] = source[key];
-            }
-        }
-        return target;
-    }
-
-    //6. 拷贝多个对象的（非继承）属性。 参数（targe, obj1, obj2, ..., overWrite)
-    function mixin() {
-        let lastArgs = arguments[arguments.length - 1];
-        let argLen = arguments.length;
-        let overwrite = false;
-        if (typeof lastArgs === "boolean") {
-            overwrite = lastArgs;
-            argLen -= 1;
-        }
-        let target = arguments[0];
-        let i = 1;
-        let tmp = null;
-        let tmp_keys = [];
-        for (i; i < argLen; i++) {
-            tmp = arguments[i];
-
-            tmp_keys = Object.getOwnPropertyNames(tmp);
-            if (tmp_keys.length) {
-                tmp_keys.forEach(function(prop) {
-                    if (prop !== "constructor" && prop !== "prototype") {
-                        if (tmp.hasOwnProperty(prop) && (overwrite ? tmp[prop] != null : target.hasOwnProperty(prop) === false)) {
-                            target[prop] = tmp[prop];
-                            // console.log(target[prop]);
-                        }
-                    }
-                });
-            }
-        }
-        return target;
-    }
-
-    //7.判断是否为类数组
-    function isArrayLike(data) {
-        if (!data) return;
-        if (typeof data === "string") return;
-        return typeof data.length === "number";
-    }
-
-    let ArrayCtor = typeof Float32Array === "undefined" ? Array : Float32Array;
-
-    function create() {
-        let out = new ArrayCtor(6);
-        identity(out);
-        return out;
-    }
-
-    //设置矩阵
-    function identity(out) {
-        out[0] = 1;
-        out[1] = 0;
-        out[2] = 0;
-        out[3] = 1;
-        out[4] = 0;
-        out[5] = 0;
-        return out;
-    }
-
-    /**
-     * 缩放变换
-     * @param {Float32Array|Array.<number>} out
-     * @param {Float32Array|Array.<number>} a
-     * @param {Float32Array|Array.<number>} v
-     */
-    function scale(out, a, v) {
-        var vx = v[0];
-        var vy = v[1];
-        out[0] = a[0] * vx;
-        out[1] = a[1] * vy;
-        out[2] = a[2] * vx;
-        out[3] = a[3] * vy;
-        out[4] = a[4] * vx;
-        out[5] = a[5] * vy;
-        return out;
-    }
-
-    /**
-     * 旋转变换
-     * @param {Float32Array|Array.<number>} out
-     * @param {Float32Array|Array.<number>} a
-     * @param {number} rad
-     */
-    function rotate(out, a, rad) {
-        var aa = a[0];
-        var ac = a[2];
-        var atx = a[4];
-        var ab = a[1];
-        var ad = a[3];
-        var aty = a[5];
-        var st = Math.sin(rad);
-        var ct = Math.cos(rad);
-
-        out[0] = aa * ct + ab * st;
-        out[1] = -aa * st + ab * ct;
-        out[2] = ac * ct + ad * st;
-        out[3] = -ac * st + ct * ad;
-        out[4] = ct * atx + st * aty;
-        out[5] = ct * aty - st * atx;
-        return out;
-    }
-
-    /**
-     * 求逆矩阵
-     * @param {Float32Array|Array.<number>} out
-     * @param {Float32Array|Array.<number>} a
-     */
-    function invert(out, a) {
-        var aa = a[0];
-        var ac = a[2];
-        var atx = a[4];
-        var ab = a[1];
-        var ad = a[3];
-        var aty = a[5];
-
-        var det = aa * ad - ab * ac;
-        if (!det) {
-            return null;
-        }
-        det = 1.0 / det;
-
-        out[0] = ad * det;
-        out[1] = -ab * det;
-        out[2] = -ac * det;
-        out[3] = aa * det;
-        out[4] = (ac * aty - ad * atx) * det;
-        out[5] = (ab * atx - aa * aty) * det;
-        return out;
-    }
-
-    var EPSILON = 5e-5;
-    function Transformable(opts = {}) {
-        this.origin = !opts.origin ? [0, 0] : opts.origin;
-        this.rotation = !opts.rotation ? 0 : opts.rotation;
-        this.position = !opts.position ? [0, 0] : opts.position;
-        this.scale = !opts.scale ? [1, 1] : opts.scale;
-        this.skew = !opts.skew ? [0, 0] : opts.skew;
-        this.globalScaleRatio = 1;
-        // console.log(this.position);
-    }
-
-    Transformable.prototype = {
-        constructor: Transformable,
-
-        //是否需要
-        needLocalTransform() {
-            // console.log(this);
-            return (
-                isNotAroundZero(this.rotation) ||
-                isNotAroundZero(this.position[0]) ||
-                isNotAroundZero(this.position[1]) ||
-                isNotAroundZero(this.scale[0] - 1) ||
-                isNotAroundZero(this.scale[1] - 1)
-            );
-        },
-
-        //更新图形的偏移矩阵
-        updateTransform() {
-            let parent = this.parent;
-            let parent_trans = parent && parent.transform;
-            // 判断是位置是否接近0, 接近0为false (不变化矩阵)
-            let needLocalTransform = this.needLocalTransform();
-
-            let m = this.transform;
-            if (!(needLocalTransform || parent_trans)) {
-                m && identity(m);
-                return;
-            }
-            //创建矩阵
-            m = m || create();
-            // console.log(m);
-
-            if (needLocalTransform) {
-               m = this.getLocalTransform(m);
-            } else {
-                identity(m);
-            }
-
-            this.transform = m;
-            // var globalScaleRatio = this.globalScaleRatio;
-
-            this.invTransform = this.invTransform || create();
-            invert(this.invTransform, m);
-        },
-
-        /**
-         * 将自己的transform应用到context上
-         * @param {CanvasRenderingContext2D} ctx
-         */
-        setTransform(ctx) {
-            let m = this.transform;
-            let dpr = ctx.dpr || 1;
-            // console.log(this.type, m);
-            if (m) {
-                ctx.setTransform(dpr * m[0], dpr * m[1], dpr * m[2], dpr * m[3], dpr * m[4], dpr * m[5]);
-            } else {
-                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-            }
-        },
-
-        getLocalTransform(m = []) {
-            identity(m);
-
-            let origin = this.origin;
-            let scale$1 = this.scale || [1, 1];
-            let rotation = this.rotation || 0;
-            let position = this.position || [0, 0];
-
-            if (origin) {
-                m[4] -= origin[0];
-                m[5] -= origin[1];
-            }
-
-            scale(m, m, scale$1);
-            if (rotation) {
-                rotate(m, m, rotation);
-            }
-
-            if (origin) {
-                m[4] += origin[0];
-                m[5] += origin[1];
-            }
-
-            m[4] += position[0];
-            m[5] += position[1];
-            return m;
-        }
-    };
-
-    //tools --- 判断不在0附近
-    function isNotAroundZero(val) {
-        return val > EPSILON || val < -EPSILON;
-    }
-
-    /**
-     * @class qrenderer.animation.Timeline
-     * Timeline，时间线，用来计算元素上的某个属性在指定时间点的数值。
-     *
-     */
-
-    class Timeline {
-        constructor(options) {
-            this._target = options.target;
-            this._lifeTime = options.lifeTime || 1000;
-            this._delay = options.delay || 0;
-            this._initialized = false;
-            this.loop = options.loop == null ? false : options.loop;
-            this.gap = options.gap || 0;
-            this.easing = options.easing || "Linear";
-            this.onframe = options.onframe;
-            this.ondestroy = options.ondestroy;
-            this.onrestart = options.onrestart;
-
-            this._pausedTime = 0;
-            this._paused = false;
-        }
-        /**
-         *
-         * @param {Number} globalTime  监控 开始更新的时间
-         * @param {Number} deltaTime  监控的持续时间
-         */
-        nextFrame(globalTime, deltaTime) {
-            if (!this._initialized) {
-                this._startTime = globalTime + this._delay;
-                this._initialized = true;
-            }
-            if (this._paused) {
-                this._pausedTime += deltaTime;
-                return;
-            }
-
-            let percent = (globalTime - this._startTime - this._pausedTime) / this._lifeTime;
-
-            //还没开始
-            if (percent < 0) {
-                return;
-            }
-            let easing = this.easing;
-            let easingFunc = typeof easing === "string" ? easingFunc[easing] : easing; //调取缓动函数
-            let schedule = typeof easingFunc === "function" ? easingFunc(percent) : percent; //返回缓动的数据
-            //将缓动的数据传递给 关键帧函数 onframe(target, percent)
-            this.fire("frame", schedule);
-
-            if (percent === 1) {
-                if (this.loop) {
-                    this.restart(globalTime);
-                    return "restart";
-                }
-                return "destroy";
-            }
-            return percent;
-        }
-
-        fire(eventType, arg) {
-            eventType = "on" + eventType;
-            if (this[eventType]) {
-                this[eventType](this._target, arg);
-            }
-        }
     }
 
     // Simple LRU cache use doubly linked list
@@ -2776,6 +2381,863 @@
         return rgba;
     }
 
+    /*
+     * data_util 数据 相关的 工具集合
+     *
+     * 判断对象类型
+     */
+
+    //1. 判断对象类型
+    function isObject(val) {
+        let res = typeof val;
+        return res === "function" || (!!val && res === "object");
+    }
+    function isString(val) {
+        return Object.prototype.toString.call(val) === "[object String]";
+    }
+    function isNumber(val) {
+        return !isNaN(parseFloat(val)) && isFinite(val);
+    }
+
+    //2. 判断数据类型
+    function judgeType(val) {
+        return Object.prototype.toString.call(val);
+    }
+
+    //3. 深拷贝
+    function deepClone(source) {
+        if (!source || typeof source !== "object") return source;
+
+        let res = source;
+        if (judgeType(source) === "[object Array]") {
+            res = [];
+            for (let i = 0; i < source.length; i++) {
+                res[i] = deepClone(source[i]);
+            }
+        }
+        if (judgeType(source) === "[object Object") {
+            res = {};
+            for (let key in source) {
+                res[key] = deepClone(source[key]);
+            }
+        }
+
+        return res;
+    }
+
+    function merge(target, source, overwrite) {
+        if (!isObject(target) || !isObject(source)) {
+            //如果 overwirte 为true, source 覆盖 target
+            if (overwrite) {
+                return deepClone(source);
+            } else {
+                return target;
+            }
+        }
+
+        for (let key in source) {
+            let source_prop = source[key];
+            let target_prop = target[key];
+            if (judgeType(source_prop) === "[object Object]" && judgeType(target_prop) === "[object Object]") {
+                // 如果需要递归覆盖，就递归调用merge
+                merge(target_prop, source_prop, overwrite);
+            } else if (overwrite || !(key in target)) {
+                // 否则只处理overwrite为true，或者在目标对象中没有此属性的情况
+                // 在 target[key] 不存在的时候也是直接覆盖
+                target[key] = deepClone(source[key]);
+            }
+        }
+
+        return target;
+    }
+
+    /** 拷贝父类上的属性，此方法用来支持那么没有按照 ES6 语法编写的类。
+     *
+     * @param {*} target 子类的实例
+     * @param {*} SuperClass 父类的构造函数
+     * @param {*} opts 父类构造参数
+     */
+    function inheritProperties(target, SuperClass, opts) {
+        let src = new SuperClass(opts);
+        for (let name in src) {
+            if (src.hasOwnProperty(name)) {
+                target[name] = src[name];
+            }
+        }
+    }
+
+    //5. 从目标对象上拷贝非继承的属性
+    function copyOwnProperties(target, source, excludes = []) {
+        for (let key in source) {
+            if (source.hasOwnProperty(key)) {
+                if (excludes && excludes.length) {
+                    if (excludes.indexOf(key) !== -1) {
+                        continue;
+                    }
+                }
+                target[key] = source[key];
+            }
+        }
+        return target;
+    }
+
+    //6. 拷贝多个对象的（非继承）属性。 参数（targe, obj1, obj2, ..., overWrite)
+    function mixin() {
+        let lastArgs = arguments[arguments.length - 1];
+        let argLen = arguments.length;
+        let overwrite = false;
+        if (typeof lastArgs === "boolean") {
+            overwrite = lastArgs;
+            argLen -= 1;
+        }
+        let target = arguments[0];
+        let i = 1;
+        let tmp = null;
+        let tmp_keys = [];
+        for (i; i < argLen; i++) {
+            tmp = arguments[i];
+
+            tmp_keys = Object.getOwnPropertyNames(tmp);
+            if (tmp_keys.length) {
+                tmp_keys.forEach(function(prop) {
+                    if (prop !== "constructor" && prop !== "prototype") {
+                        if (tmp.hasOwnProperty(prop) && (overwrite ? tmp[prop] != null : target.hasOwnProperty(prop) === false)) {
+                            target[prop] = tmp[prop];
+                            // console.log(target[prop]);
+                        }
+                    }
+                });
+            }
+        }
+        return target;
+    }
+
+    //7.判断是否为类数组
+    function isArrayLike(data) {
+        if (!data) return;
+        if (typeof data === "string") return;
+        return typeof data.length === "number";
+    }
+
+    //8. 最后一帧的第一项，如果是数组，就返回2
+    function getArrayDim(keyframes) {
+        let lastValue = keyframes[keyframes.length - 1].lastValue;
+        return isArrayLike(lastValue && lastValue[0]) ? 2 : 1;
+    }
+
+    function isArraySame(arr0, arr1, arrDim) {
+        if (arr0 === arr1) return true;
+        let len = arr0.length;
+        if (len !== arr1.length) return false;
+        //最后一个值不是数组
+        if (arrDim === 1) {
+            for (let i = 0; i < len; i++) {
+                if (arr0[i] !== arr1[i]) {
+                    //两个数组不一样
+                    return false;
+                }
+            }
+        } else {
+            //最后一个值是数组
+            let len2 = arr0[0].length;
+            for (let i = 0; i < len; i++) {
+                for (let j = 0; j < len2; j++) {
+                    if (arr0[i][j] !== arr1[i][j]) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    function fillArr(arr0, arr1, arrDim) {
+        let len0 = arr0.length;
+        let len1 = arr1.length;
+        if (len0 !== len1) {
+            //对比数组的长度，统一为最小长度
+            let len0_isLarger = len0 > len1 ? true : false;
+            if (len0_isLarger) {
+                //第一个数组比较长,裁切数组长度。
+                arr0.length = len1;
+            } else {
+                // 用后一个数组填充前一个数组
+                for (let i = len0; i < len1; i++) {
+                    arr0.push(arrDim === 1 ? arr1[i] : Array.prototype.slice.call(arr1[i]));
+                }
+            }
+        }
+
+        let len2 = arr0[0] && arr0[0].length;
+        for (var i = 0; i < arr0.length; i++) {
+            if (arrDim === 1) {
+                if (isNaN(arr0[i])) {
+                    arr0[i] = arr1[i];
+                }
+            } else {
+                for (var j = 0; j < len2; j++) {
+                    if (isNaN(arr0[i][j])) {
+                        arr0[i][j] = arr1[i][j];
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 字符串插值
+     * @param  {String} p0
+     * @param  {String} p1
+     * @param  {Number} percent
+     * @return {String}
+     */
+    function interpolateString(p0, p1, percent) {
+        return percent > 0.5 ? p1 : p0;
+    }
+
+    /**
+     * 数组插值
+     * @param  {Array} p0
+     * @param  {Array} p1
+     * @param  {Number} percent
+     * @param  {Array} out
+     * @param  {Number} arrDim
+     */
+    function interpolateArray(p0, p1, percent, out, arrDim) {
+        var len = p0.length;
+        if (!len) return;
+        if (arrDim === 1) {
+            for (var i = 0; i < len; i++) {
+                out[i] = interpolateNumber(p0[i], p1[i], percent);
+            }
+        } else {
+            var len2 = p0[0].length;
+            if (!len2) return;
+            for (var i = 0; i < len; i++) {
+                if (out[i] === undefined) {
+                    return;
+                }
+                for (var j = 0; j < len2; j++) {
+                    out[i][j] = interpolateNumber(p0[i][j], p1[i][j], percent);
+                }
+            }
+        }
+        return out;
+    }
+
+    /**
+     * @param  {Number} p0
+     * @param  {Number} p1
+     * @param  {Number} percent
+     * @return {Number}
+     */
+    function interpolateNumber(p0, p1, percent) {
+        return (p1 - p0) * percent + p0;
+    }
+
+    let ArrayCtor = typeof Float32Array === "undefined" ? Array : Float32Array;
+
+    function create() {
+        let out = new ArrayCtor(6);
+        identity(out);
+        return out;
+    }
+
+    //设置矩阵
+    function identity(out) {
+        out[0] = 1;
+        out[1] = 0;
+        out[2] = 0;
+        out[3] = 1;
+        out[4] = 0;
+        out[5] = 0;
+        return out;
+    }
+
+    /**
+     * 缩放变换
+     * @param {Float32Array|Array.<number>} out
+     * @param {Float32Array|Array.<number>} a
+     * @param {Float32Array|Array.<number>} v
+     */
+    function scale(out, a, v) {
+        var vx = v[0];
+        var vy = v[1];
+        out[0] = a[0] * vx;
+        out[1] = a[1] * vy;
+        out[2] = a[2] * vx;
+        out[3] = a[3] * vy;
+        out[4] = a[4] * vx;
+        out[5] = a[5] * vy;
+        return out;
+    }
+
+    /**
+     * 旋转变换
+     * @param {Float32Array|Array.<number>} out
+     * @param {Float32Array|Array.<number>} a
+     * @param {number} rad
+     */
+    function rotate(out, a, rad) {
+        var aa = a[0];
+        var ac = a[2];
+        var atx = a[4];
+        var ab = a[1];
+        var ad = a[3];
+        var aty = a[5];
+        var st = Math.sin(rad);
+        var ct = Math.cos(rad);
+
+        out[0] = aa * ct + ab * st;
+        out[1] = -aa * st + ab * ct;
+        out[2] = ac * ct + ad * st;
+        out[3] = -ac * st + ct * ad;
+        out[4] = ct * atx + st * aty;
+        out[5] = ct * aty - st * atx;
+        return out;
+    }
+
+    /**
+     * 求逆矩阵
+     * @param {Float32Array|Array.<number>} out
+     * @param {Float32Array|Array.<number>} a
+     */
+    function invert(out, a) {
+        var aa = a[0];
+        var ac = a[2];
+        var atx = a[4];
+        var ab = a[1];
+        var ad = a[3];
+        var aty = a[5];
+
+        var det = aa * ad - ab * ac;
+        if (!det) {
+            return null;
+        }
+        det = 1.0 / det;
+
+        out[0] = ad * det;
+        out[1] = -ab * det;
+        out[2] = -ac * det;
+        out[3] = aa * det;
+        out[4] = (ac * aty - ad * atx) * det;
+        out[5] = (ab * atx - aa * aty) * det;
+        return out;
+    }
+
+    var EPSILON = 5e-5;
+    function Transformable(opts = {}) {
+        this.origin = !opts.origin ? [0, 0] : opts.origin;
+        this.rotation = !opts.rotation ? 0 : opts.rotation;
+        this.position = !opts.position ? [0, 0] : opts.position;
+        this.scale = !opts.scale ? [1, 1] : opts.scale;
+        this.skew = !opts.skew ? [0, 0] : opts.skew;
+        this.globalScaleRatio = 1;
+        // console.log(this.position);
+    }
+
+    Transformable.prototype = {
+        constructor: Transformable,
+
+        //是否需要
+        needLocalTransform() {
+            // console.log(this);
+            return (
+                isNotAroundZero(this.rotation) ||
+                isNotAroundZero(this.position[0]) ||
+                isNotAroundZero(this.position[1]) ||
+                isNotAroundZero(this.scale[0] - 1) ||
+                isNotAroundZero(this.scale[1] - 1)
+            );
+        },
+
+        //更新图形的偏移矩阵
+        updateTransform() {
+            let parent = this.parent;
+            let parent_trans = parent && parent.transform;
+            // 判断是位置是否接近0, 接近0为false (不变化矩阵)
+            let needLocalTransform = this.needLocalTransform();
+
+            let m = this.transform;
+            if (!(needLocalTransform || parent_trans)) {
+                m && identity(m);
+                return;
+            }
+            //创建矩阵
+            m = m || create();
+            // console.log(m);
+
+            if (needLocalTransform) {
+               m = this.getLocalTransform(m);
+            } else {
+                identity(m);
+            }
+
+            this.transform = m;
+            // var globalScaleRatio = this.globalScaleRatio;
+
+            this.invTransform = this.invTransform || create();
+            invert(this.invTransform, m);
+        },
+
+        /**
+         * 将自己的transform应用到context上
+         * @param {CanvasRenderingContext2D} ctx
+         */
+        setTransform(ctx) {
+            let m = this.transform;
+            let dpr = ctx.dpr || 1;
+            // console.log(this.type, m);
+            if (m) {
+                ctx.setTransform(dpr * m[0], dpr * m[1], dpr * m[2], dpr * m[3], dpr * m[4], dpr * m[5]);
+            } else {
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+        },
+
+        getLocalTransform(m = []) {
+            identity(m);
+
+            let origin = this.origin;
+            let scale$1 = this.scale || [1, 1];
+            let rotation = this.rotation || 0;
+            let position = this.position || [0, 0];
+
+            if (origin) {
+                m[4] -= origin[0];
+                m[5] -= origin[1];
+            }
+
+            scale(m, m, scale$1);
+            if (rotation) {
+                rotate(m, m, rotation);
+            }
+
+            if (origin) {
+                m[4] += origin[0];
+                m[5] += origin[1];
+            }
+
+            m[4] += position[0];
+            m[5] += position[1];
+            return m;
+        }
+    };
+
+    //tools --- 判断不在0附近
+    function isNotAroundZero(val) {
+        return val > EPSILON || val < -EPSILON;
+    }
+
+    let PI = Math.PI;
+    /**
+     * 缓动代码来自 https://github.com/sole/tween.js/blob/master/src/Tween.js
+     * 这里的缓动主要是一些数学计算公式，这些公式可以用来计算对象的坐标。
+     * @see http://sole.github.io/tween.js/examples/03_graphs.html
+     * @exports qrenderer/animation/easing
+     */
+    let easing = {
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        linear: function(k) {
+            return k;
+        },
+
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        quadraticIn: function(k) {
+            return k * k;
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        quadraticOut: function(k) {
+            return k * (2 - k);
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        quadraticInOut: function(k) {
+            if ((k *= 2) < 1) {
+                return 0.5 * k * k;
+            }
+            return -0.5 * (--k * (k - 2) - 1);
+        },
+
+        // 三次方的缓动（t^3）
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        cubicIn: function(k) {
+            return k * k * k;
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        cubicOut: function(k) {
+            return --k * k * k + 1;
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        cubicInOut: function(k) {
+            if ((k *= 2) < 1) {
+                return 0.5 * k * k * k;
+            }
+            return 0.5 * ((k -= 2) * k * k + 2);
+        },
+
+        // 四次方的缓动（t^4）
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        quarticIn: function(k) {
+            return k * k * k * k;
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        quarticOut: function(k) {
+            return 1 - --k * k * k * k;
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        quarticInOut: function(k) {
+            if ((k *= 2) < 1) {
+                return 0.5 * k * k * k * k;
+            }
+            return -0.5 * ((k -= 2) * k * k * k - 2);
+        },
+
+        // 五次方的缓动（t^5）
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        quinticIn: function(k) {
+            return k * k * k * k * k;
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        quinticOut: function(k) {
+            return --k * k * k * k * k + 1;
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        quinticInOut: function(k) {
+            if ((k *= 2) < 1) {
+                return 0.5 * k * k * k * k * k;
+            }
+            return 0.5 * ((k -= 2) * k * k * k * k + 2);
+        },
+
+        // 正弦曲线的缓动（sin(t)）
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        sinusoidalIn: function(k) {
+            return 1 - Math.cos((k * PI) / 2);
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        sinusoidalOut: function(k) {
+            return Math.sin((k * PI) / 2);
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        sinusoidalInOut: function(k) {
+            return 0.5 * (1 - Math.cos(PI * k));
+        },
+
+        // 指数曲线的缓动（2^t）
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        exponentialIn: function(k) {
+            return k === 0 ? 0 : Math.pow(1024, k - 1);
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        exponentialOut: function(k) {
+            return k === 1 ? 1 : 1 - Math.pow(2, -10 * k);
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        exponentialInOut: function(k) {
+            if (k === 0) {
+                return 0;
+            }
+            if (k === 1) {
+                return 1;
+            }
+            if ((k *= 2) < 1) {
+                return 0.5 * Math.pow(1024, k - 1);
+            }
+            return 0.5 * (-Math.pow(2, -10 * (k - 1)) + 2);
+        },
+
+        // 圆形曲线的缓动（sqrt(1-t^2)）
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        circularIn: function(k) {
+            return 1 - Math.sqrt(1 - k * k);
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        circularOut: function(k) {
+            return Math.sqrt(1 - --k * k);
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        circularInOut: function(k) {
+            if ((k *= 2) < 1) {
+                return -0.5 * (Math.sqrt(1 - k * k) - 1);
+            }
+            return 0.5 * (Math.sqrt(1 - (k -= 2) * k) + 1);
+        },
+
+        // 创建类似于弹簧在停止前来回振荡的动画
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        elasticIn: function(k) {
+            let s;
+            let a = 0.1;
+            let p = 0.4;
+            if (k === 0) {
+                return 0;
+            }
+            if (k === 1) {
+                return 1;
+            }
+            if (!a || a < 1) {
+                a = 1;
+                s = p / 4;
+            } else {
+                s = (p * Math.asin(1 / a)) / (2 * PI);
+            }
+            return -(a * Math.pow(2, 10 * (k -= 1)) * Math.sin(((k - s) * (2 * PI)) / p));
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        elasticOut: function(k) {
+            let s;
+            let a = 0.1;
+            let p = 0.4;
+            if (k === 0) {
+                return 0;
+            }
+            if (k === 1) {
+                return 1;
+            }
+            if (!a || a < 1) {
+                a = 1;
+                s = p / 4;
+            } else {
+                s = (p * Math.asin(1 / a)) / (2 * PI);
+            }
+            return a * Math.pow(2, -10 * k) * Math.sin(((k - s) * (2 * PI)) / p) + 1;
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        elasticInOut: function(k) {
+            let s;
+            let a = 0.1;
+            let p = 0.4;
+            if (k === 0) {
+                return 0;
+            }
+            if (k === 1) {
+                return 1;
+            }
+            if (!a || a < 1) {
+                a = 1;
+                s = p / 4;
+            } else {
+                s = (p * Math.asin(1 / a)) / (2 * PI);
+            }
+            if ((k *= 2) < 1) {
+                return -0.5 * (a * Math.pow(2, 10 * (k -= 1)) * Math.sin(((k - s) * (2 * PI)) / p));
+            }
+            return a * Math.pow(2, -10 * (k -= 1)) * Math.sin(((k - s) * (2 * PI)) / p) * 0.5 + 1;
+        },
+
+        // 在某一动画开始沿指示的路径进行动画处理前稍稍收回该动画的移动
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        backIn: function(k) {
+            let s = 1.70158;
+            return k * k * ((s + 1) * k - s);
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        backOut: function(k) {
+            let s = 1.70158;
+            return --k * k * ((s + 1) * k + s) + 1;
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        backInOut: function(k) {
+            let s = 1.70158 * 1.525;
+            if ((k *= 2) < 1) {
+                return 0.5 * (k * k * ((s + 1) * k - s));
+            }
+            return 0.5 * ((k -= 2) * k * ((s + 1) * k + s) + 2);
+        },
+
+        // 创建弹跳效果
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        bounceIn: function(k) {
+            return 1 - easing.bounceOut(1 - k);
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        bounceOut: function(k) {
+            if (k < 1 / 2.75) {
+                return 7.5625 * k * k;
+            } else if (k < 2 / 2.75) {
+                return 7.5625 * (k -= 1.5 / 2.75) * k + 0.75;
+            } else if (k < 2.5 / 2.75) {
+                return 7.5625 * (k -= 2.25 / 2.75) * k + 0.9375;
+            } else {
+                return 7.5625 * (k -= 2.625 / 2.75) * k + 0.984375;
+            }
+        },
+        /**
+         * @param {Number} k
+         * @return {Number}
+         */
+        bounceInOut: function(k) {
+            if (k < 0.5) {
+                return easing.bounceIn(k * 2) * 0.5;
+            }
+            return easing.bounceOut(k * 2 - 1) * 0.5 + 0.5;
+        }
+    };
+
+    /**
+     * @class qrenderer.animation.Timeline
+     * Timeline，时间线，用来计算元素上的某个属性在指定时间点的数值。
+     *
+     */
+
+    class Timeline {
+        constructor(options) {
+            this._target = options.target;
+            this._lifeTime = options.lifeTime || 1000;
+            this._delay = options.delay || 0;
+            this._initialized = false;
+            this.loop = options.loop == null ? false : options.loop;
+            this.gap = options.gap || 0;
+            this.easing = options.easing || "Linear";
+            this.onframe = options.onframe;
+            this.ondestroy = options.ondestroy;
+            this.onrestart = options.onrestart;
+
+            this._pausedTime = 0;
+            this._paused = false;
+        }
+        /**
+         *
+         * @param {Number} globalTime  监控 开始更新的时间
+         * @param {Number} deltaTime  监控的持续时间
+         */
+        nextFrame(globalTime, deltaTime) {
+            if (!this._initialized) {
+                this._startTime = globalTime + this._delay;
+                this._initialized = true;
+            }
+            if (this._paused) {
+                this._pausedTime += deltaTime;
+                return;
+            }
+
+            let percent = (globalTime - this._startTime - this._pausedTime) / this._lifeTime;
+
+            //还没开始
+            if (percent < 0) {
+                return;
+            }
+
+            //超过 100%，就停止在100%
+            percent = Math.min(percent, 1);
+
+            let easing$1 = this.easing;
+            let easingFunc = typeof easing$1 === "string" ? easing[easing$1] : easing$1; //调取缓动函数
+
+            let schedule = typeof easingFunc === "function" ? easingFunc(percent) : percent; //返回缓动的数据
+
+            //将缓动的数据传递给 关键帧函数 onframe(target, percent)
+            this.fire("frame", schedule);
+
+            if (percent === 1) {
+                // console.log(percent);
+                if (this.loop) {
+                    this.restart(globalTime);
+                    return "restart";
+                }
+                return "destroy";
+            }
+            return percent;
+        }
+
+        fire(eventType, arg) {
+            eventType = "on" + eventType;
+            if (this[eventType]) {
+                this[eventType](this._target, arg);
+            }
+        }
+    }
+
     class Track {
         constructor(opts) {
             this._target = opts._target;
@@ -2791,14 +3253,15 @@
         }
 
         start(propName, loop = false, easing = "", forceAnimate = false) {
-            let options = this._parseKeyFrames(propName, easing, loop, forceAnimate);
-            console.log(options);
+            //将所有关键帧的值，统一长度，填充空缺。
+            let options = this._parseKeyFrames(easing, propName, loop, forceAnimate);
+            // console.log(options);
             if (!options) {
                 return null;
             }
 
-            let timeLine = new Timeline(options);
-            this.timeLine = timeLine;
+            let timeline = new Timeline(options);
+            this.timeline = timeline;
         }
 
         nextFrame(time, delta) {
@@ -2808,9 +3271,11 @@
             }
             //时间线返回动画执行的进度： 进度百分比 or  'restart' or 'destory'
             let result = this.timeline.nextFrame(time, delta);
+
             if (isString(result) && result === "destroy") {
                 this.isFinished = true;
             }
+            // console.log(result);
             return result;
         }
 
@@ -2827,20 +3292,22 @@
          * @param {Boolean} forceAnimate 是否强制开启动画
          * //TODO:try move this into webworker
          */
-        _parseKeyFrames(propName, easing, loop, forceAnimate) {
+        _parseKeyFrames(easing, propName, loop, forceAnimate) {
             let target = this._target;
+            let useSpline = easing === "spline";
             let kfLength = this.keyFrames.length;
             if (!kfLength) return;
 
-            let firstVal = this.keyFrames[0].value;
-            let isValueArray = isArrayLike(firstVal);
+            let firstVal = this.keyFrames[0].value; //第一帧的值
+            let isValueArray = isArrayLike(firstVal); //第一帧的值是否为数组
             let isValueColor = false;
             let isValueString = false;
-
+            // 判断最后一帧的值为数组的话，数组的第一个是不是还是数组
+            let arrDim = isValueArray ? getArrayDim(this.keyFrames) : 0;
+            //把所有的帧进行排序
             this.keyFrames.sort((a, b) => {
                 return a.time - b.time;
             });
-            console.log(this.keyFrames);
 
             let trackMaxTime = this.keyFrames[kfLength - 1].time; //最后一帧时间
             let kfPercents = []; //所有关键帧的时间转化为百分比
@@ -2849,12 +3316,12 @@
             let isAllValuesEqual = false; //所有的值都相等
 
             for (let i = 0; i < kfLength; i++) {
-                kfPercents.push(this.keyFrames[i].time / trackMaxTime);
+                kfPercents.push(this.keyFrames[i].time / trackMaxTime); //将所有的帧，转换为百分比
                 let curVal = this.keyFrames[i].value;
 
-                preValue = i > 0 ? this.keyFrames[i - 1].value : this.keyFrames[0].value;
-                if (!isValueArray && curVal === preValue) {
-                    //？？
+                preValue = i > 0 ? this.keyFrames[i - 1].value : [];
+                //检测上一帧 和 当前帧 是否一致
+                if (!(isValueArray && isArraySame(curVal, preValue, arrDim)) || (!isValueArray && curVal !== preValue)) {
                     isAllValuesEqual = false;
                 }
 
@@ -2875,35 +3342,50 @@
                 return;
             }
 
-            let lastValue = kfValues[kfLength - 1];
+            let lastValue = kfValues[kfLength - 1]; //最后一帧的值
+            //循环，补全空缺的数值，让所有的数值长度都统一
             for (let i = 0; i < kfLength; i++) {
-                if (isValueArray) ; else {
+                if (isValueArray) {
+                    fillArr(kfValues[i], lastValue, arrDim);
+                } else {
                     if (isNaN(kfValues[i] && !isNaN(lastValue) && !isValueString && !isValueColor)) {
                         kfValues[i] = lastValue;
                     }
                 }
             }
-            //isValueArray && dataUtil.fillArr(target[propName], lastValue, arrDim); //??
+            // console.log(propName);
+            isValueArray && fillArr(target[propName], lastValue, arrDim); //将元素的属性指定定格到最后一帧。
 
             //缓存最后一帧的关键帧，加快动画播放时的速度
             let lastFrame = 0;
-            let lastFramePercent = 0;
+            let lastFramePercent = 0; //
             let start;
-
+            let w;
+            let p0;
+            let p1;
+            let p2;
+            let p3;
+            let rgba = [0, 0, 0, 0];
+            //参数： （元素， 经过数学计算之后的数据）
             let onframe = function(target, percent) {
-                let frame;
+                // console.log(percent);
+                let frame; //保存最后一帧的序列
 
                 if (percent < 0) {
+                    //当前时间帧小于0，frame 就是第一帧
                     frame = 0;
                 } else if (percent < lastFramePercent) {
-                    start = Math.min(lastFrame + 1, kfLength - 1);
+                    //当前时间小于 最后一帧时间，
+
+                    start = Math.min(lastFrame + 1, kfLength - 1); //倒数第一帧
                     for (frame = start; frame >= 0; frame--) {
                         if (kfLength[frame] <= percent) {
                             break;
                         }
-                        frame = Math.min(frame, kfLength - 2);
+                        frame = Math.min(frame, kfLength - 2); //倒数第二帧
                     }
                 } else {
+                    //当前时间 大于  最后一帧时间
                     for (frame = lastFrame; frame < kfLength; frame++) {
                         if (kfPercents[frame] > percent) {
                             break;
@@ -2913,6 +3395,52 @@
                 }
                 lastFrame = frame;
                 lastFramePercent = percent;
+
+                let range = kfPercents[frame + 1] - kfPercents[frame];
+                if (range === 0) {
+                    return;
+                } else {
+                    w = (percent - kfPercents[frame]) / range;
+                }
+
+                if (useSpline) {
+                    p1 = kfValues[frame];
+                    p0 = kfValues[frame === 0 ? frame : frame - 1];
+                    p2 = kfValues[frame > kfLength - 2 ? kfLength - 1 : frame + 1];
+                    p3 = kfValues[frame > kfLength - 3 ? kfLength - 1 : frame + 2];
+                    if (isValueArray) {
+                        dataUtil.catmullRomInterpolateArray(p0, p1, p2, p3, w, w * w, w * w * w, target[propName], arrDim);
+                    } else {
+                        let value;
+                        if (isValueColor) {
+                            value = dataUtil.catmullRomInterpolateArray(p0, p1, p2, p3, w, w * w, w * w * w, rgba, 1);
+                            value = dataUtil.rgba2String(rgba);
+                        } else if (isValueString) {
+                            // String is step(0.5)
+                            return dataUtil.interpolateString(p1, p2, w);
+                        } else {
+                            value = dataUtil.catmullRomInterpolate(p0, p1, p2, p3, w, w * w, w * w * w);
+                        }
+                        target[propName] = value;
+                    }
+                } else {
+                    if (isValueArray) {
+                        let res = interpolateArray(kfValues[frame], kfValues[frame + 1], w, target[propName], arrDim);
+                        console.log(res);
+                    } else {
+                        let value;
+                        if (isValueColor) {
+                            interpolateArray(kfValues[frame], kfValues[frame + 1], w, rgba, 1);
+                            value = dataUtil.rgba2String(rgba);
+                        } else if (isValueString) {
+                            // String is step(0.5)
+                            return interpolateString(kfValues[frame], kfValues[frame + 1], w);
+                        } else {
+                            value = interpolateNumber(kfValues[frame], kfValues[frame + 1], w);
+                        }
+                        target[propName] = value;
+                    }
+                }
             };
 
             let options = {
@@ -2953,17 +3481,17 @@
         }
 
         when(time, props) {
-            for (let name in props) {
-                if (!props.hasOwnProperty(name)) {
+            for (let propName in props) {
+                if (!props.hasOwnProperty(propName)) {
                     continue;
                 }
 
-                let value = this._target[name];
+                let value = this._target[propName];
                 if (value === null || value === undefined) {
                     continue;
                 }
 
-                let track = this._trackCacheMap.get(name);
+                let track = this._trackCacheMap.get(propName);
                 //为每一个变化的 属性，建立动画时间线轨道
                 if (!track) {
                     track = new Track({
@@ -2986,10 +3514,12 @@
                 //添加关键帧：记录自定义时间 的值
                 track.addKeyFrame({
                     time: time,
-                    value: props[name]
+                    value: props[propName]
                 });
 
-                this._trackCacheMap.set(name, track);
+                console.log(track.keyFrames);
+
+                this._trackCacheMap.set(propName, track);
                 return this;
             }
         }
@@ -3012,8 +3542,9 @@
                 this.trigger("done");
                 return this;
             }
-            //遍历带有 动画轨道的属性， 读取轨道上的动画信息
+
             keys.forEach((name, index) => {
+                //获取属性身上的 track
                 let cur_track = this._trackCacheMap.get(name);
                 cur_track && cur_track.start(name, loop, easing, forceAnima);
             });
@@ -3033,16 +3564,23 @@
             let percent = "";
 
             let track_values = [...this._trackCacheMap.values()];
+            // console.log(track_values);
 
             track_values.forEach((track, index) => {
                 //时间线返回动画执行的进度： 进度百分比 or  'restart' or 'destory'
+
                 let result = track.nextFrame(time, delta);
+                console.log(result);
                 if (isString(result)) ; else if (isNumber(result)) {
                     percent = result;
                 }
             });
 
-            console.log(time, delta);
+            // console.log(deferredEvents);
+            // let len = deferredEvents.length;
+            // for (let i = 0; i < len; i++) {
+            //     deferredTracks[i].fire(deferredEvents[i]);
+            // }
 
             if (isNumber(percent)) {
                 this.trigger("during", this._target, percent);
@@ -3067,7 +3605,7 @@
                     isFinished = false;
                 }
             });
-            return (isFinished = true);
+            return isFinished;
         }
     }
 
