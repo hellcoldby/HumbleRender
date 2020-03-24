@@ -96,8 +96,26 @@ PathProxy.prototype = {
         // this.toStatic();
     },
 
-    stroke: function(ctx){
+    stroke: function(ctx) {
         ctx && ctx.stroke();
+    },
+
+    setLineDash: function(lineDash) {
+        if (lineDash instanceof Array) {
+            this._lineDash = lineDash;
+            this._dashIdx = 0;
+            let lineDashSum = 0;
+            for (let i = 0; i < lineDash.length; i++) {
+                lineDashSum += lineDashSum[i];
+            }
+            this._dashSum = lineDashSum;
+        }
+        return this;
+    },
+
+    setLineDashOffset: function(offset) {
+        this._dashOffset = offset;
+        return this;
     },
 
     closePath: function() {

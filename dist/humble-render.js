@@ -4071,8 +4071,26 @@
             // this.toStatic();
         },
 
-        stroke: function(ctx){
+        stroke: function(ctx) {
             ctx && ctx.stroke();
+        },
+
+        setLineDash: function(lineDash) {
+            if (lineDash instanceof Array) {
+                this._lineDash = lineDash;
+                this._dashIdx = 0;
+                let lineDashSum = 0;
+                for (let i = 0; i < lineDash.length; i++) {
+                    lineDashSum += lineDashSum[i];
+                }
+                this._dashSum = lineDashSum;
+            }
+            return this;
+        },
+
+        setLineDashOffset: function(offset) {
+            this._dashOffset = offset;
+            return this;
         },
 
         closePath: function() {
@@ -4162,6 +4180,10 @@
             let hasFillPattern = hasFill && !!fill.image;
             let hasStrokePattern = hasStroke && !!stroke.image;
 
+            let ctxLineDash = !!ctx.setLineDash;
+            let lineDash = this.style.lineDash;
+            let lineDashOffset = this.style.lineDashOffset;
+
             //在style.bind()中完成 fillSytle  和 strokeStyle的设置
 
             this.style.bind(ctx, this, prevEl);
@@ -4188,10 +4210,19 @@
                 ctx.strokeStyle = this.__strokeGradient;
             }
 
-            //
+            if (hasStrokeGradient) {
+                ctx.strokeStyle = this._strokeGradient;
+            } else if (hasStrokePattern) {
+                ctx.strokeStyle = Pattern.prototype.getCanvasPattern.call(stroke, ctx);
+            }
+
             if (this.__dirtyPath) {
                 path.beginPath(ctx);
-                // console.log(this);
+                if (lineDash && ctxLineDash) {
+                    ctx.setLineDash(lineDash);
+                    ctx.lineDashOffset = lineDashOffset;
+                }
+
                 this.buildPath(path, this.shape, false);
                 if (this.path) {
                     this.__dirtyPath = false;
@@ -4206,6 +4237,11 @@
 
             if (hasStroke) {
                 path.stroke(ctx);
+            }
+
+            //清除 虚线对其他图形的影响
+            if (lineDash && ctxLineDash) {
+                ctx.setLineDash([]);
             }
         }
 
@@ -4502,9 +4538,69 @@
         }
     }
 
+    /**
+     * 直线
+     */
+
+    let defaultConfig$4 = {
+        shape: {
+            x1: 0,
+            y1: 0,
+            x2: 0,
+            y2: 0,
+            percent: 1
+        },
+        style: {
+            stroke: "#000",
+            fill: null,
+            lineDash: [5, 10, 15],
+            lineDashOffset: 0
+        }
+    };
+
+    class LineDash extends Path {
+        constructor(opts) {
+            super(merge(defaultConfig$4, opts, true));
+            this.type = "arc";
+        }
+
+        buildPath(ctx, shape) {
+            let x1, x2, y1, y2;
+
+            if (this.subPixelOptimize) {
+                let subPixelOptimizeOutputShape = {};
+                subPixelOptimizeLine(subPixelOptimizeOutputShape, shape, this.style);
+                x1 = subPixelOptimizeOutputShape.x1;
+                y1 = subPixelOptimizeOutputShape.y1;
+                x2 = subPixelOptimizeOutputShape.x2;
+                y2 = subPixelOptimizeOutputShape.y2;
+            } else {
+                x1 = shape.x1;
+                y1 = shape.y1;
+                x2 = shape.x2;
+                y2 = shape.y2;
+            }
+
+            let percent = shape.percent;
+
+            if (percent === 0) {
+                return;
+            }
+
+            ctx.moveTo(x1, y1);
+
+            if (percent < 1) {
+                x2 = x1 * (1 - percent) + x2 * percent;
+                y2 = y1 * (1 - percent) + y2 * percent;
+            }
+            ctx.lineTo(x2, y2);
+        }
+    }
+
     exports.Arc = Arc;
     exports.Circle = Circle;
     exports.Line = Line;
+    exports.LineDash = LineDash;
     exports.Rect = Rect;
     exports.Sector = Sector;
     exports.init = init;

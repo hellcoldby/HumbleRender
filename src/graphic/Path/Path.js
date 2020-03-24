@@ -30,6 +30,10 @@ class Path extends Element {
         let hasFillPattern = hasFill && !!fill.image;
         let hasStrokePattern = hasStroke && !!stroke.image;
 
+        let ctxLineDash = !!ctx.setLineDash;
+        let lineDash = this.style.lineDash;
+        let lineDashOffset = this.style.lineDashOffset;
+
         //在style.bind()中完成 fillSytle  和 strokeStyle的设置
 
         this.style.bind(ctx, this, prevEl);
@@ -56,10 +60,19 @@ class Path extends Element {
             ctx.strokeStyle = this.__strokeGradient;
         }
 
-        //
+        if (hasStrokeGradient) {
+            ctx.strokeStyle = this._strokeGradient;
+        } else if (hasStrokePattern) {
+            ctx.strokeStyle = Pattern.prototype.getCanvasPattern.call(stroke, ctx);
+        }
+
         if (this.__dirtyPath) {
             path.beginPath(ctx);
-            // console.log(this);
+            if (lineDash && ctxLineDash) {
+                ctx.setLineDash(lineDash);
+                ctx.lineDashOffset = lineDashOffset;
+            }
+
             this.buildPath(path, this.shape, false);
             if (this.path) {
                 this.__dirtyPath = false;
@@ -74,6 +87,11 @@ class Path extends Element {
 
         if (hasStroke) {
             path.stroke(ctx);
+        }
+
+        //清除 虚线对其他图形的影响
+        if (lineDash && ctxLineDash) {
+            ctx.setLineDash([]);
         }
     }
 

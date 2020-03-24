@@ -102,6 +102,34 @@
                 }
             });
 
+            let  line = new HumbleRneder.Line({
+                shape : {
+                    x1: 200,
+                    y1: 300,
+                    x2: 500,
+                    y2: 300,
+                    percent: 1
+                },
+                style: {
+                    stroke: '#c03',
+                    fill: null
+                }
+            });
+
+            let lineDash = new HumbleRneder.LineDash({
+                shape : {
+                    x1: 200,
+                    y1: 350,
+                    x2: 500,
+                    y2: 350,
+                    percent: 1
+                },
+                style: {
+                    stroke: '#c03',
+                    fill: null,
+                    lineDash: [5, 10, 15],
+                }
+            })
 
 
             hr.add(circle);
@@ -109,6 +137,8 @@
             hr.add(rect1);
             hr.add(arc);
             hr.add(sector);
+            hr.add(line);
+            hr.add(lineDash);
 
             rect.attr({
                 style: {
