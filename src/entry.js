@@ -74,6 +74,7 @@ class HumbleRender {
 
     //监控 this._needRefresh 的开关
     flush() {
+        // console.log(this._needRefresh);
         if (this._needRefresh) {
             this.refreshImmediately(); //全部重绘
         }

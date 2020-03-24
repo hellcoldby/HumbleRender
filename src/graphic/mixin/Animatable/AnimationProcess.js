@@ -63,7 +63,7 @@ class AnimationProcess {
                 value: props[propName]
             });
 
-            console.log(track.keyFrames);
+            // console.log(track.keyFrames);
 
             this._trackCacheMap.set(propName, track);
             return this;
@@ -119,7 +119,7 @@ class AnimationProcess {
             //时间线返回动画执行的进度： 进度百分比 or  'restart' or 'destory'
 
             let result = track.nextFrame(time, delta);
-            console.log(result);
+            // console.log(result);
             if (isString(result)) {
                 //当返回的是 ‘resstart' or 'destory'  ，保存
                 deferredEvents.push(result);
@@ -136,6 +136,7 @@ class AnimationProcess {
         // }
 
         if (isNumber(percent)) {
+            // console.log(percent);
             this.trigger("during", this._target, percent);
         }
 

@@ -189,7 +189,7 @@ export default class Track {
             } else {
                 if (isValueArray) {
                     let res = interpolateArray(kfValues[frame], kfValues[frame + 1], w, target[propName], arrDim);
-                    console.log(res);
+                    // console.log(res);
                 } else {
                     let value;
                     if (isValueColor) {

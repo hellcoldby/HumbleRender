@@ -79,10 +79,10 @@ class Element {
     }
 
     //标记元素需要更新
-    dirty() {
-        this.__dirty = this.__dirtyText = true;
-        this._rect = null;
-    }
+    // dirty() {
+    //     this.__dirty = this.__dirtyText = true;
+    //     this._rect = null;
+    // }
 
     //设置元素的属性
     attr(key, value) {

@@ -15,10 +15,9 @@ class Path extends Element {
         this.subPixelOptimize = false; //设备优化
     }
 
-
     //调用canvas API 绘制i
     brush(ctx, prevEl) {
-        let path = this.path || new pathProxy(true);  //拦截api,增加功能
+        let path = this.path || new pathProxy(true); //拦截api,增加功能
         let hasStroke = this.style.hasStroke(); //绘制需求
         let hasFill = this.style.hasFill(); //填充需求
 
@@ -32,7 +31,6 @@ class Path extends Element {
         let hasStrokePattern = hasStroke && !!stroke.image;
 
         //在style.bind()中完成 fillSytle  和 strokeStyle的设置
-
 
         this.style.bind(ctx, this, prevEl);
         this.setTransform(ctx);
@@ -79,13 +77,19 @@ class Path extends Element {
         }
     }
 
-
     //
-    getLineScale() {
-        let m = this.transform;
-        return m && Math.abs(m[0] - 1) > 1e-10 && Math.abs(m[3] - 1) > 1e-10 ?
-        Math.sqrt(Math.abs(m[0] * m[3] - m[2] * m[1])) : 1
+    dirty() {
+        this.__dirty = this.__dirtyText = true;
+        this.__hr && this.__hr.refresh();
+
+        if (this.__clipTarget) {
+            this.__clipTarget.dirty();
+        }
     }
 
+    getLineScale() {
+        let m = this.transform;
+        return m && Math.abs(m[0] - 1) > 1e-10 && Math.abs(m[3] - 1) > 1e-10 ? Math.sqrt(Math.abs(m[0] * m[3] - m[2] * m[1])) : 1;
+    }
 }
 export default Path;

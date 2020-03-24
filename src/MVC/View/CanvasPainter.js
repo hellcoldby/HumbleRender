@@ -56,6 +56,7 @@ class CanvasPainter {
      * @param {Boolean} [paintAll=false] 是否强制绘制所有元素
      */
     refresh(paintAll) {
+        console.log("123");
         //从 storage 中获取 元素数组列表
         let ele_ary = this.storage.getDisplayList(true);
         this._redrawId = Math.random(); // 重绘id

@@ -1249,6 +1249,7 @@
          * @param {Boolean} [paintAll=false] 是否强制绘制所有元素
          */
         refresh(paintAll) {
+            console.log("123");
             //从 storage 中获取 元素数组列表
             let ele_ary = this.storage.getDisplayList(true);
             this._redrawId = Math.random(); // 重绘id
@@ -1714,6 +1715,7 @@
 
         //监控 this._needRefresh 的开关
         flush() {
+            // console.log(this._needRefresh);
             if (this._needRefresh) {
                 this.refreshImmediately(); //全部重绘
             }
@@ -3426,7 +3428,7 @@
                 } else {
                     if (isValueArray) {
                         let res = interpolateArray(kfValues[frame], kfValues[frame + 1], w, target[propName], arrDim);
-                        console.log(res);
+                        // console.log(res);
                     } else {
                         let value;
                         if (isValueColor) {
@@ -3517,7 +3519,7 @@
                     value: props[propName]
                 });
 
-                console.log(track.keyFrames);
+                // console.log(track.keyFrames);
 
                 this._trackCacheMap.set(propName, track);
                 return this;
@@ -3570,7 +3572,7 @@
                 //时间线返回动画执行的进度： 进度百分比 or  'restart' or 'destory'
 
                 let result = track.nextFrame(time, delta);
-                console.log(result);
+                // console.log(result);
                 if (isString(result)) ; else if (isNumber(result)) {
                     percent = result;
                 }
@@ -3583,6 +3585,7 @@
             // }
 
             if (isNumber(percent)) {
+                // console.log(percent);
                 this.trigger("during", this._target, percent);
             }
 
@@ -3906,10 +3909,10 @@
         }
 
         //标记元素需要更新
-        dirty() {
-            this.__dirty = this.__dirtyText = true;
-            this._rect = null;
-        }
+        // dirty() {
+        //     this.__dirty = this.__dirtyText = true;
+        //     this._rect = null;
+        // }
 
         //设置元素的属性
         attr(key, value) {
@@ -4123,10 +4126,9 @@
             this.subPixelOptimize = false; //设备优化
         }
 
-
         //调用canvas API 绘制i
         brush(ctx, prevEl) {
-            let path = this.path || new PathProxy(true);  //拦截api,增加功能
+            let path = this.path || new PathProxy(true); //拦截api,增加功能
             let hasStroke = this.style.hasStroke(); //绘制需求
             let hasFill = this.style.hasFill(); //填充需求
 
@@ -4140,7 +4142,6 @@
             let hasStrokePattern = hasStroke && !!stroke.image;
 
             //在style.bind()中完成 fillSytle  和 strokeStyle的设置
-
 
             this.style.bind(ctx, this, prevEl);
             this.setTransform(ctx);
@@ -4187,14 +4188,20 @@
             }
         }
 
-
         //
-        getLineScale() {
-            let m = this.transform;
-            return m && Math.abs(m[0] - 1) > 1e-10 && Math.abs(m[3] - 1) > 1e-10 ?
-            Math.sqrt(Math.abs(m[0] * m[3] - m[2] * m[1])) : 1
+        dirty() {
+            this.__dirty = this.__dirtyText = true;
+            this.__hr && this.__hr.refresh();
+
+            if (this.__clipTarget) {
+                this.__clipTarget.dirty();
+            }
         }
 
+        getLineScale() {
+            let m = this.transform;
+            return m && Math.abs(m[0] - 1) > 1e-10 && Math.abs(m[3] - 1) > 1e-10 ? Math.sqrt(Math.abs(m[0] * m[3] - m[2] * m[1])) : 1;
+        }
     }
 
     // 左上、右上、右下、左下角的半径依次为r1、r2、r3、r4
