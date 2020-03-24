@@ -188,7 +188,11 @@ export default class Track {
                 }
             } else {
                 if (isValueArray) {
-                    let res = interpolateArray(kfValues[frame], kfValues[frame + 1], w, target[propName], arrDim);
+                    if (kfValues[frame]) {
+                        let res = interpolateArray(kfValues[frame], kfValues[frame + 1], w, target[propName], arrDim);
+                    } else {
+                        console.log(kfValues, "---", frame);
+                    }
                     // console.log(res);
                 } else {
                     let value;

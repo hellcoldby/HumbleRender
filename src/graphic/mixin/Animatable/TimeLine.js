@@ -66,6 +66,23 @@ export default class Timeline {
         return percent;
     }
 
+    /**
+     * @method restart
+     * 重新开始
+     * @param {Number} globalTime
+     */
+    restart(globalTime) {
+        let remainder = (globalTime - this._startTime - this._pausedTime) % this._lifeTime;
+        this._startTime = globalTime - remainder + this.gap;
+        this._pausedTime = 0;
+    }
+
+    /**
+     * @method fire
+     * 触发事件
+     * @param {String} eventType
+     * @param {Object} arg
+     */
     fire(eventType, arg) {
         eventType = "on" + eventType;
         if (this[eventType]) {

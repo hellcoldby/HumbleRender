@@ -40,15 +40,33 @@
             hr.add(rect);
 
             rect.animate()
-                .when(1000, {
-                    position:[200, 200],
+                .when(2000, {
+                    position:[100, 100],
                     // scale: [2, 1]
                 })
-                .when(2000, {
-                    position: [300, 200],
+                .when(3000, {
+                    position: [300, 150],
                     // scale: [1, 1]
                 })
+                .when(4000,{
+                    position: [50, 50]
+                })
                 .start();
+
+            let  line = new HumbleRneder.Line({
+                shape : {
+                    x1: 200,
+                    y1: 50,
+                    x2: 500,
+                    y2: 50,
+                    percent: 1
+                },
+                style: {
+                    stroke: '#c03',
+                    fill: null
+                }
+            });
+            hr.add(line);
     </script>
 </body>
 </html>

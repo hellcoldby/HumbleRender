@@ -3232,6 +3232,23 @@
             return percent;
         }
 
+        /**
+         * @method restart
+         * 重新开始
+         * @param {Number} globalTime
+         */
+        restart(globalTime) {
+            let remainder = (globalTime - this._startTime - this._pausedTime) % this._lifeTime;
+            this._startTime = globalTime - remainder + this.gap;
+            this._pausedTime = 0;
+        }
+
+        /**
+         * @method fire
+         * 触发事件
+         * @param {String} eventType
+         * @param {Object} arg
+         */
         fire(eventType, arg) {
             eventType = "on" + eventType;
             if (this[eventType]) {
@@ -3427,7 +3444,11 @@
                     }
                 } else {
                     if (isValueArray) {
-                        let res = interpolateArray(kfValues[frame], kfValues[frame + 1], w, target[propName], arrDim);
+                        if (kfValues[frame]) {
+                            let res = interpolateArray(kfValues[frame], kfValues[frame + 1], w, target[propName], arrDim);
+                        } else {
+                            console.log(kfValues, "---", frame);
+                        }
                         // console.log(res);
                     } else {
                         let value;
@@ -4363,8 +4384,127 @@
         }
     }
 
+    /**
+     * Sub-pixel optimize for canvas rendering, prevent from blur when rendering a thin vertical/horizontal line.
+     *  画布渲染优化， 防止水平或垂直线条变得模糊。
+     */
+
+    /**
+     * Sub pixel optimize line for canvas
+     *
+     * @param {Object} outputShape The modification will be performed on `outputShape`.
+     *                 `outputShape` and `inputShape` can be the same object.
+     *                 `outputShape` object can be used repeatly, because all of
+     *                 the `x1`, `x2`, `y1`, `y2` will be assigned in this method.
+     * @param {Object} [inputShape]
+     * @param {Number} [inputShape.x1]
+     * @param {Number} [inputShape.y1]
+     * @param {Number} [inputShape.x2]
+     * @param {Number} [inputShape.y2]
+     * @param {Object} [style]
+     * @param {Number} [style.lineWidth]
+     */
+    function subPixelOptimizeLine(outputShape, inputShape, style) {
+        var lineWidth = style && style.lineWidth;
+
+        if (!inputShape || !lineWidth) {
+            return;
+        }
+
+        var x1 = inputShape.x1;
+        var x2 = inputShape.x2;
+        var y1 = inputShape.y1;
+        var y2 = inputShape.y2;
+
+        if (Math.round(x1 * 2) === Math.round(x2 * 2)) {
+            outputShape.x1 = outputShape.x2 = subPixelOptimize(x1, lineWidth, true);
+        } else {
+            outputShape.x1 = x1;
+            outputShape.x2 = x2;
+        }
+        if (Math.round(y1 * 2) === Math.round(y2 * 2)) {
+            outputShape.y1 = outputShape.y2 = subPixelOptimize(y1, lineWidth, true);
+        } else {
+            outputShape.y1 = y1;
+            outputShape.y2 = y2;
+        }
+    }
+
+    /**
+     * Sub pixel optimize for canvas
+     *
+     * @param {Number} position Coordinate, such as x, y
+     * @param {Number} lineWidth Should be nonnegative integer.
+     * @param {boolean=} positiveOrNegative Default false (negative).  正数 或 负数
+     * @return {Number} Optimized position.
+     */
+    function subPixelOptimize(position, lineWidth, positiveOrNegative) {
+        // Assure that (position + lineWidth / 2) is near integer edge,  确保 在整数附近
+        // otherwise line will be fuzzy in canvas. 否则会模糊
+        var doubledPosition = Math.round(position * 2);
+        return (doubledPosition + Math.round(lineWidth)) % 2 === 0 ? doubledPosition / 2 : (doubledPosition + (positiveOrNegative ? 1 : -1)) / 2;
+    }
+
+    /**
+     * 直线
+     */
+
+    let defaultConfig$3 = {
+        shape: {
+            x1: 0,
+            y1: 0,
+            x2: 0,
+            y2: 0,
+            percent: 1
+        },
+        style: {
+            stroke: "#000",
+            fill: null
+        }
+    };
+
+    class Line extends Path {
+        constructor(opts) {
+            super(merge(defaultConfig$3, opts, true));
+            this.type = "arc";
+        }
+
+        buildPath(ctx, shape) {
+            let x1, x2, y1, y2;
+
+            if (this.subPixelOptimize) {
+                let subPixelOptimizeOutputShape = {};
+                subPixelOptimizeLine(subPixelOptimizeOutputShape, shape, this.style);
+                x1 = subPixelOptimizeOutputShape.x1;
+                y1 = subPixelOptimizeOutputShape.y1;
+                x2 = subPixelOptimizeOutputShape.x2;
+                y2 = subPixelOptimizeOutputShape.y2;
+            } else {
+                x1 = shape.x1;
+                y1 = shape.y1;
+                x2 = shape.x2;
+                y2 = shape.y2;
+            }
+
+            let percent = shape.percent;
+
+            if (percent === 0) {
+                return;
+            }
+
+            ctx.moveTo(x1, y1);
+
+            if (percent < 1) {
+                x2 = x1 * (1 - percent) + x2 * percent;
+                y2 = y1 * (1 - percent) + y2 * percent;
+            }
+            ctx.lineTo(x2, y2);
+        }
+    }
+
     exports.Arc = Arc;
     exports.Circle = Circle;
+    exports.Line = Line;
     exports.Rect = Rect;
     exports.Sector = Sector;
     exports.init = init;
