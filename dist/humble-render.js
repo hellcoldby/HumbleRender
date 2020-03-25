@@ -1249,7 +1249,7 @@
          * @param {Boolean} [paintAll=false] 是否强制绘制所有元素
          */
         refresh(paintAll) {
-            console.log("123");
+            // console.log("123");
             //从 storage 中获取 元素数组列表
             let ele_ary = this.storage.getDisplayList(true);
             this._redrawId = Math.random(); // 重绘id
@@ -2521,9 +2521,9 @@
         return typeof data.length === "number";
     }
 
-    //8. 最后一帧的第一项，如果是数组，就返回2
+    //8. 关键帧的值 , 值的第一项是数组则为2
     function getArrayDim(keyframes) {
-        let lastValue = keyframes[keyframes.length - 1].lastValue;
+        let lastValue = keyframes[keyframes.length - 1].value;
         return isArrayLike(lastValue && lastValue[0]) ? 2 : 1;
     }
 
@@ -3321,7 +3321,7 @@
             let isValueArray = isArrayLike(firstVal); //第一帧的值是否为数组
             let isValueColor = false;
             let isValueString = false;
-            // 判断最后一帧的值为数组的话，数组的第一个是不是还是数组
+            // 判断关键帧的值 值的第一项是不是数组
             let arrDim = isValueArray ? getArrayDim(this.keyFrames) : 0;
             //把所有的帧进行排序
             this.keyFrames.sort((a, b) => {
@@ -3445,22 +3445,23 @@
                 } else {
                     if (isValueArray) {
                         if (kfValues[frame]) {
+                            //实时更新元素的属性
                             let res = interpolateArray(kfValues[frame], kfValues[frame + 1], w, target[propName], arrDim);
+                            console.log(res);
                         } else {
                             console.log(kfValues, "---", frame);
                         }
-                        // console.log(res);
                     } else {
                         let value;
                         if (isValueColor) {
                             interpolateArray(kfValues[frame], kfValues[frame + 1], w, rgba, 1);
                             value = dataUtil.rgba2String(rgba);
                         } else if (isValueString) {
-                            // String is step(0.5)
                             return interpolateString(kfValues[frame], kfValues[frame + 1], w);
                         } else {
                             value = interpolateNumber(kfValues[frame], kfValues[frame + 1], w);
                         }
+                        console.log(value);
                         target[propName] = value;
                     }
                 }

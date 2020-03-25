@@ -65,7 +65,7 @@ export default class Track {
         let isValueArray = isArrayLike(firstVal); //第一帧的值是否为数组
         let isValueColor = false;
         let isValueString = false;
-        // 判断最后一帧的值为数组的话，数组的第一个是不是还是数组
+        // 判断关键帧的值 值的第一项是不是数组
         let arrDim = isValueArray ? getArrayDim(this.keyFrames) : 0;
         //把所有的帧进行排序
         this.keyFrames.sort((a, b) => {
@@ -189,22 +189,23 @@ export default class Track {
             } else {
                 if (isValueArray) {
                     if (kfValues[frame]) {
+                        //实时更新元素的属性
                         let res = interpolateArray(kfValues[frame], kfValues[frame + 1], w, target[propName], arrDim);
+                        console.log(res);
                     } else {
                         console.log(kfValues, "---", frame);
                     }
-                    // console.log(res);
                 } else {
                     let value;
                     if (isValueColor) {
                         interpolateArray(kfValues[frame], kfValues[frame + 1], w, rgba, 1);
                         value = dataUtil.rgba2String(rgba);
                     } else if (isValueString) {
-                        // String is step(0.5)
                         return interpolateString(kfValues[frame], kfValues[frame + 1], w);
                     } else {
                         value = interpolateNumber(kfValues[frame], kfValues[frame + 1], w);
                     }
+                    console.log(value);
                     target[propName] = value;
                 }
             }

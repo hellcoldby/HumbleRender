@@ -39,19 +39,20 @@
             }); 
             hr.add(rect);
 
-            rect.animate()
-                .when(2000, {
-                    position:[100, 100],
-                    // scale: [2, 1]
+            rect.animate('shape')
+                .when(500, {
+                    // position:[100, 100],
+                    x: 300,
                 })
-                .when(3000, {
-                    position: [300, 150],
-                    // scale: [1, 1]
-                })
-                .when(4000,{
-                    position: [50, 50]
-                })
-                .start();
+                // .when(2000, {
+                //     // position: [300, 150],
+                //     x: 200
+                // })
+                // .when(3000,{
+                //     // position: [50, 50]
+                //     x: 300
+                // })
+                .start(true);
 
 
 

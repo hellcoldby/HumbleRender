@@ -4,6 +4,8 @@
 
 import Path from "../../Path/Path";
 import { merge } from "../../../tools/data_util";
+import { quadraticSubdivide, cubicSubdivide } from "../../../tools/curve_util";
+
 let defaultConfig = {
     shape: {
         x1: 0, // 开始位置
@@ -20,6 +22,7 @@ let defaultConfig = {
     }
 };
 
+let out = [];
 export default class BezierCurve extends Path {
     constructor(opts) {
         super(merge(defaultConfig, opts, true));
@@ -35,11 +38,34 @@ export default class BezierCurve extends Path {
         let cpy1 = shape.cpy1;
         let cpx2 = shape.cpx2;
         let cpy2 = shape.cpy2;
-        let percent = shpae.percent;
+        let percent = shape.percent;
         if (percent === 0) {
             return;
         }
 
         ctx.moveTo(x1, y1);
+        if (cpx2 == null || cpy2 == null) {
+            if (percent < 1) {
+                quadraticSubdivide(x1, cpx1, x2, percent, out); // 细分二次贝塞尔曲线动态生成 cpx2 cpy2
+                cpx1 = out[1];
+                x2 = out[2];
+                quadraticSubdivide(y1, cpy2, y2, percent, out);
+                cpy1 = out[1];
+                y2 = out[2];
+            }
+            ctx.quadraticCurveTo(cpx1, cpy1, x2, y2);
+        } else {
+            if (percent < 1) {
+                cubicSubdivide(x1, cpx1, cpx2, x2, percent, out); //细分三次贝塞尔曲线
+                cpx1 = out[1];
+                cpx2 = out[2];
+                x2 = out[3];
+                cubicSubdivide(y1, cpy1, cpy2, y2, percent, out);
+                cpy1 = out[1];
+                cpy2 = out[2];
+                y2 = out[3];
+            }
+            ctx.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, x2, y2);
+        }
     }
 }

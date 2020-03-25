@@ -138,9 +138,9 @@ export function isArrayLike(data) {
     return typeof data.length === "number";
 }
 
-//8. 最后一帧的第一项，如果是数组，就返回2
+//8. 关键帧的值 , 值的第一项是数组则为2
 export function getArrayDim(keyframes) {
-    let lastValue = keyframes[keyframes.length - 1].lastValue;
+    let lastValue = keyframes[keyframes.length - 1].value;
     return isArrayLike(lastValue && lastValue[0]) ? 2 : 1;
 }
 
