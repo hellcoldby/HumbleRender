@@ -24,7 +24,7 @@
             let main = document.querySelector('#box');
             let hr = HumbleRneder.init(main);
             console.log(hr);
-
+            //矩形
             let rect = new HumbleRneder.Rect({
                 shape: {
                     x: 50,
@@ -38,7 +38,7 @@
                     stroke: 'green'
                 }
             }); 
-
+            //圆角矩形
             let rect1 = new HumbleRneder.Rect({
                 position: [0, 100],
                 shape: {
@@ -55,7 +55,7 @@
                 }
             }); 
 
-
+            //原型
             let circle= new HumbleRneder.Circle({
                 position: [0, 50],
                 scale:[1.1,1.1],
@@ -69,9 +69,7 @@
 
                 }
             })
-       
-
-            
+            //圆弧
             let arc = new HumbleRneder.Arc({
                 shape: {
                     cx: 400,
@@ -82,11 +80,10 @@
                     clockwise: false,
                 },
                 style: {
-                    
                     fill: '#E27474',
                 }
             });
-
+            //扇形
             let sector = new HumbleRneder.Sector({
                 shape: {
                     cx: 600,
@@ -101,7 +98,7 @@
                     fill: '#E27474',
                 }
             });
-
+            //直线
             let  line = new HumbleRneder.Line({
                 shape : {
                     x1: 200,
@@ -115,7 +112,7 @@
                     fill: null
                 }
             });
-
+            //虚线
             let lineDash = new HumbleRneder.LineDash({
                 shape : {
                     x1: 200,
@@ -130,7 +127,23 @@
                     lineDash: [5, 10, 15],
                 }
             })
-
+            //曲线
+            let curver = new HumbleRneder.BezierCurve({
+                shape: {
+                    x1: 100,
+                    y1: 360,
+                    x2: 400,
+                    y2: 400,
+                    cpx1: 200,
+                    cpy1: 500,
+                    cpx2: 300,
+                    cpy2: 350,
+                    percent:1
+                },
+                style: {
+                    stroke: "#2084C8"
+                }
+            })
 
             hr.add(circle);
             hr.add(rect);
@@ -139,6 +152,7 @@
             hr.add(sector);
             hr.add(line);
             hr.add(lineDash);
+            hr.add(curver);
 
             rect.attr({
                 style: {

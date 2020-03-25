@@ -4067,6 +4067,26 @@
             return this;
         },
 
+        bezierCurveTo: function(x1, y1, x2, y2, x3, y3) {
+            // this.addData(CMD.C, x1, y1, x2, y2, x3, y3);
+            if (this._ctx) {
+                this._needsDash() ? this._dashedBezierTo(x1, y1, x2, y2, x3, y3) : this._ctx.bezierCurveTo(x1, y1, x2, y2, x3, y3);
+            }
+            this._xi = x3;
+            this._yi = y3;
+            return this;
+        },
+
+        quadraticCurveTo: function(x1, y1, x2, y2) {
+            // this.addData(CMD.Q, x1, y1, x2, y2);
+            if (this._ctx) {
+                this._needsDash() ? this._dashedQuadraticTo(x1, y1, x2, y2) : this._ctx.quadraticCurveTo(x1, y1, x2, y2);
+            }
+            this._xi = x2;
+            this._yi = y2;
+            return this;
+        },
+
         fill: function(ctx) {
             ctx && ctx.fill();
             // this.toStatic();
@@ -4598,7 +4618,163 @@
         }
     }
 
+    /* global Float32Array */
+
+    var ArrayCtor$1 = typeof Float32Array === "undefined" ? Array : Float32Array;
+
+    /**
+     * 创建一个向量
+     * @param {Number} [x=0]
+     * @param {Number} [y=0]
+     * @return {Vector2}
+     */
+    function create$1(x, y) {
+        var out = new ArrayCtor$1(2);
+        if (x == null) {
+            x = 0;
+        }
+        if (y == null) {
+            y = 0;
+        }
+        out[0] = x;
+        out[1] = y;
+        return out;
+    }
+
+    /**
+     * 曲线辅助模块
+     * @author pissang(https://www.github.com/pissang)
+     */
+
+    // 临时变量
+    var _v0 = create$1();
+    var _v1 = create$1();
+    var _v2 = create$1();
+
+    /**
+     * 细分三次贝塞尔曲线
+     * @param  {Number} p0
+     * @param  {Number} p1
+     * @param  {Number} p2
+     * @param  {Number} p3
+     * @param  {Number} t
+     * @param  {Array<Number>} out
+     */
+    function cubicSubdivide(p0, p1, p2, p3, t, out) {
+        var p01 = (p1 - p0) * t + p0;
+        var p12 = (p2 - p1) * t + p1;
+        var p23 = (p3 - p2) * t + p2;
+
+        var p012 = (p12 - p01) * t + p01;
+        var p123 = (p23 - p12) * t + p12;
+
+        var p0123 = (p123 - p012) * t + p012;
+        // Seg0
+        out[0] = p0;
+        out[1] = p01;
+        out[2] = p012;
+        out[3] = p0123;
+        // Seg1
+        out[4] = p0123;
+        out[5] = p123;
+        out[6] = p23;
+        out[7] = p3;
+    }
+
+    /**
+     * 细分二次贝塞尔曲线
+     * @param  {Number} p0
+     * @param  {Number} p1
+     * @param  {Number} p2
+     * @param  {Number} t
+     * @param  {Array<Number>} out
+     */
+    function quadraticSubdivide(p0, p1, p2, t, out) {
+        var p01 = (p1 - p0) * t + p0;
+        var p12 = (p2 - p1) * t + p1;
+        var p012 = (p12 - p01) * t + p01;
+
+        // Seg0
+        out[0] = p0;
+        out[1] = p01;
+        out[2] = p012;
+
+        // Seg1
+        out[3] = p012;
+        out[4] = p12;
+        out[5] = p2;
+    }
+
+    /**
+     * 贝塞尔曲线
+     */
+
+    let defaultConfig$5 = {
+        shape: {
+            x1: 0, // 开始位置
+            y1: 0,
+            x2: 0, //结束位置
+            y2: 0,
+            cpx1: 0,
+            cpy1: 0,
+            percent: 1
+        },
+        style: {
+            stroke: "#000",
+            fill: null
+        }
+    };
+
+    let out = [];
+    class BezierCurve extends Path {
+        constructor(opts) {
+            super(merge(defaultConfig$5, opts, true));
+            this.type = "bezier-curve";
+        }
+
+        buildPath(ctx, shape) {
+            let x1 = shape.x1;
+            let y1 = shape.y1;
+            let x2 = shape.x2;
+            let y2 = shape.y2;
+            let cpx1 = shape.cpx1;
+            let cpy1 = shape.cpy1;
+            let cpx2 = shape.cpx2;
+            let cpy2 = shape.cpy2;
+            let percent = shape.percent;
+            if (percent === 0) {
+                return;
+            }
+
+            ctx.moveTo(x1, y1);
+            if (cpx2 == null || cpy2 == null) {
+                if (percent < 1) {
+                    quadraticSubdivide(x1, cpx1, x2, percent, out); // 细分二次贝塞尔曲线动态生成 cpx2 cpy2
+                    cpx1 = out[1];
+                    x2 = out[2];
+                    quadraticSubdivide(y1, cpy2, y2, percent, out);
+                    cpy1 = out[1];
+                    y2 = out[2];
+                }
+                ctx.quadraticCurveTo(cpx1, cpy1, x2, y2);
+            } else {
+                if (percent < 1) {
+                    cubicSubdivide(x1, cpx1, cpx2, x2, percent, out); //细分三次贝塞尔曲线
+                    cpx1 = out[1];
+                    cpx2 = out[2];
+                    x2 = out[3];
+                    cubicSubdivide(y1, cpy1, cpy2, y2, percent, out);
+                    cpy1 = out[1];
+                    cpy2 = out[2];
+                    y2 = out[3];
+                }
+                ctx.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, x2, y2);
+            }
+        }
+    }
+
     exports.Arc = Arc;
+    exports.BezierCurve = BezierCurve;
     exports.Circle = Circle;
     exports.Line = Line;
     exports.LineDash = LineDash;

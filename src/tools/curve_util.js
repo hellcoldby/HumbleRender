@@ -3,16 +3,12 @@
  * @author pissang(https://www.github.com/pissang)
  */
 
-import {
-    create as v2Create,
-    distSquare as v2DistSquare
-} from './vector_util';
-import {mathPow,mathSqrt,mathAcos,mathCos,mathSin} from '../../graphic/constants';
+import { create as v2Create, distSquare as v2DistSquare } from "./vector_util";
 
 var EPSILON = 1e-8;
 var EPSILON_NUMERIC = 1e-4;
 
-var THREE_SQRT = mathSqrt(3);
+var THREE_SQRT = Math.sqrt(3);
 var ONE_THIRD = 1 / 3;
 
 // 临时变量
@@ -37,8 +33,7 @@ function isNotAroundZero(val) {
  */
 export function cubicAt(p0, p1, p2, p3, t) {
     var onet = 1 - t;
-    return onet * onet * (onet * p0 + 3 * t * p1)
-            + t * t * (t * p3 + 3 * onet * p2);
+    return onet * onet * (onet * p0 + 3 * t * p1) + t * t * (t * p3 + 3 * onet * p2);
 }
 
 /**
@@ -52,10 +47,7 @@ export function cubicAt(p0, p1, p2, p3, t) {
  */
 export function cubicDerivativeAt(p0, p1, p2, p3, t) {
     var onet = 1 - t;
-    return 3 * (
-        ((p1 - p0) * onet + 2 * (p2 - p1) * t) * onet
-        + (p3 - p2) * t * t
-    );
+    return 3 * (((p1 - p0) * onet + 2 * (p2 - p1) * t) * onet + (p3 - p2) * t * t);
 }
 
 /**
@@ -84,58 +76,52 @@ export function cubicRootAt(p0, p1, p2, p3, val, roots) {
     if (isAroundZero(A) && isAroundZero(B)) {
         if (isAroundZero(b)) {
             roots[0] = 0;
-        }
-        else {
-            var t1 = -c / b;  //t1, t2, t3, b is not zero
+        } else {
+            var t1 = -c / b; //t1, t2, t3, b is not zero
             if (t1 >= 0 && t1 <= 1) {
                 roots[n++] = t1;
             }
         }
-    }
-    else {
+    } else {
         var disc = B * B - 4 * A * C;
 
         if (isAroundZero(disc)) {
             var K = B / A;
-            var t1 = -b / a + K;  // t1, a is not zero
-            var t2 = -K / 2;  // t2, t3
+            var t1 = -b / a + K; // t1, a is not zero
+            var t2 = -K / 2; // t2, t3
             if (t1 >= 0 && t1 <= 1) {
                 roots[n++] = t1;
             }
             if (t2 >= 0 && t2 <= 1) {
                 roots[n++] = t2;
             }
-        }
-        else if (disc > 0) {
-            var discSqrt = mathSqrt(disc);
+        } else if (disc > 0) {
+            var discSqrt = Math.sqrt(disc);
             var Y1 = A * b + 1.5 * a * (-B + discSqrt);
             var Y2 = A * b + 1.5 * a * (-B - discSqrt);
             if (Y1 < 0) {
-                Y1 = -mathPow(-Y1, ONE_THIRD);
-            }
-            else {
-                Y1 = mathPow(Y1, ONE_THIRD);
+                Y1 = -Math.pow(-Y1, ONE_THIRD);
+            } else {
+                Y1 = Math.pow(Y1, ONE_THIRD);
             }
             if (Y2 < 0) {
-                Y2 = -mathPow(-Y2, ONE_THIRD);
-            }
-            else {
-                Y2 = mathPow(Y2, ONE_THIRD);
+                Y2 = -Math.pow(-Y2, ONE_THIRD);
+            } else {
+                Y2 = Math.pow(Y2, ONE_THIRD);
             }
             var t1 = (-b - (Y1 + Y2)) / (3 * a);
             if (t1 >= 0 && t1 <= 1) {
                 roots[n++] = t1;
             }
-        }
-        else {
-            var T = (2 * A * b - 3 * a * B) / (2 * mathSqrt(A * A * A));
-            var theta = mathAcos(T) / 3;
-            var ASqrt = mathSqrt(A);
-            var tmp = mathCos(theta);
+        } else {
+            var T = (2 * A * b - 3 * a * B) / (2 * Math.sqrt(A * A * A));
+            var theta = Math.acos(T) / 3;
+            var ASqrt = Math.sqrt(A);
+            var tmp = Math.cos(theta);
 
             var t1 = (-b - 2 * ASqrt * tmp) / (3 * a);
-            var t2 = (-b + ASqrt * (tmp + THREE_SQRT * mathSin(theta))) / (3 * a);
-            var t3 = (-b + ASqrt * (tmp - THREE_SQRT * mathSin(theta))) / (3 * a);
+            var t2 = (-b + ASqrt * (tmp + THREE_SQRT * Math.sin(theta))) / (3 * a);
+            var t3 = (-b + ASqrt * (tmp - THREE_SQRT * Math.sin(theta))) / (3 * a);
             if (t1 >= 0 && t1 <= 1) {
                 roots[n++] = t1;
             }
@@ -172,14 +158,12 @@ export function cubicExtrema(p0, p1, p2, p3, extrema) {
                 extrema[n++] = t1;
             }
         }
-    }
-    else {
+    } else {
         var disc = b * b - 4 * a * c;
         if (isAroundZero(disc)) {
             extrema[0] = -b / (2 * a);
-        }
-        else if (disc > 0) {
-            var discSqrt = mathSqrt(disc);
+        } else if (disc > 0) {
+            var discSqrt = Math.sqrt(disc);
             var t1 = (-b + discSqrt) / (2 * a);
             var t2 = (-b - discSqrt) / (2 * a);
             if (t1 >= 0 && t1 <= 1) {
@@ -239,10 +223,7 @@ export function cubicSubdivide(p0, p1, p2, p3, t, out) {
  * @param {Array<Number>} [out] 投射点
  * @return {Number}
  */
-export function cubicProjectPoint(
-    x0, y0, x1, y1, x2, y2, x3, y3,
-    x, y, out
-) {
+export function cubicProjectPoint(x0, y0, x1, y1, x2, y2, x3, y3, x, y, out) {
     // http://pomax.github.io/bezierinfo/#projections
     var t;
     var interval = 0.005;
@@ -284,8 +265,7 @@ export function cubicProjectPoint(
         if (prev >= 0 && d1 < d) {
             t = prev;
             d = d1;
-        }
-        else {
+        } else {
             // t + interval
             _v2[0] = cubicAt(x0, x1, x2, x3, next);
             _v2[1] = cubicAt(y0, y1, y2, y3, next);
@@ -294,8 +274,7 @@ export function cubicProjectPoint(
             if (next <= 1 && d2 < d) {
                 t = next;
                 d = d2;
-            }
-            else {
+            } else {
                 interval *= 0.5;
             }
         }
@@ -305,7 +284,7 @@ export function cubicProjectPoint(
         out[0] = cubicAt(x0, x1, x2, x3, t);
         out[1] = cubicAt(y0, y1, y2, y3, t);
     }
-    return mathSqrt(d);
+    return Math.sqrt(d);
 }
 
 /**
@@ -355,17 +334,15 @@ export function quadraticRootAt(p0, p1, p2, val, roots) {
                 roots[n++] = t1;
             }
         }
-    }
-    else {
+    } else {
         var disc = b * b - 4 * a * c;
         if (isAroundZero(disc)) {
             var t1 = -b / (2 * a);
             if (t1 >= 0 && t1 <= 1) {
                 roots[n++] = t1;
             }
-        }
-        else if (disc > 0) {
-            var discSqrt = mathSqrt(disc);
+        } else if (disc > 0) {
+            var discSqrt = Math.sqrt(disc);
             var t1 = (-b + discSqrt) / (2 * a);
             var t2 = (-b - discSqrt) / (2 * a);
             if (t1 >= 0 && t1 <= 1) {
@@ -391,8 +368,7 @@ export function quadraticExtremum(p0, p1, p2) {
     if (divider === 0) {
         // p1 is center of p0 and p2
         return 0.5;
-    }
-    else {
+    } else {
         return (p0 - p1) / divider;
     }
 }
@@ -435,10 +411,7 @@ export function quadraticSubdivide(p0, p1, p2, t, out) {
  * @param {Array<Number>} out 投射点
  * @return {Number}
  */
-export function quadraticProjectPoint(
-    x0, y0, x1, y1, x2, y2,
-    x, y, out
-) {
+export function quadraticProjectPoint(x0, y0, x1, y1, x2, y2, x, y, out) {
     // http://pomax.github.io/bezierinfo/#projections
     var t;
     var interval = 0.005;
@@ -476,8 +449,7 @@ export function quadraticProjectPoint(
         if (prev >= 0 && d1 < d) {
             t = prev;
             d = d1;
-        }
-        else {
+        } else {
             // t + interval
             _v2[0] = quadraticAt(x0, x1, x2, next);
             _v2[1] = quadraticAt(y0, y1, y2, next);
@@ -485,8 +457,7 @@ export function quadraticProjectPoint(
             if (next <= 1 && d2 < d) {
                 t = next;
                 d = d2;
-            }
-            else {
+            } else {
                 interval *= 0.5;
             }
         }
@@ -496,5 +467,5 @@ export function quadraticProjectPoint(
         out[0] = quadraticAt(x0, x1, x2, t);
         out[1] = quadraticAt(y0, y1, y2, t);
     }
-    return mathSqrt(d);
+    return Math.sqrt(d);
 }

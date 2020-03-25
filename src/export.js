@@ -4,3 +4,4 @@ export { default as Arc } from "./graphic/shape/Circle/Arc";
 export { default as Sector } from "./graphic/shape/Circle/Sector";
 export { default as Line } from "./graphic/shape/Line/Line";
 export { default as LineDash } from "./graphic/shape/Line/LineDash";
+export { default as BezierCurve } from "./graphic/shape/BezierCurve/BezierCurve";

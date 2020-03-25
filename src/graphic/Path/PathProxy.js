@@ -91,6 +91,26 @@ PathProxy.prototype = {
         return this;
     },
 
+    bezierCurveTo: function(x1, y1, x2, y2, x3, y3) {
+        // this.addData(CMD.C, x1, y1, x2, y2, x3, y3);
+        if (this._ctx) {
+            this._needsDash() ? this._dashedBezierTo(x1, y1, x2, y2, x3, y3) : this._ctx.bezierCurveTo(x1, y1, x2, y2, x3, y3);
+        }
+        this._xi = x3;
+        this._yi = y3;
+        return this;
+    },
+
+    quadraticCurveTo: function(x1, y1, x2, y2) {
+        // this.addData(CMD.Q, x1, y1, x2, y2);
+        if (this._ctx) {
+            this._needsDash() ? this._dashedQuadraticTo(x1, y1, x2, y2) : this._ctx.quadraticCurveTo(x1, y1, x2, y2);
+        }
+        this._xi = x2;
+        this._yi = y2;
+        return this;
+    },
+
     fill: function(ctx) {
         ctx && ctx.fill();
         // this.toStatic();
