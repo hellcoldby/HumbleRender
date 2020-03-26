@@ -80,11 +80,19 @@ export default class WatchAnim extends Eventful {
         }
     }
 
+    //在animatable.js 的when()方法中调用
     addAnimatable(ele) {
         this._animatableMap.set(ele.id, ele);
     }
 
     removeAnimatable(ele) {
         this._animatableMap.delete(ele.id);
+    }
+
+    //清除所有元素的动画
+    clear() {
+        this._animatableMap.forEach(ele => {
+            ele.stopAnimation();
+        });
     }
 }

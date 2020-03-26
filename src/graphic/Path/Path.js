@@ -63,7 +63,7 @@ class Path extends Element {
         if (hasStrokeGradient) {
             ctx.strokeStyle = this._strokeGradient;
         } else if (hasStrokePattern) {
-            ctx.strokeStyle = Pattern.prototype.getCanvasPattern.call(stroke, ctx);
+            // ctx.strokeStyle = Pattern.prototype.getCanvasPattern.call(stroke, ctx);
         }
 
         if (this.__dirtyPath) {

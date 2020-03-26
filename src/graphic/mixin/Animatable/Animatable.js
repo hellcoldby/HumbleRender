@@ -45,17 +45,25 @@ Animatable.prototype = {
 
         this.animationProcessList.push(animationProcess);
         if (this.__hr) {
-            // 元素绑定的环境new HumbleRneder的实例，？？？为什么要加入绘图监控系统呢？
-            this.__hr.watchAnim.addAnimatable(this);
+            this.__hr.watchAnim.addAnimatable(this); //保存带有带有动画的元素列表
         }
         return animationProcess;
     },
 
-    removeAnimationProcess(animationProcess) {
+    //从动画队列中删除一组动画
+    removeAnimationProcess: function(animationProcess) {
         let index = this.animationProcessList.indexOf(animationProcess);
         if (index >= 0) {
             this.animationProcessList.splice(index, 1);
         }
+    },
+    //停止动画
+    stopAnimation: function(forwardToLast = false) {
+        this.animationProcessList.forEach((ap, index) => {
+            ap.stop(forwardToLast);
+        });
+        this.animationProcessList.length = 0;
+        return this;
     }
 };
 

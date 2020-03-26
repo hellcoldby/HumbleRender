@@ -105,7 +105,7 @@ Style.prototype = {
         
         if(this.hasStroke()){
             let lineWidth = this.lineWidth;
-            let scaleLine  = this.strokeNoScale && el && el.getLineScale();
+            let scaleLine  = this.strokeNoScale && ele && ele.getLineScale();
             ctx.lineWidth = lineWidth / (scaleLine? scaleLine : 1);
 
         }

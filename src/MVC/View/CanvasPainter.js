@@ -38,8 +38,8 @@ class CanvasPainter {
             let mainLayer = new CanvasLayer(this.root, this._width, this._height, this.dpr, CANVAS_LEVEL_ID);
             mainLayer.__builtin__ = true; //标记构建完成
 
-            layers_map[CANVAS_LEVEL_ID] = mainLayer;
-            layer_id_list.push(CANVAS_LEVEL_ID);
+            this.layers_map[CANVAS_LEVEL_ID] = mainLayer;
+            this.layer_id_list.push(CANVAS_LEVEL_ID);
             this._root = root;
         } else {
             //根节点不是canvas, 动态创建一个div包裹

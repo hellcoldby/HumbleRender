@@ -253,3 +253,68 @@ export function interpolateArray(p0, p1, percent, out, arrDim) {
 export function interpolateNumber(p0, p1, percent) {
     return (p1 - p0) * percent + p0;
 }
+
+
+/**
+ * Catmull Rom interpolate number
+ * @param  {Number} p0
+ * @param  {Number} p1
+ * @param  {Number} p2
+ * @param  {Number} p3
+ * @param  {Number} t
+ * @param  {Number} t2
+ * @param  {Number} t3
+ * @return {Number}
+ */
+export function catmullRomInterpolate(p0, p1, p2, p3, t, t2, t3) {
+    var v0 = (p2 - p0) * 0.5;
+    var v1 = (p3 - p1) * 0.5;
+    return (2 * (p1 - p2) + v0 + v1) * t3
+            + (-3 * (p1 - p2) - 2 * v0 - v1) * t2
+            + v0 * t + p1;
+}
+
+export function rgba2String(rgba) {
+    rgba[0] = Math.floor(rgba[0]);
+    rgba[1] = Math.floor(rgba[1]);
+    rgba[2] = Math.floor(rgba[2]);
+
+    return 'rgba(' + rgba.join(',') + ')';
+}
+
+
+/**
+ * Catmull Rom interpolate array
+ * @param  {Array} p0
+ * @param  {Array} p1
+ * @param  {Array} p2
+ * @param  {Array} p3
+ * @param  {Number} t
+ * @param  {Number} t2
+ * @param  {Number} t3
+ * @param  {Array} out
+ * @param  {Number} arrDim
+ */
+export function catmullRomInterpolateArray(
+    p0, p1, p2, p3, t, t2, t3, out, arrDim
+) {
+    var len = p0.length;
+    if (arrDim === 1) {
+        for (var i = 0; i < len; i++) {
+            out[i] = catmullRomInterpolate(
+                p0[i], p1[i], p2[i], p3[i], t, t2, t3
+            );
+        }
+    }
+    else {
+        var len2 = p0[0].length;
+        for (var i = 0; i < len; i++) {
+            for (var j = 0; j < len2; j++) {
+                out[i][j] = catmullRomInterpolate(
+                    p0[i][j], p1[i][j], p2[i][j], p3[i][j],
+                    t, t2, t3
+                );
+            }
+        }
+    }
+}

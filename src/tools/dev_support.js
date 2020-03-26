@@ -44,7 +44,7 @@ function detect(ua) {
 
 }
 
-if (typeof wx === "object" && typeof wx.getSystemInfoSync === "function") {
+if (wx && typeof wx === "object" && typeof wx.getSystemInfoSync === "function") {
     // 判断微信环境
     env = {
         browser: {},

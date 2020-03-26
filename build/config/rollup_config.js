@@ -27,7 +27,7 @@ exports.createConfig = function (min) {
         input: getPath(`./humble-render.js`),
         output: {
             name: 'HumbleRneder',
-            format: 'umd',
+            format: 'cjs',
             sourcemap: !min,
             file: getPath(`dist/humble-render${postfixMin}.js`)
         },

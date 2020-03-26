@@ -41,6 +41,13 @@ export function init(root, opts) {
     return hr;
 }
 
+export function dispose(hr) {
+    if(hr) {
+        hr.dispose();
+    }
+}
+
+
 //tools --- 初始化图形环境
 class HumbleRender {
     constructor(root, opts = {}) {
@@ -118,4 +125,16 @@ class HumbleRender {
         this._needRefreshHover = false;
         this.painter.refreshHover && this.painter.refreshHover();
     }
+
+    //销毁
+    dispose() {
+        this.watchAnim.clear();
+        this.storage.dispose();
+        this.painter.dispose();
+        
+        this.watchAnim = null;
+        this.storage = null;
+        this.painter = null;
+        
+        delete instances[this.id];
 }

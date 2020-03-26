@@ -145,6 +145,23 @@ class AnimationProcess {
         }
     }
 
+    /**
+     * @method stop
+     * 停止动画
+     * @param {Boolean} forwardToLast If move to last frame before stop
+     */
+    stop(forwardToLast) {
+        this._running = false;
+        this._paused = false;
+
+        [...this._trackCacheMap.values()].forEach((track, index) => {
+            track.stop(this._target, 1);
+        });
+        this._trackCacheMap = new Map();
+        this.trigger("stop");
+        return this;
+    }
+
     during(cb) {
         this.on("during", cb);
         return this;

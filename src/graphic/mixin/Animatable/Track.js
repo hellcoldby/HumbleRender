@@ -1,5 +1,17 @@
 import Timline from "./TimeLine";
-import { isArrayLike, isString, getArrayDim, isArraySame, fillArr, interpolateArray, interpolateString, interpolateNumber } from "../../../tools/data_util";
+import {
+    isArrayLike,
+    isString,
+    getArrayDim,
+    isArraySame,
+    fillArr,
+    rgba2String,
+    interpolateArray,
+    interpolateString,
+    interpolateNumber,
+    catmullRomInterpolateArray,
+    catmullRomInterpolate
+} from "../../../tools/data_util";
 import * as colorUtil from "../../../tools/color_util";
 export default class Track {
     constructor(opts) {
@@ -40,6 +52,17 @@ export default class Track {
         }
         // console.log(result);
         return result;
+    }
+    /**
+     * @method stop
+     * 停止动画
+     * @param {Boolean} forwardToLast 是否快进到最后一帧
+     */
+    stop(forwardToLast) {
+        if (forwardToLast) {
+            // Move to last frame before stop
+            this.timeline.onframe(this._target, 1);
+        }
     }
 
     fire(eventType, arg) {
@@ -172,17 +195,17 @@ export default class Track {
                 p2 = kfValues[frame > kfLength - 2 ? kfLength - 1 : frame + 1];
                 p3 = kfValues[frame > kfLength - 3 ? kfLength - 1 : frame + 2];
                 if (isValueArray) {
-                    dataUtil.catmullRomInterpolateArray(p0, p1, p2, p3, w, w * w, w * w * w, target[propName], arrDim);
+                    catmullRomInterpolateArray(p0, p1, p2, p3, w, w * w, w * w * w, target[propName], arrDim);
                 } else {
                     let value;
                     if (isValueColor) {
-                        value = dataUtil.catmullRomInterpolateArray(p0, p1, p2, p3, w, w * w, w * w * w, rgba, 1);
-                        value = dataUtil.rgba2String(rgba);
+                        value = catmullRomInterpolateArray(p0, p1, p2, p3, w, w * w, w * w * w, rgba, 1);
+                        value = rgba2String(rgba);
                     } else if (isValueString) {
                         // String is step(0.5)
-                        return dataUtil.interpolateString(p1, p2, w);
+                        return interpolateString(p1, p2, w);
                     } else {
-                        value = dataUtil.catmullRomInterpolate(p0, p1, p2, p3, w, w * w, w * w * w);
+                        value = catmullRomInterpolate(p0, p1, p2, p3, w, w * w, w * w * w);
                     }
                     target[propName] = value;
                 }
@@ -199,7 +222,7 @@ export default class Track {
                     let value;
                     if (isValueColor) {
                         interpolateArray(kfValues[frame], kfValues[frame + 1], w, rgba, 1);
-                        value = dataUtil.rgba2String(rgba);
+                        value = rgba2String(rgba);
                     } else if (isValueString) {
                         return interpolateString(kfValues[frame], kfValues[frame + 1], w);
                     } else {
