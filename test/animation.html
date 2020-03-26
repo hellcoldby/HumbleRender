@@ -40,21 +40,18 @@
             hr.add(rect);
 
             rect.animate('shape')
-                .when(500, {
-                    // position:[100, 100],
-                    x: 300,
+                .when(1000, {
+                    x: 700,
                 })
-                // .when(2000, {
-                //     // position: [300, 150],
-                //     x: 200
-                // })
-                // .when(3000,{
-                //     // position: [50, 50]
-                //     x: 300
-                // })
-                .start(true);
-
-
+                .during(function(){
+                    console.log('123');
+                })
+                .done(function(){
+                    hr.dispose();
+                })
+                .start()
+                   
+                    
 
     </script>
 </body>

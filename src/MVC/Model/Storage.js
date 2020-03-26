@@ -64,6 +64,11 @@ class Storage extends Eventful {
         //添加元素到 数组队列中
         this.ele_ary[this.ele_ary_len++] = ele;
     }
+
+    dispose() {
+        this.ele_ary = null; //包含所有图形的数组
+        this.ele_map = null;
+    }
 }
 
 export default Storage;

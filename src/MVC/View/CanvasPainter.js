@@ -357,6 +357,14 @@ class CanvasPainter {
 
         // hoverLayer.ctx.restore();
     }
+
+    dispose() {
+        this.root.innerHTML = "";
+        this.root = null;
+        this.storage = null;
+        this._root = null;
+        this.layers_map = null;
+    }
 }
 
 export default CanvasPainter;

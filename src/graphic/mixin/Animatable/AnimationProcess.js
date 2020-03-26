@@ -167,6 +167,11 @@ class AnimationProcess {
         return this;
     }
 
+    done(cb) {
+        this.on("done", cb);
+        return this;
+    }
+
     //判断整个动画过程是否已经完成，所有Track上的动画完成，则整个动画过程完成
     isFinished() {
         let isFinished = true;

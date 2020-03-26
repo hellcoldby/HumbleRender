@@ -42,11 +42,10 @@ export function init(root, opts) {
 }
 
 export function dispose(hr) {
-    if(hr) {
+    if (hr) {
         hr.dispose();
     }
 }
-
 
 //tools --- 初始化图形环境
 class HumbleRender {
@@ -131,10 +130,11 @@ class HumbleRender {
         this.watchAnim.clear();
         this.storage.dispose();
         this.painter.dispose();
-        
+
         this.watchAnim = null;
         this.storage = null;
         this.painter = null;
-        
+
         delete instances[this.id];
+    }
 }
