@@ -27,7 +27,7 @@ exports.createConfig = function(min, format) {
         plugins: getPlugins(min),
         input: getPath(`./humble-render.js`),
         output: {
-            name: "HumbleRneder",
+            name: "HumbleRender",
             format: format || 'umd',
             sourcemap: !min,
             file: getPath(`dist/humble-render${postfixMin}.js`)

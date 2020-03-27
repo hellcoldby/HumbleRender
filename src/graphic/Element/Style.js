@@ -15,7 +15,7 @@ let STYLE_COMMON_PROPS = [
  */
 export default function Style(opts) {
     let res = mixin(this, opts, false);
-   
+    // console.log(res);
 }
 
 Style.prototype = {
@@ -86,8 +86,7 @@ Style.prototype = {
         // console.log(this);
         let prevStyle = prevEl && prevEl.style;
         //检查当前元素的样式 是否已经改变
-        let styleNeedChange = ( !prevStyle || ctx._stylehasChanged === false );
-        
+        let styleNeedChange = !prevStyle || ctx._stylehasChanged === false;
 
         if (styleNeedChange || this.fill !== prevStyle.fill) {
             ctx.fillStyle = this.fill;
@@ -102,12 +101,11 @@ Style.prototype = {
         if (styleNeedChange || this.blend !== prevStyle.blend) {
             ctx.globalCompositeOperation = this.blend || "source-over";
         }
-        
-        if(this.hasStroke()){
-            let lineWidth = this.lineWidth;
-            let scaleLine  = this.strokeNoScale && ele && ele.getLineScale();
-            ctx.lineWidth = lineWidth / (scaleLine? scaleLine : 1);
 
+        if (this.hasStroke()) {
+            let lineWidth = this.lineWidth;
+            let scaleLine = this.strokeNoScale && ele && ele.getLineScale();
+            ctx.lineWidth = lineWidth / (scaleLine ? scaleLine : 1);
         }
 
         //标记当前元素的样式已经改变

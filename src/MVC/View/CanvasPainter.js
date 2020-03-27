@@ -60,17 +60,18 @@ class CanvasPainter {
         //从 storage 中获取 元素数组列表
         let ele_ary = this.storage.getDisplayList(true);
         this._redrawId = Math.random(); // 重绘id
+        console.log(ele_ary);
         this._paintList(ele_ary, paintAll, this._redrawId); //1.2 更新图层，动态创建图层， 绘制图层
 
-        let layer_id_list = this.layer_id_list;
-        for (let i = 0; i < layer_id_list.length; i++) {
-            let id = layer_id_list[i];
-            let layer = this.layers_map[id];
-            if (!layer.__builtin__ && layer.refresh) {
-                let clearColor = i === 0 ? this._backgroundColor : null;
-                layer.refresh(clearColor);
-            }
-        }
+        // let layer_id_list = this.layer_id_list;
+        // for (let i = 0; i < layer_id_list.length; i++) {
+        //     let id = layer_id_list[i];
+        //     let layer = this.layers_map[id];
+        //     if (!layer.__builtin__ && layer.refresh) {
+        //         let clearColor = i === 0 ? this._backgroundColor : null;
+        //         layer.refresh(clearColor);
+        //     }
+        // }
         return this;
     }
 
@@ -89,6 +90,7 @@ class CanvasPainter {
         //1.2_1  动态创建图层 更新图层状态
         this._updateLayerStatus(ele_ary);
         //1.2_2开始绘制图形
+        console.log("update");
         let finished = this._doPaintList(ele_ary, paintAll);
         if (!finished) {
             let self = this;
@@ -294,6 +296,7 @@ class CanvasPainter {
             let i = start;
             for (; i < cur_layer.__endIndex; i++) {
                 let ele = ele_ary[i];
+                // console.log(ele.shape);
                 //1.2_2_1绘制图形
                 this._doPaintEl(ele, cur_layer, paintAll, scope);
                 //绘制完成标记为不更新
@@ -337,6 +340,7 @@ class CanvasPainter {
             // && !(ele.culling && this.isDisplayableCulled())
         ) {
             ele.beforeBrush && ele.beforeBrush(ctx);
+
             ele.brush(ctx, scope.prevEl || null);
             scope.prevEl = ele;
             ele.afterBrush && ele.afterBrush(ctx);

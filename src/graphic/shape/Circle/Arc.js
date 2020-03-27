@@ -4,7 +4,7 @@
 
 import Path from "../../Path/Path";
 import { merge } from "../../../tools/data_util";
-let defaultConfig={
+let defaultConfig = {
     shape: {
         cx: 0,
         cy: 0,
@@ -22,15 +22,15 @@ let defaultConfig={
 export default class Arc extends Path {
     constructor(opts) {
         super(merge(defaultConfig, opts, true));
-        this.type = 'arc';
+        this.type = "arc";
     }
     /**
      * @method buildPath
      * 绘制元素路径
-     * @param {Object} ctx 
-     * @param {String} shape 
+     * @param {Object} ctx
+     * @param {String} shape
      */
-    buildPath(ctx, shape){
+    buildPath(ctx, shape) {
         let x = shape.cx;
         let y = shape.cy;
         let r = Math.max(shape.r, 0);
@@ -38,6 +38,11 @@ export default class Arc extends Path {
         let endAngle = shape.endAngle;
         let clockwise = shape.clockwise;
 
+        // let unitX = Math.cos(startAngle);
+        // let unitY = Math.sin(startAngle);
+
+        // ctx.moveTo(unitX * r + x, unitY * r + y);
+        // console.log(startAngle, endAngle);
         ctx.arc(x, y, r, startAngle, endAngle, !clockwise);
     }
 }

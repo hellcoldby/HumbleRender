@@ -18,8 +18,6 @@ Animatable.prototype = {
         let target = this;
         if (path) {
             let path_split = path.split(".");
-            console.log(path_split);
-            console.log(this);
             for (let i = 0; i < path_split.length; i++) {
                 let item = path_split[i]; //'shape' or 'style'...
                 if (!this[item]) {

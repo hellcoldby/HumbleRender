@@ -17,7 +17,9 @@ class Path extends Element {
 
     //调用canvas API 绘制i
     brush(ctx, prevEl) {
+        // console.log(this.shape);
         let path = this.path || new pathProxy(true); //拦截api,增加功能
+
         let hasStroke = this.style.hasStroke(); //绘制需求
         let hasFill = this.style.hasFill(); //填充需求
 
@@ -99,7 +101,6 @@ class Path extends Element {
     dirty() {
         this.__dirty = this.__dirtyText = true;
         this.__hr && this.__hr.refresh();
-
         if (this.__clipTarget) {
             this.__clipTarget.dirty();
         }

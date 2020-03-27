@@ -40,6 +40,7 @@ class Storage extends Eventful {
      * @param {boolean} [includeIgnore=false] 是否包含 ignore 的数组
      */
     updateDisplayList(includeIgnore) {
+        this.ele_ary_len = 0;
         this.ele_map.forEach((ele, id, map) => {
             this._updateAndAddDisplayable(ele, null, includeIgnore);
         });
@@ -52,6 +53,8 @@ class Storage extends Eventful {
             }
             return a.hLevel - b.hLevel;
         });
+        // console.log(this.ele_map);
+        // console.log(this.ele_ary);
     }
 
     //2.1_2_1 排除 标记为忽略 的元素，更新元素数组
