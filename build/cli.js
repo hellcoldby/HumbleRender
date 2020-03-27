@@ -18,12 +18,12 @@ com.version("1.0.0")
     .parse(process.argv); //解析以上的参数
 
 if (com.watch) {
-    watch(createConfig());
+    watch(createConfig(false));
 } else if (com.release) {
     fsExtra.removeSync(path.resolve(__dirname, '../', './dist')); //移除之前的打包 文件夹dist
     build([
-        createConfig(false),
-        createConfig(true)
+        createConfig(false, 'cjs'),
+        createConfig(true, 'cjs')
     ]).then(()=>{
         console.log('发布到nodejs');
     }).catch(err=> {

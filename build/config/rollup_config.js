@@ -20,14 +20,15 @@ function getPlugins(min) {
 }
 
 //main -- 主函数 rollup 的配置文件
-exports.createConfig = function(min) {
+exports.createConfig = function(min, format) {
     let postfixMin = min ? ".min" : "";
+
     return {
         plugins: getPlugins(min),
         input: getPath(`./humble-render.js`),
         output: {
             name: "HumbleRneder",
-            format: "umd",
+            format: format || 'umd',
             sourcemap: !min,
             file: getPath(`dist/humble-render${postfixMin}.js`)
         },

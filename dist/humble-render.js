@@ -1155,15 +1155,15 @@
         //改变尺寸
         resize(width, height) {
             //Can NOT get canvas instance in Wechat mini-program.
-            if (!this.canvasInstance) {
+            if (!this.canvasDOM) {
                 return;
             }
-            if (this.canvasInstance.style) {
-                this.canvasInstance.style.width = width + "px";
-                this.canvasInstance.style.height = height + "px";
+            if (this.canvasDOM.style) {
+                this.canvasDOM.style.width = width + "px";
+                this.canvasDOM.style.height = height + "px";
             }
-            this.canvasInstance.width = width * this.dpr;
-            this.canvasInstance.height = height * this.dpr;
+            this.canvasDOM.width = width * this.dpr;
+            this.canvasDOM.height = height * this.dpr;
 
             if (!this.hiddenCanvas) {
                 return;
@@ -1177,10 +1177,36 @@
 
         clear(clearAll, clearColor) {
             clearColor = clearColor || this.clearColor;
+            let haveMotionBLur = this.motionBlur && !clearAll;
             let dpr = this.dpr;
 
-            this.ctx.clearRect(0, 0, this.width, this.height);
+            // if (haveMotionBLur && this.canvasDOM) {
+            //     width = this.canvasDOM.width;
+            //     height = this.canvasDOM.height;
+            //     if (!this.hiddenCanvas) {
+            //         this.creatHiddenCanvas();
+            //     }
+            //     this.hiddenContext.globalCompositeOperation = "copy";
+            //     this.hiddenContext.drawImage(this.canvasDOM, 0, 0, width / dpr, height / dpr);
+            // }
+            console.log(this.width, this.height);
+            this.ctx.clearRect(0, 0, this.width * this.dpr, this.height * this.dpr);
+
+            // if (haveMotionBLur && this.hiddenCanvas) {
+            //     this.ctx.save();
+            //     this.ctx.globalAlpha = lastFrameAlpha;
+            //     this.ctx.drawImage(this.hiddenCanvas, 0, 0, width, height);
+            //     this.ctx.restore();
+            // }
         }
+
+        // creatHiddenCanvas() {
+        //     this.hiddenCanvas = canvasUtil.createCanvas("back-" + this.id, this.width, this.height, this.dpr);
+        //     this.hiddenContext = canvasUtil.getContext(this.hiddenCanvas);
+        //     if (this.dpr !== 1) {
+        //         this.hiddenContext.scale(this.dpr, this.dpr);
+        //     }
+        // }
     }
 
     /*
