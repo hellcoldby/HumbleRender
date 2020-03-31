@@ -228,7 +228,7 @@ export default class Track {
                     } else {
                         value = interpolateNumber(kfValues[frame], kfValues[frame + 1], w);
                     }
-                    console.log(value);
+                    // console.log(value);
                     target[propName] = value;
                 }
             }

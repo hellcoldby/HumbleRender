@@ -43,7 +43,8 @@ function detect(ua) {
     };
 }
 
-if (typeof wx === "object" && typeof wx.getSystemInfoSync === "function") {
+// if (typeof wx === "object" && typeof wx.getSystemInfoSync === "function") {
+if(navigator.userAgent.toLowerCase().indexOf('micromessenger') > -1 || typeof navigator.wxuserAgent !== 'undefined'){
     // 判断微信环境
     env = {
         browser: {},
@@ -55,7 +56,7 @@ if (typeof wx === "object" && typeof wx.getSystemInfoSync === "function") {
         touchEventsSupported: true,
         domSupported: false
     };
-} else if (typeof document === "undefined" && typeof self !== "undefined") {
+} else if (typeof document === "undefined" && typeof window.Worker!== "undefined") {
     // web worker 环境
     env = {
         browser: {},

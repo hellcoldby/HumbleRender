@@ -60,7 +60,7 @@ class CanvasPainter {
         //从 storage 中获取 元素数组列表
         let ele_ary = this.storage.getDisplayList(true);
         this._redrawId = Math.random(); // 重绘id
-        console.log(ele_ary);
+        // console.log(ele_ary);
         this._paintList(ele_ary, paintAll, this._redrawId); //1.2 更新图层，动态创建图层， 绘制图层
 
         // let layer_id_list = this.layer_id_list;
@@ -90,7 +90,7 @@ class CanvasPainter {
         //1.2_1  动态创建图层 更新图层状态
         this._updateLayerStatus(ele_ary);
         //1.2_2开始绘制图形
-        console.log("update");
+        // console.log("update");
         let finished = this._doPaintList(ele_ary, paintAll);
         if (!finished) {
             let self = this;

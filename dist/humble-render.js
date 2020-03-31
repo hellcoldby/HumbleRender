@@ -47,7 +47,8 @@ function detect(ua) {
     };
 }
 
-if (typeof wx === "object" && typeof wx.getSystemInfoSync === "function") {
+// if (typeof wx === "object" && typeof wx.getSystemInfoSync === "function") {
+if(navigator.userAgent.toLowerCase().indexOf('micromessenger') > -1 || typeof navigator.wxuserAgent !== 'undefined'){
     // 判断微信环境
     env = {
         browser: {},
@@ -59,7 +60,7 @@ if (typeof wx === "object" && typeof wx.getSystemInfoSync === "function") {
         touchEventsSupported: true,
         domSupported: false
     };
-} else if (typeof document === "undefined" && typeof self !== "undefined") {
+} else if (typeof document === "undefined" && typeof window.Worker!== "undefined") {
     // web worker 环境
     env = {
         browser: {},
@@ -1283,7 +1284,7 @@ class CanvasPainter {
         //从 storage 中获取 元素数组列表
         let ele_ary = this.storage.getDisplayList(true);
         this._redrawId = Math.random(); // 重绘id
-        console.log(ele_ary);
+        // console.log(ele_ary);
         this._paintList(ele_ary, paintAll, this._redrawId); //1.2 更新图层，动态创建图层， 绘制图层
 
         // let layer_id_list = this.layer_id_list;
@@ -1313,7 +1314,7 @@ class CanvasPainter {
         //1.2_1  动态创建图层 更新图层状态
         this._updateLayerStatus(ele_ary);
         //1.2_2开始绘制图形
-        console.log("update");
+        // console.log("update");
         let finished = this._doPaintList(ele_ary, paintAll);
         if (!finished) {
             let self = this;
@@ -2679,20 +2680,20 @@ function interpolateString(p0, p1, percent) {
  * @param  {Number} arrDim
  */
 function interpolateArray(p0, p1, percent, out, arrDim) {
-    var len = p0.length;
+    let len = p0.length;
     if (!len) return;
     if (arrDim === 1) {
-        for (var i = 0; i < len; i++) {
+        for (let i = 0; i < len; i++) {
             out[i] = interpolateNumber(p0[i], p1[i], percent);
         }
     } else {
-        var len2 = p0[0].length;
+        let len2 = p0[0].length;
         if (!len2) return;
-        for (var i = 0; i < len; i++) {
+        for (let i = 0; i < len; i++) {
             if (out[i] === undefined) {
                 return;
             }
-            for (var j = 0; j < len2; j++) {
+            for (let j = 0; j < len2; j++) {
                 out[i][j] = interpolateNumber(p0[i][j], p1[i][j], percent);
             }
         }
@@ -2754,18 +2755,18 @@ function rgba2String(rgba) {
 function catmullRomInterpolateArray(
     p0, p1, p2, p3, t, t2, t3, out, arrDim
 ) {
-    var len = p0.length;
+    let len = p0.length;
     if (arrDim === 1) {
-        for (var i = 0; i < len; i++) {
+        for (let i = 0; i < len; i++) {
             out[i] = catmullRomInterpolate(
                 p0[i], p1[i], p2[i], p3[i], t, t2, t3
             );
         }
     }
     else {
-        var len2 = p0[0].length;
-        for (var i = 0; i < len; i++) {
-            for (var j = 0; j < len2; j++) {
+        let len2 = p0[0].length;
+        for (let i = 0; i < len; i++) {
+            for (let j = 0; j < len2; j++) {
                 out[i][j] = catmullRomInterpolate(
                     p0[i][j], p1[i][j], p2[i][j], p3[i][j],
                     t, t2, t3
@@ -3610,7 +3611,7 @@ class Track {
                     } else {
                         value = interpolateNumber(kfValues[frame], kfValues[frame + 1], w);
                     }
-                    console.log(value);
+                    // console.log(value);
                     target[propName] = value;
                 }
             }
@@ -3710,7 +3711,7 @@ class AnimationProcess {
         this._paused = false;
 
         let keys = [...this._trackCacheMap.keys()];
-        console.log(keys);
+        // console.log(keys);
         if (!keys.length) {
             this.trigger("done");
             return this;
@@ -3758,6 +3759,8 @@ class AnimationProcess {
         if (isNumber(percent)) {
             // console.log(percent);
             this.trigger("during", this._target, percent);
+        }else{
+            this.trigger("during", this._target, 1);
         }
 
         if (this.isFinished()) {

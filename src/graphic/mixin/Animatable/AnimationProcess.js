@@ -83,7 +83,7 @@ class AnimationProcess {
         this._paused = false;
 
         let keys = [...this._trackCacheMap.keys()];
-        console.log(keys);
+        // console.log(keys);
         if (!keys.length) {
             this.trigger("done");
             return this;
@@ -138,6 +138,8 @@ class AnimationProcess {
         if (isNumber(percent)) {
             // console.log(percent);
             this.trigger("during", this._target, percent);
+        }else{
+            this.trigger("during", this._target, 1);
         }
 
         if (this.isFinished()) {

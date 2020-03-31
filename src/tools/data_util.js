@@ -223,20 +223,20 @@ export function interpolateString(p0, p1, percent) {
  * @param  {Number} arrDim
  */
 export function interpolateArray(p0, p1, percent, out, arrDim) {
-    var len = p0.length;
+    let len = p0.length;
     if (!len) return;
     if (arrDim === 1) {
-        for (var i = 0; i < len; i++) {
+        for (let i = 0; i < len; i++) {
             out[i] = interpolateNumber(p0[i], p1[i], percent);
         }
     } else {
-        var len2 = p0[0].length;
+        let len2 = p0[0].length;
         if (!len2) return;
-        for (var i = 0; i < len; i++) {
+        for (let i = 0; i < len; i++) {
             if (out[i] === undefined) {
                 return;
             }
-            for (var j = 0; j < len2; j++) {
+            for (let j = 0; j < len2; j++) {
                 out[i][j] = interpolateNumber(p0[i][j], p1[i][j], percent);
             }
         }
@@ -298,18 +298,18 @@ export function rgba2String(rgba) {
 export function catmullRomInterpolateArray(
     p0, p1, p2, p3, t, t2, t3, out, arrDim
 ) {
-    var len = p0.length;
+    let len = p0.length;
     if (arrDim === 1) {
-        for (var i = 0; i < len; i++) {
+        for (let i = 0; i < len; i++) {
             out[i] = catmullRomInterpolate(
                 p0[i], p1[i], p2[i], p3[i], t, t2, t3
             );
         }
     }
     else {
-        var len2 = p0[0].length;
-        for (var i = 0; i < len; i++) {
-            for (var j = 0; j < len2; j++) {
+        let len2 = p0[0].length;
+        for (let i = 0; i < len; i++) {
+            for (let j = 0; j < len2; j++) {
                 out[i][j] = catmullRomInterpolate(
                     p0[i][j], p1[i][j], p2[i][j], p3[i][j],
                     t, t2, t3
