@@ -11,6 +11,9 @@ import Gradient from "./Gradient";
 export default class RadialGradient extends Gradient {
     constructor(x = 0.5, y = 0.5, r = 0.5, colorStops, globalCoord) {
         super(colorStops);
+        this.x = x;
+        this.y = y;
+        this.r = r;
         this.type = "radial";
         this.global = globalCoord || false;
     }

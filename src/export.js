@@ -5,3 +5,5 @@ export { default as Sector } from "./graphic/shape/Circle/Sector";
 export { default as Line } from "./graphic/shape/Line/Line";
 export { default as LineDash } from "./graphic/shape/Line/LineDash";
 export { default as BezierCurve } from "./graphic/shape/BezierCurve/BezierCurve";
+export { default as LinearGradient } from "./graphic/shape/Gradient/LinearGradient";
+export { default as RadialGradient } from "./graphic/shape/Gradient/RadialGradient";

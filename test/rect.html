@@ -22,10 +22,10 @@
         <div id="box"></div>
         <script type="text/javascript">
             let main = document.querySelector('#box');
-            let hr = HumbleRneder.init(main);
+            let hr = HumbleRender.init(main);
             console.log(hr);
             //矩形
-            let rect = new HumbleRneder.Rect({
+            let rect = new HumbleRender.Rect({
                 shape: {
                     x: 50,
                     y: 50,
@@ -39,7 +39,7 @@
                 }
             }); 
             //圆角矩形
-            let rect1 = new HumbleRneder.Rect({
+            let rect1 = new HumbleRender.Rect({
                 position: [0, 100],
                 shape: {
                     x: 50,
@@ -56,7 +56,7 @@
             }); 
 
             //原型
-            let circle= new HumbleRneder.Circle({
+            let circle= new HumbleRender.Circle({
                 position: [0, 50],
                 scale:[1.1,1.1],
                 shape: {
@@ -70,7 +70,7 @@
                 }
             })
             //圆弧
-            let arc = new HumbleRneder.Arc({
+            let arc = new HumbleRender.Arc({
                 shape: {
                     cx: 400,
                     cy: 100,
@@ -84,7 +84,7 @@
                 }
             });
             //扇形
-            let sector = new HumbleRneder.Sector({
+            let sector = new HumbleRender.Sector({
                 shape: {
                     cx: 600,
                     cy: 100,
@@ -99,7 +99,7 @@
                 }
             });
             //直线
-            let  line = new HumbleRneder.Line({
+            let  line = new HumbleRender.Line({
                 shape : {
                     x1: 200,
                     y1: 300,
@@ -113,7 +113,7 @@
                 }
             });
             //虚线
-            let lineDash = new HumbleRneder.LineDash({
+            let lineDash = new HumbleRender.LineDash({
                 shape : {
                     x1: 200,
                     y1: 350,
@@ -128,7 +128,7 @@
                 }
             })
             //曲线
-            let curver = new HumbleRneder.BezierCurve({
+            let curver = new HumbleRender.BezierCurve({
                 shape: {
                     x1: 100,
                     y1: 360,

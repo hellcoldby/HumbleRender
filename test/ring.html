@@ -11,24 +11,64 @@
                 width: 100%;
                 height: 100%;
             }
+
             #box {
                 width: 900px;
                 height: 500px;
                 margin: 0 auto;
                 border: 1px dashed darkcyan;
+                position: relative;
+            }
+
+            #can {
+                position: absolute;
+                z-index: -1;
+                width: 900px;
+                height: 500px;
             }
         </style>
     </head>
+
     <body>
-        <div id="box"></div>
+        <div id="box">
+            <canvas id="can" width="900" height="500"> </canvas>
+        </div>
         <script type="text/javascript">
             let main = document.querySelector("#box");
-            let hr = HumbleRneder.init(main);
+            let hr = HumbleRender.init(main);
+            let colors = [ ["#E27474", "yellow"], ["#FD8424", 'yellow'], ["#2084C8", 'yellow'], ["#FED66B", 'yellow']];
 
-            let colors = ['#E27474', '#FD8424','#2084C8', '#FED66B']
-
+            let arcList = [];
             for (let i = 0; i < 3; i++) {
-                let circle = new HumbleRneder.Circle({
+                drawArc(i);
+            }
+
+            //实时获取渐变坐标
+            function gradient(endRad, r, cx, cy, i){
+                let start_rad = 0;
+                let end_rad = endRad
+                let start_pos = {
+                    x: 0,
+                    y: 0
+                };
+                let end_pos = {
+                    x: 0,
+                    y: 0
+                };
+                start_pos.x = Math.cos(start_rad) * r + cx;
+                start_pos.y = Math.sin(start_rad) * r + cy;
+                end_pos.x = Math.cos(end_rad) * r + cx;
+                end_pos.y = Math.sin(end_rad) * r + cy;
+
+                let grd = new HumbleRender.LinearGradient(start_pos.x, start_pos.y, end_pos.x, end_pos.y);
+                grd.addColorStop(0, colors[i][0]);
+                grd.addColorStop(1, colors[i][1]);
+                return grd;
+            }
+
+            function drawArc(i) {
+                //背景圆环
+                let circle = new HumbleRender.Circle({
                     shape: {
                         cx: 150 + i * 230,
                         cy: 200,
@@ -40,27 +80,90 @@
                         lineWidth: 2
                     }
                 });
-                let arc = new HumbleRneder.Arc({
+                hr.add(circle);
+
+                let cx = 150 + i * 230;
+                let cy = 200;
+                let r = 100;
+                let arc = new HumbleRender.Arc({
                     shape: {
-                        cx: 150 + i * 230,
-                        cy: 200,
-                        r: 100,
+                        cx: cx,
+                        cy: cy,
+                        r: r,
                         startAngle: 0,
-                        endAngle: (Math.PI * 0) / 180,
+                        endAngle: 0,
                         clockwise: true
                     },
                     style: {
-                        stroke: colors[i],
+                        // stroke: grd,
                         lineWidth: 20
                     }
                 });
-                hr.add(circle);
-                hr.add(arc);
+                arc.attr({
+                    style: {
+                        text: '图形'+ i,
+                        textFill: 'red',
+                        fontSize: 12,
+                        fontFamily: 'HeiTi',
+                        fontStyle: 'normal',
+                        fontWeight: 'normal',
+                        
+                    }
+                })
 
+                hr.add(arc);
                 arc.animate("shape")
-                    .when(1000, { endAngle: (Math.PI * (i*35+100)) / 180 })
+                    .during(()=> { //每一帧，回调获取，当前弧度变化，重置渐变色
+                    //    console.log(arc.shape.endAngle);
+                       let grd = gradient(arc.shape.endAngle, r, cx, cy, i);
+                       arc.attr({
+                            style:{
+                                stroke: grd
+                            }
+                        });
+                    })
+                    .when(1000, { endAngle: (Math.PI * (i * 35 + 200)) / 180 })
                     .start();
             }
+
+            
+
+
+            // //测试原生canvas
+            // let myCanvas = document.querySelector("#can");
+            // let ctx = myCanvas.getContext("2d");
+
+            // for (let i = 0; i < 3; i++) {
+            //     // drArc(i);
+            //     // function drArc(i){
+            //     ctx.beginPath();
+            //     let cx = 150 + i * 230;
+            //     let cy = 300;
+            //     let r = 100;
+            //     let start_rad = 0;
+            //     let end_rad = (Math.PI * 120) / 180;
+            //     let start_pos = {
+            //         x: 0,
+            //         y: 0
+            //     };
+            //     let end_pos = {
+            //         x: 0,
+            //         y: 0
+            //     };
+            //     start_pos.x = Math.cos(start_rad) * r + cx;
+            //     start_pos.y = Math.sin(start_rad) * r + cy;
+            //     end_pos.x = Math.cos(end_rad) * r + cx;
+            //     end_pos.y = Math.sin(end_rad) * r + cy;
+            //     let grd = ctx.createLinearGradient(start_pos.x, start_pos.y, end_pos.x, end_pos.y);
+            //     grd.addColorStop(0, "red");
+            //     grd.addColorStop(1, "#FD8424");
+            //     ctx.strokeStyle = grd;
+            //     ctx.lineWidth = 10;
+
+            //     ctx.arc(cx, cy, r, start_rad, end_rad);
+            //     ctx.stroke();
+            //     // }
+            // }
         </script>
     </body>
 </html>

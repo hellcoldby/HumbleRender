@@ -1,10 +1,16 @@
 /*
- *
+ * 继承 Element.js ，主要为元素自身的属性
+ * 继承 renderText.js, 绘制字体的逻辑
+ * 引入 ./PathProxy 重写 Canvas 常用API
  */
 import Element from "../Element/Element";
 import pathProxy from "./PathProxy";
+import TextRender from "./TextRender";
+import { mixin } from "../../tools/data_util";
+
 class Path extends Element {
     constructor(opts) {
+        // console.log(opts);
         super(opts);
         this.type = "path";
         this.path = null;
@@ -25,7 +31,7 @@ class Path extends Element {
 
         let fill = this.style.fill;
         let stroke = this.style.stroke;
-
+        // console.log(fill, stroke);
         let hasFillGradient = hasFill && !!fill.colorStops;
         let hasStrokeGradient = hasStroke && !!stroke.colorStops;
 
@@ -44,28 +50,24 @@ class Path extends Element {
         if (this.__dirty) {
             let rect;
             if (hasFillGradient) {
-                rect = rect || this.getBoundingRect();
-                this._fillGradient = this.style.getBoundingRect(ctx, fill, rect);
+                // rect = rect || this.getBoundingRect();
+
+                this._fillGradient = this.style.getGradient(ctx, fill, rect);
             }
 
             if (hasStrokeGradient) {
-                rect = rect || this.getBoundingRect();
-                this.__strokeGradient = this.style.getBoundingRect(ctx, stroke, rect);
+                // rect = rect || this.getBoundingRect();
+                //  如果描边为渐变色{stroke:  new linearGradient()}
+                this._strokeGradient = this.style.getGradient(ctx, stroke, rect);
             }
         }
 
         if (hasFillGradient) {
-            ctx.fillStyle = this.__fillGradient;
-        }
-
-        if (hasStrokeGradient) {
-            ctx.strokeStyle = this.__strokeGradient;
+            ctx.fillStyle = this._fillGradient;
         }
 
         if (hasStrokeGradient) {
             ctx.strokeStyle = this._strokeGradient;
-        } else if (hasStrokePattern) {
-            // ctx.strokeStyle = Pattern.prototype.getCanvasPattern.call(stroke, ctx);
         }
 
         if (this.__dirtyPath) {
@@ -95,10 +97,20 @@ class Path extends Element {
         if (lineDash && ctxLineDash) {
             ctx.setLineDash([]);
         }
+
+        //绘制canvas 文字
+        if (this.style.text) {
+            this.drawRectText(ctx, this.style);
+        }
     }
 
-    //
-    dirty() {
+    //元素标记为更新，并让绘图环境 this.__hr.refresh()重绘
+    dirty(dirtyPath = true) {
+        if (dirtyPath) {
+            this.__dirtyPath = dirtyPath;
+            this._rect = null;
+        }
+
         this.__dirty = this.__dirtyText = true;
         this.__hr && this.__hr.refresh();
         if (this.__clipTarget) {
@@ -110,5 +122,27 @@ class Path extends Element {
         let m = this.transform;
         return m && Math.abs(m[0] - 1) > 1e-10 && Math.abs(m[3] - 1) > 1e-10 ? Math.sqrt(Math.abs(m[0] * m[3] - m[2] * m[1])) : 1;
     }
+
+    //获取包围盒
+    getBoundingRect() {
+        let rect = this._rect;
+        let needUpdateRect = !rect;
+        //不明白？？？？？
+        // if(needUpdateRect){
+        //     if(!this.path){
+        //         this.path = new PathProxy();
+        //     }
+        //     if(this.__dirtyPath) {
+        //         this.path.beginPath();
+        //         this.buildPath(this.path, this.shape, false)
+        //     }
+        //     this.rect = this.path.getBoundingRect();
+        // }
+
+        if (this.style.hasStroke()) {
+        }
+    }
 }
+
+mixin(Path.prototype, TextRender.prototype); //继承
 export default Path;

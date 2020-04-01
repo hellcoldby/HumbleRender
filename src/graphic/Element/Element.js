@@ -1,8 +1,8 @@
 /*
  * HRenderer 中所有图形对象都是 Element 的子类。这是一个抽象类，请不要直接创建这个类的实例。
- * 引入 transformable 为 Element 类提供变换功能，例如：平移、缩放、扭曲、旋转、翻转、形状、样式。
- * 引入 Animatable 为Element 为元素提供动画功能。
- * 引入 EventFul 为 Element 提供订阅发布功能。
+ * 引入 ../mixin/transformable 为 Element 类提供变换功能，例如：平移、缩放、扭曲、旋转、翻转、形状、样式。
+ * 引入 ../mixin/Animatable 为Element 为元素提供动画功能。
+ * 引入 ../../tools/EventEmitter 为 Element 提供订阅发布功能。
  *
  * 注意： Element 同时继承多个类，并且只继承用户传递来的属性
  */
@@ -15,6 +15,7 @@ import Style from "./Style";
 
 class Element {
     constructor(opts = {}) {
+        // console.log(opts);
         this.opts = opts;
         this.id = "el-" + guid();
         this.type = "element";
@@ -54,7 +55,7 @@ class Element {
 
         this.__clipPaths = null; //因为仅使用null来检查clipPaths是否已更改很容易
 
-        this.style = new Style(this.opts.style, this);
+        this.style = new Style(this.opts.style);
 
         this.shape = {}; // shape 形状 宽高 坐标等信息
 

@@ -15,7 +15,6 @@ let STYLE_COMMON_PROPS = [
  */
 export default function Style(opts) {
     let res = mixin(this, opts, false);
-    // console.log(res);
 }
 
 Style.prototype = {
@@ -31,7 +30,7 @@ Style.prototype = {
     lineDash: null,
     lineDashOffset: 0,
 
-    shadowblur: 0,
+    shadowBlur: 0,
     shadowOffsetX: 0,
     shadowOffsetY: 0,
 
@@ -114,19 +113,30 @@ Style.prototype = {
 
     hasFill: function() {
         let fill = this.fill;
-        return fill != null && fill !== "none";
+        return fill && fill !== "none";
     },
 
     hasStroke: function() {
         let stroke = this.stroke;
-        return stroke != null && stroke !== "none" && this.lineWidth > 0;
+        return stroke && stroke !== "none" && this.lineWidth > 0;
     },
 
-    getBoundingRect: function() {},
+    //获取渐变色
+    getGradient: function(ctx, obj, rect) {
+        let createGradient = obj.type === "radial" ? createRadialGradient : crateLinearGradient;
+        let gradient = createGradient(ctx, obj, rect);
+        let colorStops = obj.colorStops;
+        for (let i = 0; i < colorStops.length; i++) {
+            gradient.addColorStop(colorStops[i].offset, colorStops[i].color);
+        }
+        return gradient;
+    },
 
     set: function() {},
 
-    clone: function() {}
+    clone: function() {
+        let newStyle = new Style();
+    }
 };
 
 let styleProto = Style.prototype;
@@ -157,3 +167,13 @@ for (let i = 0; i < STYLE_COMMON_PROPS.length; i++) {
 //     }
 //     return target;
 // };
+
+//创建线性渐变色
+function createRadialGradient(ctx, obj, rect) {}
+
+//创建放射渐变色
+function crateLinearGradient(ctx, obj, rect) {
+    const { x = 0, y = 0, x2 = 1, y2 = 0 } = obj;
+    let canvasGradient = ctx.createLinearGradient(x, y, x2, y2);
+    return canvasGradient;
+}

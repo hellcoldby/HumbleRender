@@ -21,7 +21,9 @@ let defaultConfig = {
 
 export default class Arc extends Path {
     constructor(opts) {
-        super(merge(defaultConfig, opts, true));
+        let mergeOpts = merge(defaultConfig, opts, true);
+        // console.log(mergeOpts);
+        super(mergeOpts);
         this.type = "arc";
     }
     /**
