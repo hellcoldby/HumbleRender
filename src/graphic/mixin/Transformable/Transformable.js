@@ -43,7 +43,7 @@ Transformable.prototype = {
         // console.log(m);
 
         if (needLocalTransform) {
-           m = this.getLocalTransform(m);
+            m = this.getLocalTransform(m);
         } else {
             matrix.identity(m);
         }
@@ -96,6 +96,17 @@ Transformable.prototype = {
         m[4] += position[0];
         m[5] += position[1];
         return m;
+    },
+
+    // 将 this.transform 应用到 canvas context 上
+    applyTransform: function(ctx) {
+        let m = this.transform;
+        let dpr = ctx.dpr || 1;
+        if (m) {
+            ctx.setTransform(dpr * m[0], dpr * m[1], dpr * m[2], dpr * m[3], dpr * m[4], dpr * m[5]);
+        } else {
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
     }
 };
 
