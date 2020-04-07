@@ -135,7 +135,19 @@ Style.prototype = {
     set: function() {},
 
     clone: function() {
-        let newStyle = new Style();
+        var newStyle = new this.constructor();
+        // newStyle.extendStyle(this, true);
+        return newStyle;
+    },
+
+    extendStyle: function extendStyle(otherStyle, overwrite) {
+        if (otherStyle) {
+            for (var name in otherStyle) {
+                if (otherStyle.hasOwnProperty(name) && (overwrite === true || (overwrite === false ? !this.hasOwnProperty(name) : otherStyle[name] != null))) {
+                    this[name] = otherStyle[name];
+                }
+            }
+        }
     }
 };
 

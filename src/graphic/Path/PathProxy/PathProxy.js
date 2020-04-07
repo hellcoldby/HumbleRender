@@ -1,12 +1,5 @@
-var CMD = {
-    M: 1,
-    L: 2,
-    C: 3,
-    Q: 4,
-    A: 5,
-    Z: 6,
-    R: 7
-};
+import * as bBox from "./boundingBox";
+// import BoundingRect from "../../mixin/Transformable/BoundingRect";
 
 export default function PathProxy(notSaveData) {
     this._saveData = !(notSaveData || false);
@@ -55,7 +48,6 @@ PathProxy.prototype = {
     },
 
     moveTo: function(x, y) {
-        this.addData(CMD, x, y);
         this._ctx && this._ctx.moveTo(x, y);
         // x0, y0, xi, yi 是记录在 _dashedXXXXTo 方法中使用
         // xi, yi 记录当前点, x0, y0 在 closePath 的时候回到起始点。
@@ -86,13 +78,20 @@ PathProxy.prototype = {
 
     arc: function(cx, cy, r, startAngle, endAngle, anticlockwise) {
         this._ctx && this._ctx.arc(cx, cy, r, startAngle, endAngle, anticlockwise);
-        this._xi = Math.cos(endAngle) * r + cx; //??? 这个坐标的计算有=疑问
-        this._yi = Math.sin(endAngle) * r + cy; //??
+
+        // let startPos = {
+        //     x:  Math.cos(startAngle) * r + cx,
+        //     y: Math.sin(startAngle) * r + cy
+        // }
+        // let endPos = {
+        //     x: Math.cos(endAngle) * r + cx,
+        //     y: Math.cos(endAngle) * r + cx
+        // }
+
         return this;
     },
 
     bezierCurveTo: function(x1, y1, x2, y2, x3, y3) {
-        // this.addData(CMD.C, x1, y1, x2, y2, x3, y3);
         if (this._ctx) {
             this._needsDash() ? this._dashedBezierTo(x1, y1, x2, y2, x3, y3) : this._ctx.bezierCurveTo(x1, y1, x2, y2, x3, y3);
         }
@@ -102,7 +101,6 @@ PathProxy.prototype = {
     },
 
     quadraticCurveTo: function(x1, y1, x2, y2) {
-        // this.addData(CMD.Q, x1, y1, x2, y2);
         if (this._ctx) {
             this._needsDash() ? this._dashedQuadraticTo(x1, y1, x2, y2) : this._ctx.quadraticCurveTo(x1, y1, x2, y2);
         }
@@ -139,8 +137,6 @@ PathProxy.prototype = {
     },
 
     closePath: function() {
-        // this.addData(CMD.Z);
-
         var ctx = this._ctx;
         var x0 = this._x0;
         var y0 = this._y0;
@@ -156,7 +152,7 @@ PathProxy.prototype = {
 
     rect: function(x, y, w, h) {
         this._ctx && this._ctx.rect(x, y, w, h);
-        // this.addData(CMD.R, x, y, w, h);
+
         return this;
     },
 
@@ -164,6 +160,7 @@ PathProxy.prototype = {
         return this._lineDash;
     },
 
+    //填充path 数据， 尽量复用而不申明新的数组。 大部分图形绘制的数据长度是不变的
     addData: function(cmd) {
         if (!this._saveData) {
             return;
@@ -192,5 +189,16 @@ PathProxy.prototype = {
             }
             this.data = newData;
         }
+    },
+
+    getBoundingRect: function() {
+        console.log(this);
     }
 };
+
+//tools
+export function getMin(out, v1, v2) {
+    out[0] = Math.min(v1[0], v2[0]);
+    out[1] = Math.max(v1[1], v2[1]);
+    return out;
+}

@@ -1,6 +1,6 @@
 const rollup = require("rollup");
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 exports.watch = function(config) {
     let watch = rollup.watch(config);
@@ -25,11 +25,11 @@ exports.watch = function(config) {
         if (event.code === "ERROR" || event.code === "FATAL") {
             console.log(`错误` + event.error);
             console.log(event.error.loc);
-            fs.writeFile( path.resolve(__dirname, './error.json'), `${JSON.stringify(event.error)}`, function(err) {
-                if(err) {
-                    throw  err
+            fs.writeFile(path.resolve(__dirname, "./error.json"), `${JSON.stringify(event.error)}`, function(err) {
+                if (err) {
+                    throw err;
                 }
-                console.log('错误文件写入: ' +  path.resolve(__dirname, './error.json'));
+                // console.log('错误文件写入: ' +  path.resolve(__dirname, './error.json'));
             });
         }
 
@@ -42,35 +42,35 @@ exports.watch = function(config) {
 };
 
 exports.build = function(config) {
-    return new Promise((res, rej) =>{
+    return new Promise((res, rej) => {
         let index = 0;
-        
+
         function buildSingle() {
             let singleConfig = config[index++];
 
-            if(!singleConfig) {
+            if (!singleConfig) {
                 res();
-                return
+                return;
             }
 
-            console.log('开始打包');
-            console.log('入口文件：' + singleConfig.input);
+            console.log("开始打包");
+            console.log("入口文件：" + singleConfig.input);
             // console.log('====>');
             // console.log('输出文件路径：' + singleConfig.output.file);
 
             rollup
                 .rollup(singleConfig)
                 .then(bundle => bundle.write(singleConfig))
-                .then(()=> {
-                    console.log('输出文件：' + singleConfig.output.file + ' 成功');
-                    buildSingle()
+                .then(() => {
+                    console.log("输出文件：" + singleConfig.output.file + " 成功");
+                    buildSingle();
                 })
                 .catch(err => {
-                    console.log('错误' + err);
+                    console.log("错误" + err);
                     rej();
-                })
+                });
         }
 
         buildSingle();
-    })
+    });
 };

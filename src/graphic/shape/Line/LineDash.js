@@ -1,4 +1,4 @@
-import { subPixelOptimizeLine } from "../../utils/sub_pixel_optimize";
+import { subPixelOptimizeLine } from "../../tools/sub_pixel_optimize";
 import Path from "../../Path/Path";
 import { merge } from "../../../tools/data_util";
 

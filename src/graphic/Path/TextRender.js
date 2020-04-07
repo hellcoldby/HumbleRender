@@ -4,7 +4,8 @@ import { getContext } from "../../tools/canvas_util";
 const WILL_BE_RESTORED = 9; //字体编号，防止重复渲染
 export default class TextRender {
     constructor() {}
-    drawRectText(ctx, style) {
+    drawRectText(ctx, style, box) {
+        const { max, min, cen } = box;
         let { fontSize = 12, fontFamily = "sans-serif", fontStyle, fontWeight, text, textLineHeight } = style;
 
         //合并字体样式
@@ -15,7 +16,7 @@ export default class TextRender {
         }
         style.font = style.font || font;
 
-        //处理字体的行高
+        //文字行高
         textLineHeight = textLineHeight || fontSize;
 
         //处理水平位置
@@ -32,42 +33,42 @@ export default class TextRender {
             textFill = "#000";
         }
         style.textFill = textFill;
-
         let textStroke = style.textStroke ? style.textStroke : null;
         if (textStroke && (textStroke.image || textStroke.colorStops)) {
             textStroke = "#000";
         }
         style.textStroke = textStroke;
 
-        //处理内边距,转换为绝对位置
-        let boxPos = getBoxPosition(this, style, null);
-        console.log(style);
-        let textX = boxPos.baseX;
-        let textY = boxPos.baseY;
-        if (style.textPadding) {
-            style.textPadding = normalizeCssArray(style.textPadding);
-            let padding = style.textPadding;
-            // let textWidth = 0;
-            if (text) {
-                // let textLines = `${text}`.split("\n");
-                // textLines.forEach(item => {
-                //     let Tmp_ctx = getContext();
-                //     Tmp_ctx.font = style.font;
-                //     let curWidth = Tmp_ctx.measureText(text).width;
-                //     textWidth = Math.max(textWidth, curWidth);
-                // });
-                //再获取盒子的绝对位置
-                textX = getTextForPadding(baseX, style.textAlign, style.textPadding);
-                textY += textPadding[0] + textLineHeight / 2;
-            }
+        //默认文字位置
+        let textX = cen.x;
+        let textY = cen.y;
+        let { textWidth, textLines } = getWidth(text, style.font); //获取单行文字宽度 和 行数
+
+        //根据对齐方式调整文字位置
+        switch (style.textAlign) {
+            case "center":
+                textX = cen.x;
+                textY = cen.y;
+                break;
+            case "left":
+                textX = min.x;
+                textY = min.y;
+                break;
+            case "right":
+                textX = max.x;
+                textY = min.y;
+            default:
+                break;
         }
 
-        // let transform = thi.transform;
-        // if (!style.transformText) {
-        //     if (transform) {
-        //     }
-        // } else {
-        // }
+        //处理内边距,转换为绝对位置
+        if (style.textPadding) {
+            style.textPadding = normalizeCssArray(style.textPadding);
+            // //再获取盒子的绝对位置
+            const { curX, curY } = getTextForPadding(textX, textY, style.textAlign, style.textPadding);
+            textX = curX;
+            textY = curY;
+        }
 
         //开始绘制字体
         ctx.save();
@@ -75,38 +76,53 @@ export default class TextRender {
         ctx.textAlign = style.textAlign;
         ctx.textBaseline = "middle";
         ctx.globalAlpha = style.opacity || 1;
-        if (style.textFill) {
-            ctx.fillStyle = style.textFill;
-            ctx.fillText(text, textX, textY);
-        }
-        if (style.textStroke) {
-            ctx.strokeStyle = style.textStroke;
-            ctx.strokeText(text, textX, textY);
+
+        //如果是多行
+        if (textLines.length > 1) {
+            console.log(textX, textY, textLineHeight);
+
+            textLines.forEach((item, index, ary) => {
+                switch (style.textAlign) {
+                    case "center":
+                        textY = index > 0 ? textY + textLineHeight : textY - ((ary.length - 1) * textLineHeight) / 2;
+                        break;
+                    case "left":
+                        textY = index > 0 ? textY + textLineHeight : textY;
+                        break;
+                    case "right":
+                        // textY = index > 0 ? textY + textLineHeight : textY - (ary.length - 1) * textLineHeight;
+                        textY = index > 0 ? textY + textLineHeight : textY;
+                    default:
+                        break;
+                }
+
+                if (style.textFill) {
+                    ctx.fillStyle = style.textFill;
+                    ctx.fillText(item, textX, textY);
+                }
+                if (style.textStroke) {
+                    ctx.strokeStyle = style.textStroke;
+                    ctx.strokeText(item, textX, textY);
+                }
+            });
+        } else {
+            if (style.textFill) {
+                ctx.fillStyle = style.textFill;
+                ctx.fillText(text, textX, textY);
+            }
+            if (style.textStroke) {
+                ctx.strokeStyle = style.textStroke;
+                ctx.strokeText(text, textX, textY);
+            }
         }
     }
 }
 
-//tools 获取图形的绝对位置
-function getBoxPosition(ele, style, rect) {
-    let baseX = style.x || 0;
-    let baseY = style.y || 0;
-    let textAlign = style.textAlign;
-    let textVerticalAlign = style.textVerticalAlign;
-
-    if (rect) {
-    }
-
-    return {
-        baseX,
-        baseY,
-        textAlign,
-        textVerticalAlign
-    };
-}
-
-//tools 获取字体设置padding(内边距)后的位置
-function getTextForPadding(x, textAlign, textPadding) {
+//tools 获取字体设置padding(内边距)后的位置[上，右， 下， 左]
+function getTextForPadding(x, y, textAlign, textPadding) {
     let curX = 0;
+    let curY = 0;
+
     switch (textAlign) {
         case "right":
             curX = x - textPadding[1];
@@ -118,7 +134,11 @@ function getTextForPadding(x, textAlign, textPadding) {
             curX = x + textPadding[3];
             break;
     }
-    return curX;
+    curY = Math.max(y + textPadding[0], y - textPadding[2]);
+    return {
+        curX,
+        curY
+    };
 }
 
 /** tools 处理内边距的参数
@@ -143,4 +163,31 @@ function normalizeCssArray(val) {
         return [val[0], val[1], val[2], val[1]];
     }
     return val;
+}
+
+// 获取字体占用宽度
+function getWidth(text, font) {
+    // console.log(text);
+    let textWidth = 0;
+    let textLines = `${text}`.split("\n");
+    textLines.forEach(item => {
+        let Tmp_ctx = getContext();
+        Tmp_ctx.font = font;
+        let curWidth = Tmp_ctx.measureText(text).width;
+        textWidth = Math.max(textWidth, curWidth);
+    });
+    return {
+        textWidth,
+        textLines
+    };
+}
+
+export function parsePercent(value, maxValue) {
+    if (typeof value === "string") {
+        if (value.lastIndexOf("%") >= 0) {
+            return (parseFloat(value) / 100) * maxValue;
+        }
+        return parseFloat(value);
+    }
+    return value;
 }

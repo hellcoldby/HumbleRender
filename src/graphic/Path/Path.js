@@ -4,7 +4,7 @@
  * 引入 ./PathProxy 重写 Canvas 常用API
  */
 import Element from "../Element/Element";
-import pathProxy from "./PathProxy";
+import PathProxy from "./PathProxy/PathProxy";
 import TextRender from "./TextRender";
 import { mixin } from "../../tools/data_util";
 
@@ -24,7 +24,7 @@ class Path extends Element {
     //调用canvas API 绘制i
     brush(ctx, prevEl) {
         // console.log(this.shape);
-        let path = this.path || new pathProxy(true); //拦截api,增加功能
+        let path = this.path || new PathProxy(true); //拦截api,增加功能
 
         let hasStroke = this.style.hasStroke(); //绘制需求
         let hasFill = this.style.hasFill(); //填充需求
@@ -100,7 +100,7 @@ class Path extends Element {
 
         //绘制canvas 文字
         if (this.style.text) {
-            this.drawRectText(ctx, this.style);
+            this.drawRectText(ctx, this.style, this.getBoundingRect());
         }
     }
 
@@ -125,22 +125,30 @@ class Path extends Element {
 
     //获取包围盒
     getBoundingRect() {
-        let rect = this._rect;
-        let needUpdateRect = !rect;
-        //不明白？？？？？
-        // if(needUpdateRect){
-        //     if(!this.path){
-        //         this.path = new PathProxy();
-        //     }
-        //     if(this.__dirtyPath) {
-        //         this.path.beginPath();
-        //         this.buildPath(this.path, this.shape, false)
-        //     }
-        //     this.rect = this.path.getBoundingRect();
-        // }
+        const { type, shape } = this;
+        let min = {}; //盒子最小坐标
+        let max = {}; //盒子最大坐标
+        let cen = {}; //盒子中心点坐标
+        switch (type) {
+            //弧度按照 整个圆形来取包围盒
+            case "arc":
+                const { cx, cy, r } = shape;
+                min.x = cx - r;
+                min.y = cy - r;
+                max.x = cx + r;
+                max.y = cy + r;
+                cen.x = cx;
+                cen.y = cy;
+                break;
 
-        if (this.style.hasStroke()) {
+            default:
+                break;
         }
+        return {
+            min,
+            max,
+            cen
+        };
     }
 }
 

@@ -4,7 +4,7 @@
 
 import Path from "../../Path/Path";
 import { merge } from "../../../tools/data_util";
-import { quadraticSubdivide, cubicSubdivide } from "../../../tools/curve_util";
+import { quadraticSubdivide, cubicSubdivide } from "../../tools/curve_util";
 
 let defaultConfig = {
     shape: {
