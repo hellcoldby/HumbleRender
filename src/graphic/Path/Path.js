@@ -126,29 +126,90 @@ class Path extends Element {
     //获取包围盒
     getBoundingRect() {
         const { type, shape } = this;
-        let min = {}; //盒子最小坐标
-        let max = {}; //盒子最大坐标
-        let cen = {}; //盒子中心点坐标
+
+        let boxInfo = null;
+        // console.log(this);
         switch (type) {
             //弧度按照 整个圆形来取包围盒
             case "arc":
-                const { cx, cy, r } = shape;
-                min.x = cx - r;
-                min.y = cy - r;
-                max.x = cx + r;
-                max.y = cy + r;
-                cen.x = cx;
-                cen.y = cy;
+                boxInfo = _getCircleBox(shape);
+                break;
+            //圆形
+            case "circle":
+                boxInfo = _getCircleBox(shape);
+                break;
+            //矩形
+            case "rect":
+                boxInfo = _getRectBox(shape);
+                break;
+            //扇形
+            case "sector":
+                boxInfo = _getCircleBox(shape);
+                break;
+
+            //线段
+            case "line":
+                boxInfo = _getLineBox(shape);
                 break;
 
             default:
                 break;
         }
-        return {
-            min,
-            max,
-            cen
-        };
+        return boxInfo;
+
+        function _getCircleBox(shape) {
+            let min = {}; //盒子最小坐标
+            let max = {}; //盒子最大坐标
+            let cen = {}; //盒子中心点坐标
+            const { cx, cy, r } = shape;
+            min.x = cx - r;
+            min.y = cy - r;
+            max.x = cx + r;
+            max.y = cy + r;
+            cen.x = cx;
+            cen.y = cy;
+            return {
+                min,
+                max,
+                cen
+            };
+        }
+
+        function _getRectBox(shape) {
+            let min = {}; //盒子最小坐标
+            let max = {}; //盒子最大坐标
+            let cen = {}; //盒子中心点坐标
+            const { x, y, width, height } = shape;
+            min.x = x;
+            min.y = y;
+            max.x = x + width;
+            max.y = y + height;
+            cen.x = min.x + width / 2;
+            cen.y = min.y + height / 2;
+            return {
+                min,
+                max,
+                cen
+            };
+        }
+        function _getLineBox(shape) {
+            let min = {}; //盒子最小坐标
+            let max = {}; //盒子最大坐标
+            let cen = {}; //盒子中心点坐标
+            const { x1, y1, x2, y2 } = shape;
+            min.x = x1;
+            min.y = y1;
+            max.x = x2;
+            max.y = y2;
+            cen.x = min.x + (max.x - min.x) / 2;
+            cen.y = min.y + (max.y - min.y) / 2;
+
+            return {
+                min,
+                max,
+                cen
+            };
+        }
     }
 }
 

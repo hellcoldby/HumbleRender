@@ -23,7 +23,7 @@ let defaultConfig = {
 export default class Line extends Path {
     constructor(opts) {
         super(merge(defaultConfig, opts, true));
-        this.type = "arc";
+        this.type = "line";
     }
 
     buildPath(ctx, shape) {

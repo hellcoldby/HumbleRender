@@ -4,7 +4,7 @@
 
 import Path from "../../Path/Path";
 import { merge } from "../../../tools/data_util";
-let defaultConfig={
+let defaultConfig = {
     shape: {
         cx: 0,
         cy: 0,
@@ -22,15 +22,15 @@ let defaultConfig={
 export default class Sector extends Path {
     constructor(opts) {
         super(merge(defaultConfig, opts, true));
-        this.type = 'arc';
+        this.type = "sector";
     }
     /**
      * @method buildPath
      * 绘制元素路径
-     * @param {Object} ctx 
-     * @param {String} shape 
+     * @param {Object} ctx
+     * @param {String} shape
      */
-    buildPath(ctx, shape){
+    buildPath(ctx, shape) {
         let x = shape.cx;
         let y = shape.cy;
         let r = Math.max(shape.r, 0);
@@ -38,8 +38,7 @@ export default class Sector extends Path {
         let endAngle = shape.endAngle;
         let clockwise = shape.clockwise;
 
-
-        ctx.moveTo(x,y);
+        ctx.moveTo(x, y);
         ctx.arc(x, y, r, startAngle, endAngle, !clockwise);
         ctx.closePath();
     }

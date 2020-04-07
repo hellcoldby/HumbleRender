@@ -1,43 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <script type="text/javascript" src="../dist/humble-render.js"></script>
-    <style>
-        html, body{
-            width: 100%;
-            height: 100%;
-        }
-        #box{
-            width: 700px;
-            height: 500px;
-            margin: 0 auto;
-            border: 1px dashed darkcyan;
-        }
-    </style>
-</head>
-<body>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Document</title>
+        <script type="text/javascript" src="../dist/humble-render.js"></script>
+        <style>
+            html,
+            body {
+                width: 100%;
+                height: 100%;
+            }
+            #box {
+                width: 700px;
+                height: 500px;
+                margin: 0 auto;
+                border: 1px dashed darkcyan;
+            }
+        </style>
+    </head>
+    <body>
         <div id="box"></div>
         <script type="text/javascript">
-            let main = document.querySelector('#box');
+            let main = document.querySelector("#box");
             let hr = HumbleRender.init(main);
             console.log(hr);
             //矩形
             let rect = new HumbleRender.Rect({
                 shape: {
-                    x: 50,
+                    x: 0,
                     y: 50,
                     width: 200,
-                    height: 100,
+                    height: 100
                 },
                 style: {
-                    fill: '#AE0217',
-                    lineWidth : 10,
-                    stroke: 'green'
+                    fill: "#AE0217",
+                    lineWidth: 10,
+                    stroke: "green"
                 }
-            }); 
+            });
+            rect.attr({
+                style: {
+                    text: "rect",
+                    textAlign: "center",
+                    textFill: "#2084C8"
+                }
+            });
             //圆角矩形
             let rect1 = new HumbleRender.Rect({
                 position: [0, 100],
@@ -46,29 +54,44 @@
                     y: 100,
                     width: 100,
                     height: 100,
-                    r:10
+                    r: 10
                 },
                 style: {
-                    fill: '#067',
-                    lineWidth : 5
-                    
+                    fill: "#067",
+                    lineWidth: 5
                 }
-            }); 
+            });
 
-            //原型
-            let circle= new HumbleRender.Circle({
+            rect1.attr({
+                style: {
+                    text: "rectRadius",
+                    textAlign: "center",
+                    textFill: "#fff"
+                }
+            });
+
+            //圆形
+            let circle = new HumbleRender.Circle({
                 position: [0, 50],
-                scale:[1.1,1.1],
+                scale: [1.1, 1.1],
                 shape: {
                     cx: 350,
                     cy: 150,
-                    r: 50,
+                    r: 50
                 },
                 style: {
-                    fill: '#c03',
-
+                    fill: "#c03"
                 }
-            })
+            });
+
+            circle.attr({
+                style: {
+                    text: "circle",
+                    textAlign: "center",
+                    textFill: "#fff"
+                }
+            });
+
             //圆弧
             let arc = new HumbleRender.Arc({
                 shape: {
@@ -76,13 +99,21 @@
                     cy: 100,
                     r: 50,
                     startAngle: 0,
-                    endAngle: Math.PI * 60/180,
-                    clockwise: false,
+                    endAngle: (Math.PI * 60) / 180,
+                    clockwise: false
                 },
                 style: {
-                    fill: '#E27474',
+                    fill: "#E27474"
                 }
             });
+            arc.attr({
+                style: {
+                    text: "arc",
+                    textAlign: "center",
+                    textFill: "#fff"
+                }
+            });
+
             //扇形
             let sector = new HumbleRender.Sector({
                 shape: {
@@ -90,17 +121,24 @@
                     cy: 100,
                     r: 50,
                     startAngle: 0,
-                    endAngle: Math.PI * 60/180,
-                    clockwise: true,
+                    endAngle: (Math.PI * 60) / 180,
+                    clockwise: true
                 },
                 style: {
-                    
-                    fill: '#E27474',
+                    fill: "#E27474"
+                }
+            });
+
+            sector.attr({
+                style: {
+                    text: "sector",
+                    textAlign: "center",
+                    textFill: "blue"
                 }
             });
             //直线
-            let  line = new HumbleRender.Line({
-                shape : {
+            let line = new HumbleRender.Line({
+                shape: {
                     x1: 200,
                     y1: 300,
                     x2: 500,
@@ -108,13 +146,39 @@
                     percent: 1
                 },
                 style: {
-                    stroke: '#c03',
+                    stroke: "#c03",
                     fill: null
                 }
             });
+
+            //文字
+            for(let i=0; i< 10; i++){
+                let text = new HumbleRender.Text({
+                    shape:{
+                        x: 200 + i * 30,
+                        y: 300
+                    },
+                    style: {
+                        text:i +'',
+                        textFill: 'red',
+                        fontSize: 20,
+                        textLineHeight:30,
+                        fontFamily: 'HeiTi',
+                        fontStyle: 'normal',
+                        fontWeight: 'normal',
+                        textAlign: 'left',
+                        textPadding: [0, 0, 0, 0]
+                    }
+                });          
+                hr.add(text);
+            }
+ 
+          
+            
+
             //虚线
             let lineDash = new HumbleRender.LineDash({
-                shape : {
+                shape: {
                     x1: 200,
                     y1: 350,
                     x2: 500,
@@ -122,11 +186,11 @@
                     percent: 1
                 },
                 style: {
-                    stroke: '#c03',
+                    stroke: "#c03",
                     fill: null,
-                    lineDash: [5, 10, 15],
+                    lineDash: [5, 10, 15]
                 }
-            })
+            });
             //曲线
             let curver = new HumbleRender.BezierCurve({
                 shape: {
@@ -138,12 +202,12 @@
                     cpy1: 500,
                     cpx2: 300,
                     cpy2: 350,
-                    percent:1
+                    percent: 1
                 },
                 style: {
                     stroke: "#2084C8"
                 }
-            })
+            });
 
             hr.add(circle);
             hr.add(rect);
@@ -156,15 +220,15 @@
 
             rect.attr({
                 style: {
-                    fill: 'yellow'
+                    fill: "yellow"
                 }
             });
 
             sector.attr({
                 style: {
-                    fill: '#FD8424'
+                    fill: "#FD8424"
                 }
-            })
+            });
         </script>
-</body>
+    </body>
 </html>

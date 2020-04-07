@@ -6,18 +6,22 @@ export default class TextRender {
     constructor() {}
     drawRectText(ctx, style, box) {
         const { max, min, cen } = box;
+        const dpr = ctx.dpr;
+        // console.log(box);
         let { fontSize = 12, fontFamily = "sans-serif", fontStyle, fontWeight, text, textLineHeight } = style;
 
         //合并字体样式
         let font = "";
         if (fontSize || fontFamily) {
-            fontSize = parseFloat(fontSize);
+            fontSize = parseFloat(fontSize) * dpr;
             font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
         }
         style.font = style.font || font;
 
         //文字行高
-        textLineHeight = textLineHeight || fontSize;
+        textLineHeight = textLineHeight * dpr || fontSize;
+        if (textLineHeight > fontSize) {
+        }
 
         //处理水平位置
         let textAlign = style.textAlign === "middle" ? "center" : style.textAlign;
@@ -53,6 +57,7 @@ export default class TextRender {
             case "left":
                 textX = min.x;
                 textY = min.y;
+                // console.log(textX, textY);
                 break;
             case "right":
                 textX = max.x;
@@ -69,6 +74,7 @@ export default class TextRender {
             textX = curX;
             textY = curY;
         }
+        // console.log(textX, textY);
 
         //开始绘制字体
         ctx.save();
@@ -106,6 +112,7 @@ export default class TextRender {
                 }
             });
         } else {
+            // console.log(textX, textY);
             if (style.textFill) {
                 ctx.fillStyle = style.textFill;
                 ctx.fillText(text, textX, textY);

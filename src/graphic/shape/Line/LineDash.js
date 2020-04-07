@@ -25,7 +25,7 @@ let defaultConfig = {
 export default class LineDash extends Path {
     constructor(opts) {
         super(merge(defaultConfig, opts, true));
-        this.type = "arc";
+        this.type = "lineDash";
     }
 
     buildPath(ctx, shape) {

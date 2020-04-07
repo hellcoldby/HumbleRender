@@ -21,7 +21,7 @@ export default class Rect extends Path {
                 height: 0
             }
         };
-        let config =  merge(defaultConfig, opts, true)
+        let config = merge(defaultConfig, opts, true);
         super(config);
         this.type = "rect";
     }
@@ -33,6 +33,7 @@ export default class Rect extends Path {
      * @param {String} shape
      */
     buildPath(ctx, shape) {
+        // console.log(shape);
         let x;
         let y;
         let width;
@@ -48,7 +49,6 @@ export default class Rect extends Path {
         if (!shape.r) {
             ctx.rect(x, y, width, height);
         } else {
-            
             round_rect(ctx, shape);
         }
         ctx.closePath();

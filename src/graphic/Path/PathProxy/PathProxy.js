@@ -151,6 +151,7 @@ PathProxy.prototype = {
     },
 
     rect: function(x, y, w, h) {
+        // console.log(this);
         this._ctx && this._ctx.rect(x, y, w, h);
 
         return this;
