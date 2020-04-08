@@ -86,7 +86,14 @@ class Path extends Element {
         }
 
         if (hasFill) {
-            path.fill(ctx);
+            if (this.style.fillOpacity != null) {
+                let originalGlobalAlpha = ctx.globalAlpha;
+                ctx.globalAlpha = this.style.fillOpacity * this.style.opacity;
+                path.fill(ctx);
+                ctx.globalAlpha = originalGlobalAlpha;
+            } else {
+                path.fill(ctx);
+            }
         }
 
         if (hasStroke) {
@@ -171,7 +178,7 @@ class Path extends Element {
             return {
                 min,
                 max,
-                cen
+                cen,
             };
         }
 
@@ -189,7 +196,7 @@ class Path extends Element {
             return {
                 min,
                 max,
-                cen
+                cen,
             };
         }
         function _getLineBox(shape) {
@@ -207,7 +214,7 @@ class Path extends Element {
             return {
                 min,
                 max,
-                cen
+                cen,
             };
         }
     }

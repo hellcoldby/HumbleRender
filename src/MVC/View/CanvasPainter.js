@@ -37,6 +37,7 @@ class CanvasPainter {
             //为单一画布创建图层
             let mainLayer = new CanvasLayer(this.root, this._width, this._height, this.dpr, CANVAS_LEVEL_ID);
             mainLayer.__builtin__ = true; //标记构建完成
+            mainLayer.initContext();
 
             this.layers_map[CANVAS_LEVEL_ID] = mainLayer;
             this.layer_id_list.push(CANVAS_LEVEL_ID);
@@ -94,7 +95,7 @@ class CanvasPainter {
         let finished = this._doPaintList(ele_ary, paintAll);
         if (!finished) {
             let self = this;
-            RAF(function() {
+            RAF(function () {
                 self._paintList(ele_ary, paintAll, redrawId);
             });
         }
@@ -102,7 +103,7 @@ class CanvasPainter {
 
     //1.2_1 更新图层状态 动态创建图层
     _updateLayerStatus(ele_ary) {
-        this._eachBuiltinLayer(function(layer, z) {
+        this._eachBuiltinLayer(function (layer, z) {
             layer.__dirty = layer.__used = false;
         });
         let prevLayer = null;
@@ -142,7 +143,7 @@ class CanvasPainter {
             idx = i;
         }
         updatePrevLayer(idx);
-        this._eachBuiltinLayer(function(layer, z) {
+        this._eachBuiltinLayer(function (layer, z) {
             // Used in last frame but not in this frame. Needs clear
             if (!layer.__used && layer.getElementCount() > 0) {
                 layer.__dirty = true;

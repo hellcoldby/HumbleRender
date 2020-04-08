@@ -19,11 +19,13 @@
     </style>
 </head>
 <body>  
-    <div id="box"></div>
+    <div id="box">
+        <canvas id="canvas"></canvas>
+    </div>
     <script type="text/javascript">
             let main = document.querySelector('#box');
-            let hr = HumbleRneder.init(main);
-            let rect = new HumbleRneder.Rect({
+            let hr = HumbleRender.init(main);
+            let rect = new HumbleRender.Rect({
                 shape: {
                     x: 50,
                     y: 50,
@@ -39,17 +41,25 @@
             }); 
             hr.add(rect);
 
-            rect.animate('shape')
-                .when(1000, {
-                    x: 700,
-                })
-                .during(function(){
-                    // console.log('123');
-                })
-                .done(function(){
-                    // hr.dispose();
-                })
-                .start()
+            rect.animate('style')
+            .when(1000, {
+                opacity: 0.2
+            }).start();
+
+            
+
+
+            // rect.animate('shape')
+            //     .when(1000, {
+            //         x: 700,
+            //     })
+            //     .during(function(){
+            //         // console.log('123');
+            //     })
+            //     .done(function(){
+            //         // hr.dispose();
+            //     })
+            //     .start()
                    
                     
 
