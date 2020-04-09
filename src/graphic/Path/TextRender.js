@@ -85,7 +85,7 @@ export default class TextRender {
 
         //如果是多行
         if (textLines.length > 1) {
-            console.log(textX, textY, textLineHeight);
+            // console.log(textX, textY, textLineHeight);
 
             textLines.forEach((item, index, ary) => {
                 switch (style.textAlign) {
@@ -122,6 +122,8 @@ export default class TextRender {
                 ctx.strokeText(text, textX, textY);
             }
         }
+
+        ctx.restore();
     }
 }
 
@@ -144,7 +146,7 @@ function getTextForPadding(x, y, textAlign, textPadding) {
     curY = Math.max(y + textPadding[0], y - textPadding[2]);
     return {
         curX,
-        curY
+        curY,
     };
 }
 
@@ -177,7 +179,7 @@ function getWidth(text, font) {
     // console.log(text);
     let textWidth = 0;
     let textLines = `${text}`.split("\n");
-    textLines.forEach(item => {
+    textLines.forEach((item) => {
         let Tmp_ctx = getContext();
         Tmp_ctx.font = font;
         let curWidth = Tmp_ctx.measureText(text).width;
@@ -185,7 +187,7 @@ function getWidth(text, font) {
     });
     return {
         textWidth,
-        textLines
+        textLines,
     };
 }
 

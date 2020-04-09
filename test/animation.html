@@ -20,15 +20,15 @@
 </head>
 <body>  
     <div id="box">
-        <canvas id="canvas"></canvas>
+        
     </div>
     <script type="text/javascript">
             let main = document.querySelector('#box');
             let hr = HumbleRender.init(main);
             let rect = new HumbleRender.Rect({
                 shape: {
-                    x: 50,
-                    y: 50,
+                    x: 100,
+                    y: 200,
                     width: 200,
                     height: 100,
                     r: [10, 25, 10]
@@ -41,10 +41,15 @@
             }); 
             hr.add(rect);
 
-            rect.animate('style')
-            .when(1000, {
-                opacity: 0.2
-            }).start();
+            rect.attr({
+                origin:[200, 250],
+                rotation: Math.PI* 60/180,
+            })
+
+            // rect.animate('style')
+            // .when(1000, {
+            //     opacity: 0.2
+            // }).start();
 
             
 

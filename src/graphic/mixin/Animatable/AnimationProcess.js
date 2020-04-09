@@ -42,7 +42,7 @@ class AnimationProcess {
             if (!track) {
                 track = new Track({
                     _target: this._target,
-                    _delay: this._delay
+                    _delay: this._delay,
                 });
             }
 
@@ -52,7 +52,7 @@ class AnimationProcess {
                 if (!first_key) {
                     track.addKeyFrame({
                         time: 0,
-                        value: value
+                        value: value,
                     });
                 }
             }
@@ -60,7 +60,7 @@ class AnimationProcess {
             //添加关键帧：记录自定义时间 的值
             track.addKeyFrame({
                 time: time,
-                value: props[propName]
+                value: props[propName],
             });
 
             // console.log(track.keyFrames);
@@ -138,7 +138,7 @@ class AnimationProcess {
         if (isNumber(percent)) {
             // console.log(percent);
             this.trigger("during", this._target, percent);
-        }else{
+        } else {
             this.trigger("during", this._target, 1);
         }
 
@@ -184,6 +184,12 @@ class AnimationProcess {
             }
         });
         return isFinished;
+    }
+
+    //设置动画延迟
+    delay(time) {
+        this._delay = time;
+        return this;
     }
 }
 

@@ -3684,7 +3684,7 @@
                 if (!track) {
                     track = new Track({
                         _target: this._target,
-                        _delay: this._delay
+                        _delay: this._delay,
                     });
                 }
 
@@ -3694,7 +3694,7 @@
                     if (!first_key) {
                         track.addKeyFrame({
                             time: 0,
-                            value: value
+                            value: value,
                         });
                     }
                 }
@@ -3702,7 +3702,7 @@
                 //添加关键帧：记录自定义时间 的值
                 track.addKeyFrame({
                     time: time,
-                    value: props[propName]
+                    value: props[propName],
                 });
 
                 // console.log(track.keyFrames);
@@ -3773,7 +3773,7 @@
             if (isNumber(percent)) {
                 // console.log(percent);
                 this.trigger("during", this._target, percent);
-            }else{
+            } else {
                 this.trigger("during", this._target, 1);
             }
 
@@ -3819,6 +3819,12 @@
                 }
             });
             return isFinished;
+        }
+
+        //设置动画延迟
+        delay(time) {
+            this._delay = time;
+            return this;
         }
     }
 
@@ -4476,7 +4482,7 @@
 
             //如果是多行
             if (textLines.length > 1) {
-                console.log(textX, textY, textLineHeight);
+                // console.log(textX, textY, textLineHeight);
 
                 textLines.forEach((item, index, ary) => {
                     switch (style.textAlign) {
@@ -4511,6 +4517,8 @@
                     ctx.strokeText(text, textX, textY);
                 }
             }
+
+            ctx.restore();
         }
     }
 
@@ -4533,7 +4541,7 @@
         curY = Math.max(y + textPadding[0], y - textPadding[2]);
         return {
             curX,
-            curY
+            curY,
         };
     }
 
@@ -4566,7 +4574,7 @@
         // console.log(text);
         let textWidth = 0;
         let textLines = `${text}`.split("\n");
-        textLines.forEach(item => {
+        textLines.forEach((item) => {
             let Tmp_ctx = getContext();
             Tmp_ctx.font = font;
             let curWidth = Tmp_ctx.measureText(text).width;
@@ -4574,7 +4582,7 @@
         });
         return {
             textWidth,
-            textLines
+            textLines,
         };
     }
 
