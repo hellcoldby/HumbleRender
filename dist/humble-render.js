@@ -4404,23 +4404,32 @@
     };
 
     class TextRender {
-        constructor() {}
+        constructor(props) {
+            this.textWidth = 0;
+        }
         drawRectText(ctx, style, box) {
             const { max, min, cen } = box;
-            const dpr = ctx.dpr;
+            // const dpr = ctx.dpr;
             // console.log(box);
-            let { fontSize = 12, fontFamily = "sans-serif", fontStyle, fontWeight, text, textLineHeight } = style;
+            console.log(style);
+            let { fontSize, fontFamily, fontStyle, fontWeight, text, textLineHeight } = style;
+            fontFamily = fontFamily || "sans-serif";
+            fontStyle = fontStyle || "normal";
+            fontWeight = fontWeight || "normal";
+            fontSize = fontSize || 12;
+            text = text || "";
+            textLineHeight = textLineHeight || 12;
 
             //合并字体样式
             let font = "";
             if (fontSize || fontFamily) {
-                fontSize = parseFloat(fontSize) * dpr;
+                fontSize = parseFloat(fontSize);
                 font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
             }
             style.font = style.font || font;
 
             //文字行高
-            textLineHeight = textLineHeight * dpr || fontSize;
+            textLineHeight = textLineHeight || fontSize;
 
             //处理水平位置
             let textAlign = style.textAlign === "middle" ? "center" : style.textAlign;
@@ -4431,7 +4440,7 @@
             style.textVerticalAlign = ["top", "bottom", "middle"].indexOf(textVerticalAlign) === -1 ? "top" : textVerticalAlign;
 
             //处理字体颜色
-            let textFill = style.textFill ? style.textFill : null;
+            let textFill = style.textFill ? style.textFill : "#000";
             if (textFill && (textFill.image || textFill.colorStops)) {
                 textFill = "#000";
             }
@@ -4446,6 +4455,7 @@
             let textX = cen.x;
             let textY = cen.y;
             let { textWidth, textLines } = getWidth(text, style.font); //获取单行文字宽度 和 行数
+            this.textWidth = textWidth;
 
             //根据对齐方式调整文字位置
             switch (style.textAlign) {
@@ -4577,7 +4587,7 @@
         textLines.forEach((item) => {
             let Tmp_ctx = getContext();
             Tmp_ctx.font = font;
-            let curWidth = Tmp_ctx.measureText(text).width;
+            let curWidth = Tmp_ctx.measureText(item).width;
             textWidth = Math.max(textWidth, curWidth);
         });
         return {

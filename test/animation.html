@@ -16,11 +16,21 @@
             margin: 0 auto;
             border: 1px dashed darkcyan;
         }
+        .test > p{
+            margin:0;
+            
+            font-size: 14px;
+            line-height: 14px;
+        }
     </style>
 </head>
 <body>  
     <div id="box">
         
+    </div>
+    <div class="test">
+        <p>hello</p>
+        <p>world</p>
     </div>
     <script type="text/javascript">
             let main = document.querySelector('#box');
@@ -41,10 +51,23 @@
             }); 
             hr.add(rect);
 
+            // rect.attr({
+            //     origin:[200, 250],
+            //     rotation: Math.PI* 60/180,
+            // });
+
             rect.attr({
-                origin:[200, 250],
-                rotation: Math.PI* 60/180,
-            })
+                style: {
+                    text: "text\n123\n456",
+                    textAlign: "center",
+                    textFill: "blue",
+                    fontSize: 14,
+                    textLineHeight:20,
+                    fontWeight: 'bold',
+                }
+            });
+
+            console.log(rect);
 
             // rect.animate('style')
             // .when(1000, {
