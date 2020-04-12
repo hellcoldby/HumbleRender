@@ -3669,6 +3669,7 @@
         }
 
         when(time, props) {
+            console.log(props);
             for (let propName in props) {
                 if (!props.hasOwnProperty(propName)) {
                     continue;
@@ -3686,6 +3687,7 @@
                         _target: this._target,
                         _delay: this._delay,
                     });
+                    console.log(track);
                 }
 
                 if (time !== 0) {
@@ -3708,6 +3710,7 @@
                 // console.log(track.keyFrames);
 
                 this._trackCacheMap.set(propName, track);
+                console.log(this._trackCacheMap);
                 return this;
             }
         }
@@ -4484,7 +4487,7 @@
             // console.log(textX, textY);
 
             //开始绘制字体
-            ctx.save();
+            // ctx.save();
             ctx.font = style.font;
             ctx.textAlign = style.textAlign;
             ctx.textBaseline = "middle";
@@ -4890,24 +4893,24 @@
     /**
      * 弧形
      */
-    let defaultConfig$1 = {
-        shape: {
-            cx: 0,
-            cy: 0,
-            r: 0,
-            startAngle: 0,
-            endAngle: Math.PI * 2,
-            clockwise: true
-        },
-        style: {
-            stroke: null,
-            fill: null
-        }
-    };
 
     class Arc extends Path {
         constructor(opts) {
-            let mergeOpts = merge(defaultConfig$1, opts, true);
+            let defaultConfig = {
+                shape: {
+                    cx: 0,
+                    cy: 0,
+                    r: 0,
+                    startAngle: 0,
+                    endAngle: Math.PI * 2,
+                    clockwise: true,
+                },
+                style: {
+                    stroke: null,
+                    fill: null,
+                },
+            };
+            let mergeOpts = merge(defaultConfig, opts, true);
             // console.log(mergeOpts);
             super(mergeOpts);
             this.type = "arc";
@@ -4938,7 +4941,7 @@
     /**
      * 扇形
      */
-    let defaultConfig$2 = {
+    let defaultConfig$1 = {
         shape: {
             cx: 0,
             cy: 0,
@@ -4955,7 +4958,7 @@
 
     class Sector extends Path {
         constructor(opts) {
-            super(merge(defaultConfig$2, opts, true));
+            super(merge(defaultConfig$1, opts, true));
             this.type = "sector";
         }
         /**
@@ -5043,7 +5046,7 @@
      * 直线
      */
 
-    let defaultConfig$3 = {
+    let defaultConfig$2 = {
         shape: {
             x1: 0,
             y1: 0,
@@ -5059,7 +5062,7 @@
 
     class Line extends Path {
         constructor(opts) {
-            super(merge(defaultConfig$3, opts, true));
+            super(merge(defaultConfig$2, opts, true));
             this.type = "line";
         }
 
@@ -5100,7 +5103,7 @@
      * 直线
      */
 
-    let defaultConfig$4 = {
+    let defaultConfig$3 = {
         shape: {
             x1: 0,
             y1: 0,
@@ -5118,7 +5121,7 @@
 
     class LineDash extends Path {
         constructor(opts) {
-            super(merge(defaultConfig$4, opts, true));
+            super(merge(defaultConfig$3, opts, true));
             this.type = "lineDash";
         }
 
@@ -5246,7 +5249,7 @@
      * 贝塞尔曲线
      */
 
-    let defaultConfig$5 = {
+    let defaultConfig$4 = {
         shape: {
             x1: 0, // 开始位置
             y1: 0,
@@ -5265,7 +5268,7 @@
     let out = [];
     class BezierCurve extends Path {
         constructor(opts) {
-            super(merge(defaultConfig$5, opts, true));
+            super(merge(defaultConfig$4, opts, true));
             this.type = "bezier-curve";
         }
 
@@ -5371,6 +5374,7 @@
         }
 
         brush(ctx, prevEle) {
+            this.style.bind(ctx, this, prevEle);
             if (this.style.text) {
                 ctx.save();
                 ctx.beginPath();
@@ -5382,7 +5386,7 @@
         //获取canvas画布的尺寸
         getBoundingRect(ctx) {
             // console.log(ctx);
-            const dpr = ctx.dpr;
+            const dpr = 1;
             const root = this.__hr && this.__hr.root;
             const ctxW = root.clientWidth * dpr;
             const ctxH = root.clientHeight * dpr;
@@ -5405,7 +5409,7 @@
             return {
                 min,
                 max,
-                cen
+                cen,
             };
         }
     }

@@ -27,6 +27,7 @@ class AnimationProcess {
     }
 
     when(time, props) {
+        console.log(props);
         for (let propName in props) {
             if (!props.hasOwnProperty(propName)) {
                 continue;
@@ -44,6 +45,7 @@ class AnimationProcess {
                     _target: this._target,
                     _delay: this._delay,
                 });
+                console.log(track);
             }
 
             if (time !== 0) {
@@ -66,6 +68,7 @@ class AnimationProcess {
             // console.log(track.keyFrames);
 
             this._trackCacheMap.set(propName, track);
+            console.log(this._trackCacheMap);
             return this;
         }
     }

@@ -87,7 +87,7 @@ export default class TextRender {
         // console.log(textX, textY);
 
         //开始绘制字体
-        ctx.save();
+        // ctx.save();
         ctx.font = style.font;
         ctx.textAlign = style.textAlign;
         ctx.textBaseline = "middle";

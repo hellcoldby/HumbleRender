@@ -8,6 +8,7 @@ export default class Text extends Path {
     }
 
     brush(ctx, prevEle) {
+        this.style.bind(ctx, this, prevEle);
         if (this.style.text) {
             ctx.save();
             ctx.beginPath();
@@ -19,7 +20,7 @@ export default class Text extends Path {
     //获取canvas画布的尺寸
     getBoundingRect(ctx) {
         // console.log(ctx);
-        const dpr = ctx.dpr;
+        const dpr = 1;
         const root = this.__hr && this.__hr.root;
         const ctxW = root.clientWidth * dpr;
         const ctxH = root.clientHeight * dpr;
@@ -42,7 +43,7 @@ export default class Text extends Path {
         return {
             min,
             max,
-            cen
+            cen,
         };
     }
 }
