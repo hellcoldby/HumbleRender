@@ -10,7 +10,7 @@ import {
     interpolateString,
     interpolateNumber,
     catmullRomInterpolateArray,
-    catmullRomInterpolate
+    catmullRomInterpolate,
 } from "../../../tools/data_util";
 import * as colorUtil from "../../../tools/color_util";
 export default class Track {
@@ -153,7 +153,7 @@ export default class Track {
         let p3;
         let rgba = [0, 0, 0, 0];
         //参数： （元素， 经过数学计算之后的数据）
-        let onframe = function(target, percent) {
+        let onframe = function (target, percent) {
             // console.log(percent);
             let frame; //保存最后一帧的序列
 
@@ -214,7 +214,7 @@ export default class Track {
                     if (kfValues[frame]) {
                         //实时更新元素的属性
                         let res = interpolateArray(kfValues[frame], kfValues[frame + 1], w, target[propName], arrDim);
-                        console.log(res);
+                        // console.log(res);
                     } else {
                         console.log(kfValues, "---", frame);
                     }
@@ -240,7 +240,7 @@ export default class Track {
             loop: loop,
             delay: this._delay,
             onframe: onframe,
-            easing: easing && easing !== "spline" ? easing : "Linear"
+            easing: easing && easing !== "spline" ? easing : "Linear",
         };
         return options;
     }

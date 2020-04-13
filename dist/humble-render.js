@@ -960,11 +960,18 @@
         }
 
         addToRoot(ele) {
+            if (ele.__storage === this) return;
             this.addToStorage(ele);
         }
 
         addToStorage(ele) {
+            /**
+             * 对于group 组，把当前最新的元素列表，同步到所有元素的__storage 属性上,
+             * 在Element 函数初始化过程中，元素会订阅 ‘addToStorage’方法
+             */
+            ele.trigger("addToStorage", this);
             this.ele_map.set(ele.id, ele);
+            console.log(this);
             return this;
         }
 
@@ -1004,12 +1011,46 @@
         //2.1_2_1 排除 标记为忽略 的元素，更新元素数组
         _updateAndAddDisplayable(ele, clipPaths, includeIgnore) {
             if (ele.ignore && !includeIgnore) return;
+
             //计算图形transform矩阵
             if (ele.__dirty) {
                 ele.updateTransform();
             }
-            //添加元素到 数组队列中
-            this.ele_ary[this.ele_ary_len++] = ele;
+
+            //设置裁剪路径 ??????
+            if (ele.clipPaths) {
+                if (clipPaths) {
+                    clipPaths = clipPaths.slice();
+                } else {
+                    clipPaths = [];
+                }
+                let curClipPath = ele.clipPath;
+                let parentClipPath = ele;
+                while (curClipPath) {
+                    curClipPath.parent = parentClipPath;
+                    curClipPath.updateTransform(); //计算图形transform矩阵
+                    clipPaths.push(curClipPath);
+                    parentClipPath = curClipPath;
+                    curClipPath = curClipPath.clipPath;
+                }
+            }
+
+            if (ele.type === "group") {
+                let children = ele.children;
+                for (let i = 0; i < children.length; i++) {
+                    let child = children[i];
+                    if (ele.__dirty) {
+                        child.__dirty = true;
+                    }
+                    this._updateAndAddDisplayable(child, clipPaths, includeIgnore);
+                }
+                ele.__dirty = false;
+            } else {
+                // console.log(ele);
+                ele.__clipPaths = clipPaths;
+                //添加元素到 数组队列中
+                this.ele_ary[this.ele_ary_len++] = ele;
+            }
         }
 
         dispose() {
@@ -1286,6 +1327,7 @@
             // console.log("123");
             //从 storage 中获取 元素数组列表
             let ele_ary = this.storage.getDisplayList(true);
+
             this._redrawId = Math.random(); // 重绘id
             // console.log(ele_ary);
             this._paintList(ele_ary, paintAll, this._redrawId); //1.2 更新图层，动态创建图层， 绘制图层
@@ -1567,7 +1609,7 @@
                 // && !(ele.culling && this.isDisplayableCulled())
             ) {
                 ele.beforeBrush && ele.beforeBrush(ctx);
-
+                // console.log(ele);
                 ele.brush(ctx, scope.prevEl || null);
                 scope.prevEl = ele;
                 ele.afterBrush && ele.afterBrush(ctx);
@@ -2798,6 +2840,17 @@
         return out;
     }
 
+    //复制矩阵
+    function copy(out, m) {
+        out[0] = m[0];
+        out[1] = m[1];
+        out[2] = m[2];
+        out[3] = m[3];
+        out[4] = m[4];
+        out[5] = m[5];
+        return out;
+    }
+
     /**
      * 缩放变换
      * @param {Float32Array|Array.<number>} out
@@ -2869,7 +2922,24 @@
         return out;
     }
 
+    /**
+     * @method mul
+     * m1 左乘 m2，Context.transform 定义的实际上是一个 3×3 的方阵，所以这里一定可以相乘。
+     * @param {Float32Array|Array.<Number>} m1
+     * @param {Float32Array|Array.<Number>} m2
+     */
+    function mul(m1, m2) {
+        let out0 = m1[0] * m2[0] + m1[2] * m2[1];
+        let out1 = m1[1] * m2[0] + m1[3] * m2[1];
+        let out2 = m1[0] * m2[2] + m1[2] * m2[3];
+        let out3 = m1[1] * m2[2] + m1[3] * m2[3];
+        let out4 = m1[0] * m2[4] + m1[2] * m2[5] + m1[4];
+        let out5 = m1[1] * m2[4] + m1[3] * m2[5] + m1[5];
+        return [out0, out1, out2, out3, out4, out5];
+    }
+
     var EPSILON = 5e-5;
+    let scaleTmp = [];
     function Transformable(opts = {}) {
         this.origin = !opts.origin ? [0, 0] : opts.origin;
         this.rotation = !opts.rotation ? 0 : opts.rotation;
@@ -2877,15 +2947,19 @@
         this.scale = !opts.scale ? [1, 1] : opts.scale;
         this.skew = !opts.skew ? [0, 0] : opts.skew;
         this.globalScaleRatio = 1;
-        // console.log(this.position);
+        this.transform = create();
+        //逆变换矩阵
+        this.inverseTransform = null;
+
+        //全局缩放比例
+        this.globalScaleRatio = 1;
     }
 
     Transformable.prototype = {
         constructor: Transformable,
 
-        //是否需要
+        // 判断是位置不再0附近
         needLocalTransform() {
-            // console.log(this);
             return (
                 isNotAroundZero(this.rotation) ||
                 isNotAroundZero(this.position[0]) ||
@@ -2898,18 +2972,10 @@
         //更新图形的偏移矩阵
         updateTransform() {
             let parent = this.parent;
-            let parent_trans = parent && parent.transform;
-            // 判断是位置是否接近0, 接近0为false (不变化矩阵)
+            let parentHasTransform = parent && parent.transform;
+            // 判断是位置不再0附近
             let needLocalTransform = this.needLocalTransform();
-
             let m = this.transform;
-            if (!(needLocalTransform || parent_trans)) {
-                m && identity(m);
-                return;
-            }
-            //创建矩阵
-            m = m || create();
-            // console.log(m);
 
             if (needLocalTransform) {
                 m = this.getLocalTransform(m);
@@ -2917,28 +2983,34 @@
                 identity(m);
             }
 
-            this.transform = m;
-            // var globalScaleRatio = this.globalScaleRatio;
+            // 应用父节点变换
+            if (parentHasTransform) {
+                if (needLocalTransform) {
+                    m = mul(parent.transform, m);
+                } else {
+                    copy(m, parent.transform);
+                }
+            }
+            // 应用全局缩放
+            if (this.globalScaleRatio != null && this.globalScaleRatio !== 1) {
+                this.getGlobalScale(scaleTmp);
+                let relX = scaleTmp[0] < 0 ? -1 : 1;
+                let relY = scaleTmp[1] < 0 ? -1 : 1;
+                let sx = ((scaleTmp[0] - relX) * this.globalScaleRatio + relX) / scaleTmp[0] || 0;
+                let sy = ((scaleTmp[1] - relY) * this.globalScaleRatio + relY) / scaleTmp[1] || 0;
 
+                m[0] *= sx;
+                m[1] *= sx;
+                m[2] *= sy;
+                m[3] *= sy;
+            }
+
+            this.transform = m;
             this.invTransform = this.invTransform || create();
             invert(this.invTransform, m);
         },
 
-        /**
-         * 将自己的transform应用到context上
-         * @param {CanvasRenderingContext2D} ctx
-         */
-        setTransform(ctx) {
-            let m = this.transform;
-            let dpr = ctx.dpr || 1;
-            // console.log(this.type, m);
-            if (m) {
-                ctx.setTransform(dpr * m[0], dpr * m[1], dpr * m[2], dpr * m[3], dpr * m[4], dpr * m[5]);
-            } else {
-                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-            }
-        },
-
+        //将 参数opts 转化为矩阵数组
         getLocalTransform(m = []) {
             identity(m);
 
@@ -2967,8 +3039,12 @@
             return m;
         },
 
-        // 将 this.transform 应用到 canvas context 上
-        applyTransform: function(ctx) {
+        /**
+         * 将自己的transform应用到context上
+         * @param {CanvasRenderingContext2D} ctx
+         */
+        setTransform(ctx) {
+            // console.log(this.transform);
             let m = this.transform;
             let dpr = ctx.dpr || 1;
             if (m) {
@@ -2976,7 +3052,92 @@
             } else {
                 ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             }
-        }
+        },
+
+        // 将 this.transform 应用到 canvas context 上
+        applyTransform: function (ctx) {
+            let m = this.transform;
+            let dpr = ctx.dpr || 1;
+            if (m) {
+                ctx.setTransform(dpr * m[0], dpr * m[1], dpr * m[2], dpr * m[3], dpr * m[4], dpr * m[5]);
+            } else {
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+        },
+
+        /**
+         * @method composeLocalTransform
+         * 把各项参数，包括：scale、position、skew、rotation、父层的变换矩阵、全局缩放，全部
+         * 结合在一起，计算出一个新的本地变换矩阵，此操作是 decomposeLocalTransform 是互逆的。
+         */
+        composeLocalTransform: function () {
+            let parent = this.parent;
+            let parentHasTransform = parent && parent.transform;
+            let needLocalTransform = this.needLocalTransform();
+
+            let m = this.transform;
+
+            // 自身的变换
+            if (needLocalTransform) {
+                m = this.getLocalTransform();
+            } else {
+                identity(m);
+            }
+
+            // 应用父节点变换
+            if (parentHasTransform) {
+                if (needLocalTransform) {
+                    m = mul(parent.transform, m);
+                } else {
+                    copy(m, parent.transform);
+                }
+            }
+
+            // 应用全局缩放
+            if (this.globalScaleRatio != null && this.globalScaleRatio !== 1) {
+                this.getGlobalScale(scaleTmp);
+                let relX = scaleTmp[0] < 0 ? -1 : 1;
+                let relY = scaleTmp[1] < 0 ? -1 : 1;
+                let sx = ((scaleTmp[0] - relX) * this.globalScaleRatio + relX) / scaleTmp[0] || 0;
+                let sy = ((scaleTmp[1] - relY) * this.globalScaleRatio + relY) / scaleTmp[1] || 0;
+
+                m[0] *= sx;
+                m[1] *= sx;
+                m[2] *= sy;
+                m[3] *= sy;
+            }
+
+            //保存变换矩阵
+            this.transform = m;
+            //计算逆变换矩阵
+            this.inverseTransform = this.inverseTransform || create();
+            this.inverseTransform = invert(this.inverseTransform, m);
+        },
+
+        /**
+         * @method decomposeLocalTransform
+         * 把 transform 矩阵分解到 position、scale、skew、rotation 上去，此操作与 composeLocalTransform 是互逆的。
+         */
+        decomposeLocalTransform: function () {
+            let m = this.transform;
+            let transformTmp = create();
+            if (this.parent && this.parent.transform) {
+                m = transformTmp = mul(this.parent.inverseTransform, m);
+            }
+
+            let origin = this.origin;
+            let originTransform = create();
+            if (origin && (origin[0] || origin[1])) {
+                originTransform[4] = origin[0];
+                originTransform[5] = origin[1];
+                transformTmp = mul(m, originTransform);
+                transformTmp[4] -= origin[0];
+                transformTmp[5] -= origin[1];
+                m = transformTmp;
+            }
+
+            this.setLocalTransform(m);
+        },
     };
 
     //tools --- 判断不在0附近
@@ -3550,7 +3711,7 @@
             let p3;
             let rgba = [0, 0, 0, 0];
             //参数： （元素， 经过数学计算之后的数据）
-            let onframe = function(target, percent) {
+            let onframe = function (target, percent) {
                 // console.log(percent);
                 let frame; //保存最后一帧的序列
 
@@ -3611,7 +3772,7 @@
                         if (kfValues[frame]) {
                             //实时更新元素的属性
                             let res = interpolateArray(kfValues[frame], kfValues[frame + 1], w, target[propName], arrDim);
-                            console.log(res);
+                            // console.log(res);
                         } else {
                             console.log(kfValues, "---", frame);
                         }
@@ -3637,7 +3798,7 @@
                 loop: loop,
                 delay: this._delay,
                 onframe: onframe,
-                easing: easing && easing !== "spline" ? easing : "Linear"
+                easing: easing && easing !== "spline" ? easing : "Linear",
             };
             return options;
         }
@@ -3837,7 +3998,7 @@
      * 动画功能的入口
      * 引用AnimationProcess.js 为元素的属性生成 对应的动画系统
      */
-    let Animatable = function() {
+    let Animatable = function () {
         this.animationProcessList = []; //动画实例列表
     };
 
@@ -3847,7 +4008,7 @@
          * @param {string} path --- 元素的属性 shape.width   style.fill
          * @param {boolean} loop --- 动画循环
          */
-        animate: function(path, loop) {
+        animate: function (path, loop) {
             let target = this;
             if (path) {
                 let path_split = path.split(".");
@@ -3882,20 +4043,20 @@
         },
 
         //从动画队列中删除一组动画
-        removeAnimationProcess: function(animationProcess) {
+        removeAnimationProcess: function (animationProcess) {
             let index = this.animationProcessList.indexOf(animationProcess);
             if (index >= 0) {
                 this.animationProcessList.splice(index, 1);
             }
         },
         //停止动画
-        stopAnimation: function(forwardToLast = false) {
+        stopAnimation: function (forwardToLast = false) {
             this.animationProcessList.forEach((ap, index) => {
                 ap.stop(forwardToLast);
             });
             this.animationProcessList.length = 0;
             return this;
-        }
+        },
     };
 
     let STYLE_COMMON_PROPS = [
@@ -3905,7 +4066,7 @@
         ["shadowColor", "#000"],
         ["lineCap", "butt"],
         ["lineJoin", "miter"],
-        ["miterLimit", 10]
+        ["miterLimit", 10],
     ];
 
     /**
@@ -3913,7 +4074,9 @@
      * @param {} opts --- 用户自定义的样式
      */
     function Style(opts) {
-        let res = mixin(this, opts, false);
+        if (opts) {
+            let res = mixin(this, opts, false);
+        }
     }
 
     Style.prototype = {
@@ -3980,7 +4143,7 @@
         truncate: null,
         blend: null,
 
-        bind: function(ctx, ele, prevEl) {
+        bind: function (ctx, ele, prevEl) {
             // console.log(this);
             let prevStyle = prevEl && prevEl.style;
             //检查当前元素的样式 是否已经改变
@@ -4010,18 +4173,18 @@
             ctx._stylehasChanged = true;
         },
 
-        hasFill: function() {
+        hasFill: function () {
             let fill = this.fill;
             return fill && fill !== "none";
         },
 
-        hasStroke: function() {
+        hasStroke: function () {
             let stroke = this.stroke;
             return stroke && stroke !== "none" && this.lineWidth > 0;
         },
 
         //获取渐变色
-        getGradient: function(ctx, obj, rect) {
+        getGradient: function (ctx, obj, rect) {
             let createGradient = obj.type === "radial" ? createRadialGradient : crateLinearGradient;
             let gradient = createGradient(ctx, obj, rect);
             let colorStops = obj.colorStops;
@@ -4031,9 +4194,9 @@
             return gradient;
         },
 
-        set: function() {},
+        set: function () {},
 
-        clone: function() {
+        clone: function () {
             var newStyle = new this.constructor();
             // newStyle.extendStyle(this, true);
             return newStyle;
@@ -4047,7 +4210,7 @@
                     }
                 }
             }
-        }
+        },
     };
 
     let styleProto = Style.prototype;
@@ -4105,7 +4268,7 @@
             this.id = "el-" + guid();
             this.type = "element";
             this.name = "";
-            this.parent = null;
+            this.parent = null; //元素的父节点，添加到Group 的元素存在父节点。
 
             this.ignore = false; // 为true时，忽略图形绘制和事件触发
             this.clipPath = null; //用于裁剪的路径，所有 Group 内的路径在绘制时都会被这个路径裁剪，该路径会继承被裁减对象的变换。
@@ -4138,7 +4301,14 @@
 
             this._rect = null;
 
-            this.__clipPaths = null; //因为仅使用null来检查clipPaths是否已更改很容易
+            /**
+             * 用于裁剪的路径(shape)，所有 Group 内的路径在绘制时都会被这个路径裁剪
+             * 该路径会继承被裁减对象的变换
+             * @type {module:zrender/graphic/Path}
+             * @see http://www.w3.org/TR/2dcontext/#clipping-region
+             * @readOnly
+             */
+            this.__clipPaths = null;
 
             this.style = new Style(this.opts.style);
 
@@ -4160,7 +4330,7 @@
             copyOwnProperties(this, this.opts, ["style", "shape"]);
 
             // console.log(this);
-            // this.on("addToStorage", this.addToStorageHandler);
+            this.on("addToStorage", this.addToStorageHandler);
             // this.on("delFromStorage", this.delFromStorageHandler);
         }
 
@@ -4203,6 +4373,45 @@
                     this[key] = val;
                     break;
             }
+        }
+
+        /**
+         * 动态设置剪裁路径。 ---- svg 使用
+         * @param {Path} clipPath
+         */
+        setClipPath(clipPath) {
+            // Remove previous clip path
+            if (this.clipPath && this.clipPath !== clipPath) {
+                this.removeClipPath();
+            }
+
+            this.clipPath = clipPath;
+            clipPath.__hr = this.__hr;
+            clipPath.__clipTarget = this;
+            clipPath.trigger("addToStorage", this.__storage); // trigger addToStorage manually
+
+            //TODO: FIX this，子类 Path 中的 dirty() 方法有参数。
+            this.dirty();
+        }
+
+        removeClipPath() {
+            if (this.clipPath) {
+                this.clipPath.__hr = null;
+                this.clipPath.__clipTarget = null;
+                this.clipPath && this.clipPath.trigger("delFromStorage", this.__storage);
+                this.clipPath = null;
+            }
+        }
+
+        dirty() {
+            this.__dirty = this.__dirtyText = true;
+            this.__hr && this.__hr.refresh();
+        }
+
+        //更新最新的Storage,  这样当前元素可以获取到最新的 元素列表（数据模型）
+        addToStorageHandler(storage) {
+            this.__storage = storage;
+            console.log(this);
         }
     }
 
@@ -4642,6 +4851,7 @@
             //在style.bind()中完成 fillSytle  和 strokeStyle的设置
 
             this.style.bind(ctx, this, prevEl);
+            //调用transformable.js 中的 设置矩阵
             this.setTransform(ctx);
 
             if (this.__dirty) {
@@ -5414,9 +5624,42 @@
         }
     }
 
+    /**
+     * Group 可以插入子节点， 其他类型不能
+     * Group 上的变换也会被应用到子节点。
+     */
+
+    class Group extends Element {
+        constructor(opts = {}) {
+            super(opts);
+            this.type = "group";
+            this.children = [];
+
+            this.__storage = null;
+        }
+        add(child) {
+            if (child && child !== this && child.parent !== this) {
+                this.children.push(child);
+                this._doAdd(child);
+            }
+            return this;
+        }
+
+        _doAdd(child) {
+            child.parent && child.parent.remove(child);
+            if (this.__hr) {
+                child.__hr = this.__hr;
+            }
+            if (this.__storage) {
+                this.__storage.addToStorage(child);
+            }
+        }
+    }
+
     exports.Arc = Arc;
     exports.BezierCurve = BezierCurve;
     exports.Circle = Circle;
+    exports.Group = Group;
     exports.Line = Line;
     exports.LineDash = LineDash;
     exports.LinearGradient = LinearGradient;

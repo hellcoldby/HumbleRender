@@ -16,11 +16,18 @@ class Storage extends Eventful {
     }
 
     addToRoot(ele) {
+        if (ele.__storage === this) return;
         this.addToStorage(ele);
     }
 
     addToStorage(ele) {
+        /**
+         * 对于group 组，把当前最新的元素列表，同步到所有元素的__storage 属性上,
+         * 在Element 函数初始化过程中，元素会订阅 ‘addToStorage’方法
+         */
+        ele.trigger("addToStorage", this);
         this.ele_map.set(ele.id, ele);
+        console.log(this);
         return this;
     }
 
@@ -60,12 +67,46 @@ class Storage extends Eventful {
     //2.1_2_1 排除 标记为忽略 的元素，更新元素数组
     _updateAndAddDisplayable(ele, clipPaths, includeIgnore) {
         if (ele.ignore && !includeIgnore) return;
+
         //计算图形transform矩阵
         if (ele.__dirty) {
             ele.updateTransform();
         }
-        //添加元素到 数组队列中
-        this.ele_ary[this.ele_ary_len++] = ele;
+
+        //设置裁剪路径 ??????
+        if (ele.clipPaths) {
+            if (clipPaths) {
+                clipPaths = clipPaths.slice();
+            } else {
+                clipPaths = [];
+            }
+            let curClipPath = ele.clipPath;
+            let parentClipPath = ele;
+            while (curClipPath) {
+                curClipPath.parent = parentClipPath;
+                curClipPath.updateTransform(); //计算图形transform矩阵
+                clipPaths.push(curClipPath);
+                parentClipPath = curClipPath;
+                curClipPath = curClipPath.clipPath;
+            }
+        }
+
+        if (ele.type === "group") {
+            let children = ele.children;
+            for (let i = 0; i < children.length; i++) {
+                let child = children[i];
+                if (ele.__dirty) {
+                    child.__dirty = true;
+                }
+                this._updateAndAddDisplayable(child, clipPaths, includeIgnore);
+            }
+            ele.__dirty = false;
+        } else {
+            // console.log(ele);
+            ele.__clipPaths = clipPaths;
+            //添加元素到 数组队列中
+            this.ele_ary[this.ele_ary_len++] = ele;
+        }
     }
 
     dispose() {

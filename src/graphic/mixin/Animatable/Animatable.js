@@ -4,7 +4,7 @@
  */
 
 import AnimationProcess from "./AnimationProcess";
-let Animatable = function() {
+let Animatable = function () {
     this.animationProcessList = []; //动画实例列表
 };
 
@@ -14,7 +14,7 @@ Animatable.prototype = {
      * @param {string} path --- 元素的属性 shape.width   style.fill
      * @param {boolean} loop --- 动画循环
      */
-    animate: function(path, loop) {
+    animate: function (path, loop) {
         let target = this;
         if (path) {
             let path_split = path.split(".");
@@ -49,20 +49,20 @@ Animatable.prototype = {
     },
 
     //从动画队列中删除一组动画
-    removeAnimationProcess: function(animationProcess) {
+    removeAnimationProcess: function (animationProcess) {
         let index = this.animationProcessList.indexOf(animationProcess);
         if (index >= 0) {
             this.animationProcessList.splice(index, 1);
         }
     },
     //停止动画
-    stopAnimation: function(forwardToLast = false) {
+    stopAnimation: function (forwardToLast = false) {
         this.animationProcessList.forEach((ap, index) => {
             ap.stop(forwardToLast);
         });
         this.animationProcessList.length = 0;
         return this;
-    }
+    },
 };
 
 export default Animatable;

@@ -6,7 +6,7 @@ let STYLE_COMMON_PROPS = [
     ["shadowColor", "#000"],
     ["lineCap", "butt"],
     ["lineJoin", "miter"],
-    ["miterLimit", 10]
+    ["miterLimit", 10],
 ];
 
 /**
@@ -14,7 +14,9 @@ let STYLE_COMMON_PROPS = [
  * @param {} opts --- 用户自定义的样式
  */
 export default function Style(opts) {
-    let res = mixin(this, opts, false);
+    if (opts) {
+        let res = mixin(this, opts, false);
+    }
 }
 
 Style.prototype = {
@@ -81,7 +83,7 @@ Style.prototype = {
     truncate: null,
     blend: null,
 
-    bind: function(ctx, ele, prevEl) {
+    bind: function (ctx, ele, prevEl) {
         // console.log(this);
         let prevStyle = prevEl && prevEl.style;
         //检查当前元素的样式 是否已经改变
@@ -111,18 +113,18 @@ Style.prototype = {
         ctx._stylehasChanged = true;
     },
 
-    hasFill: function() {
+    hasFill: function () {
         let fill = this.fill;
         return fill && fill !== "none";
     },
 
-    hasStroke: function() {
+    hasStroke: function () {
         let stroke = this.stroke;
         return stroke && stroke !== "none" && this.lineWidth > 0;
     },
 
     //获取渐变色
-    getGradient: function(ctx, obj, rect) {
+    getGradient: function (ctx, obj, rect) {
         let createGradient = obj.type === "radial" ? createRadialGradient : crateLinearGradient;
         let gradient = createGradient(ctx, obj, rect);
         let colorStops = obj.colorStops;
@@ -132,9 +134,9 @@ Style.prototype = {
         return gradient;
     },
 
-    set: function() {},
+    set: function () {},
 
-    clone: function() {
+    clone: function () {
         var newStyle = new this.constructor();
         // newStyle.extendStyle(this, true);
         return newStyle;
@@ -148,7 +150,7 @@ Style.prototype = {
                 }
             }
         }
-    }
+    },
 };
 
 let styleProto = Style.prototype;
