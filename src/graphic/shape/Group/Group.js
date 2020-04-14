@@ -26,8 +26,18 @@ export default class Group extends Element {
         if (this.__hr) {
             child.__hr = this.__hr;
         }
-        if (this.__storage) {
-            this.__storage.addToStorage(child);
-        }
+    }
+
+    //hr.add(group)时，在Storage.js 中add()会触发 this.trigger('addToStorage', storage)
+    // 在Element.js 中默认 this.on('addToStorage', this.addToStorageHandler)
+    // 如果此处不定义addToStorageHandler，默认会触发 Element.js下的 addToStorageHandler()
+    addToStorageHandler(storage) {
+        this.children.forEach((child, index) => {
+            child.parent = this;
+            child.__hr = this.__hr;
+            storage.addToStorage(child);
+        });
+        //然后在调用父层的处理函数添加自身
+        Element.prototype.addToStorageHandler.call(this, storage);
     }
 }

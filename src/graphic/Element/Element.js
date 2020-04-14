@@ -163,7 +163,11 @@ class Element {
     //更新最新的Storage,  这样当前元素可以获取到最新的 元素列表（数据模型）
     addToStorageHandler(storage) {
         this.__storage = storage;
-        console.log(this);
+
+        this.__qr && this.__hr.watchAnim.addAnimatable(this);
+        this.clipPath && this.clipPath.trigger("addToStorage", this.__storage);
+        // console.log(this);
+        this.dirty();
     }
 }
 

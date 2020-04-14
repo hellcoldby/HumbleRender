@@ -25,9 +25,8 @@ class Storage extends Eventful {
          * 对于group 组，把当前最新的元素列表，同步到所有元素的__storage 属性上,
          * 在Element 函数初始化过程中，元素会订阅 ‘addToStorage’方法
          */
-        ele.trigger("addToStorage", this);
         this.ele_map.set(ele.id, ele);
-        console.log(this);
+        ele.trigger("addToStorage", this);
         return this;
     }
 
