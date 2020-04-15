@@ -59,26 +59,31 @@
             gr.add(rect);
             hr.add(gr);
 
-            // gr.animate('')
-            // .when(1000, {
-            //     position: [700, 0]
-            // }).start();
+            rect.animate(['shape', 'style'])
+            .when(1000, {
+                x:200
+            })
+            .when(500, {
+                opacity: 0.3
+            })
+            .start();
 
             // rect.attr({
             //     origin:[200, 250],
             //     rotation: Math.PI* 60/180,
             // });
 
-            // rect.attr({
-            //     style: {
-            //         text: "text\n123\n456",
-            //         textAlign: "center",
-            //         textFill: "blue",
-            //         fontSize: 14,
-            //         textLineHeight:20,
-            //         fontWeight: 'bold',
-            //     }
-            // });
+            rect.attr({
+                style: {
+                    text: "text123456789012345",
+                    textAlign: "center",
+                    textFill: "blue",
+                    fontSize: 14,
+                    textLineHeight:20,
+                    fontWeight: 'bold',
+                    limitWidth: 50
+                }
+            });
 
             // console.log(rect);
 

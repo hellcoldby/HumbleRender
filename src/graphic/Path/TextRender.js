@@ -10,8 +10,8 @@ export default class TextRender {
         const { max, min, cen } = box;
         // const dpr = ctx.dpr;
         // console.log(box);
-        console.log(style);
-        let { fontSize, fontFamily, fontStyle, fontWeight, text, textLineHeight } = style;
+        // console.log(style);
+        let { fontSize, fontFamily, fontStyle, fontWeight, text, textLineHeight, limitWidth } = style;
         fontFamily = fontFamily || "sans-serif";
         fontStyle = fontStyle || "normal";
         fontWeight = fontWeight || "normal";
@@ -55,7 +55,20 @@ export default class TextRender {
         //默认文字位置
         let textX = cen.x;
         let textY = cen.y;
-        let { textWidth, textLines } = getWidth(text, style.font); //获取单行文字宽度 和 行数
+        let { textWidth, textLines } = getTextWidth(text, style.font); //获取单行文字宽度 和 行数
+
+        if (limitWidth) {
+            text = cutText(text, limitWidth);
+            function cutText(text, limitWidth) {
+                let { textWidth } = getTextWidth(text, style.font); //获取单行文字宽度 和 行数
+                while (textWidth > limitWidth) {
+                    text = text.substring(0, text.length - 4);
+                    textWidth = getTextWidth(text, style.font).textWidth;
+                }
+                return text + "...";
+            }
+        }
+
         this.textWidth = textWidth;
 
         //根据对齐方式调整文字位置
@@ -87,7 +100,7 @@ export default class TextRender {
         // console.log(textX, textY);
 
         //开始绘制字体
-        // ctx.save();
+        ctx.save();
         ctx.font = style.font;
         ctx.textAlign = style.textAlign;
         ctx.textBaseline = "middle";
@@ -185,7 +198,7 @@ function normalizeCssArray(val) {
 }
 
 // 获取字体占用宽度
-function getWidth(text, font) {
+function getTextWidth(text, font) {
     // console.log(text);
     let textWidth = 0;
     let textLines = `${text}`.split("\n");

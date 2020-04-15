@@ -4,23 +4,23 @@
 
 import Path from "../../Path/Path";
 import { merge } from "../../../tools/data_util";
-let defaultConfig = {
-    shape: {
-        cx: 0,
-        cy: 0,
-        r: 0,
-        startAngle: 0,
-        endAngle: Math.PI * 2,
-        clockwise: true
-    },
-    style: {
-        stroke: null,
-        fill: null
-    }
-};
 
 export default class Sector extends Path {
     constructor(opts) {
+        let defaultConfig = {
+            shape: {
+                cx: 0,
+                cy: 0,
+                r: 0,
+                startAngle: 0,
+                endAngle: Math.PI * 2,
+                clockwise: true,
+            },
+            style: {
+                stroke: null,
+                fill: null,
+            },
+        };
         super(merge(defaultConfig, opts, true));
         this.type = "sector";
     }

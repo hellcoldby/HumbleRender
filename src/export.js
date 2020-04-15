@@ -8,4 +8,5 @@ export { default as BezierCurve } from "./graphic/shape/BezierCurve/BezierCurve"
 export { default as LinearGradient } from "./graphic/shape/Gradient/LinearGradient";
 export { default as RadialGradient } from "./graphic/shape/Gradient/RadialGradient";
 export { default as Text } from "./graphic/shape/Text/Text";
+
 export { default as Group } from "./graphic/shape/Group/Group";

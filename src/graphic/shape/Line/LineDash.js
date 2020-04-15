@@ -6,24 +6,23 @@ import { merge } from "../../../tools/data_util";
  * 直线
  */
 
-let defaultConfig = {
-    shape: {
-        x1: 0,
-        y1: 0,
-        x2: 0,
-        y2: 0,
-        percent: 1
-    },
-    style: {
-        stroke: "#000",
-        fill: null,
-        lineDash: [5, 10, 15],
-        lineDashOffset: 0
-    }
-};
-
 export default class LineDash extends Path {
     constructor(opts) {
+        let defaultConfig = {
+            shape: {
+                x1: 0,
+                y1: 0,
+                x2: 0,
+                y2: 0,
+                percent: 1,
+            },
+            style: {
+                stroke: "#000",
+                fill: null,
+                lineDash: [5, 10, 15],
+                lineDashOffset: 0,
+            },
+        };
         super(merge(defaultConfig, opts, true));
         this.type = "lineDash";
     }

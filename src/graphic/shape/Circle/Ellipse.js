@@ -4,33 +4,33 @@
 
 import Path from "../../Path/Path";
 import { merge } from "../../../tools/data_util";
-let defaultConfig={
-    shape: {
-        cx: 0,
-        cy: 0,
-        r: 0,
-        startAngle: 0,
-        endAngle: Math.PI * 2,
-        clockwise: true
-    },
-    style: {
-        stroke: '#000',
-        fill: null
-    }
-};
 
 export default class Ellipse extends Path {
     constructor(opts) {
+        let defaultConfig = {
+            shape: {
+                cx: 0,
+                cy: 0,
+                r: 0,
+                startAngle: 0,
+                endAngle: Math.PI * 2,
+                clockwise: true,
+            },
+            style: {
+                stroke: "#000",
+                fill: null,
+            },
+        };
         super(merge(defaultConfig, opts, true));
-        this.type = 'arc';
+        this.type = "arc";
     }
     /**
      * @method buildPath
      * 绘制元素路径
-     * @param {Object} ctx 
-     * @param {String} shape 
+     * @param {Object} ctx
+     * @param {String} shape
      */
-    buildPath(ctx, shape){
+    buildPath(ctx, shape) {
         let x = shape.cx;
         let y = shape.cy;
         let r = Math.max(shape.r, 0);
