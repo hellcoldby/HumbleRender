@@ -98,3 +98,30 @@ export function invert(out, a) {
     out[5] = (ab * atx - aa * aty) * det;
     return out;
 }
+
+/**
+ * @method clone
+ * Clone a new matrix.
+ * @param {Float32Array|Array.<Number>} a
+ */
+export function clone(a) {
+    let b = create();
+    copy(b, a);
+    return b;
+}
+
+/**
+ * @method mul
+ * m1 左乘 m2，Context.transform 定义的实际上是一个 3×3 的方阵，所以这里一定可以相乘。
+ * @param {Float32Array|Array.<Number>} m1
+ * @param {Float32Array|Array.<Number>} m2
+ */
+export function mul(m1, m2) {
+    let out0 = m1[0] * m2[0] + m1[2] * m2[1];
+    let out1 = m1[1] * m2[0] + m1[3] * m2[1];
+    let out2 = m1[0] * m2[2] + m1[2] * m2[3];
+    let out3 = m1[1] * m2[2] + m1[3] * m2[3];
+    let out4 = m1[0] * m2[4] + m1[2] * m2[5] + m1[4];
+    let out5 = m1[1] * m2[4] + m1[3] * m2[5] + m1[5];
+    return [out0, out1, out2, out3, out4, out5];
+}

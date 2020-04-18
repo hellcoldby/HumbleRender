@@ -45,6 +45,7 @@ class Path extends Element {
         //在style.bind()中完成 fillSytle  和 strokeStyle的设置
 
         this.style.bind(ctx, this, prevEl);
+        //调用transformable.js 中的 设置矩阵
         this.setTransform(ctx);
 
         if (this.__dirty) {

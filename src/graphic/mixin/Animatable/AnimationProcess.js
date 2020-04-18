@@ -18,7 +18,8 @@ import Track from "./Track";
 class AnimationProcess {
     constructor(target, loop) {
         this._trackCacheMap = new Map(); //属性轨道Map {属性名： 对应的track}
-        this._target = target; // shape={}  or style={}
+
+        this._target = target; // target 可能是字符串，也可能是数组
         this._loop = loop || false;
         this._delay = 0;
         this._running = false;
@@ -27,13 +28,25 @@ class AnimationProcess {
     }
 
     when(time, props) {
-        console.log(props);
+        if (this._target instanceof Array && this._target.length) {
+            for (let target of this._target) {
+                this.setTrack(target, time, props);
+            }
+        } else {
+            this.setTrack(target, time, props);
+        }
+
+        // console.log(this);
+        return this;
+    }
+
+    setTrack(target, time, props) {
         for (let propName in props) {
             if (!props.hasOwnProperty(propName)) {
                 continue;
             }
 
-            let value = this._target[propName];
+            let value = target[propName];
             if (value === null || value === undefined) {
                 continue;
             }
@@ -42,10 +55,9 @@ class AnimationProcess {
             //为每一个变化的 属性，建立动画时间线轨道
             if (!track) {
                 track = new Track({
-                    _target: this._target,
+                    _target: target,
                     _delay: this._delay,
                 });
-                console.log(track);
             }
 
             if (time !== 0) {
@@ -65,11 +77,7 @@ class AnimationProcess {
                 value: props[propName],
             });
 
-            // console.log(track.keyFrames);
-
             this._trackCacheMap.set(propName, track);
-            console.log(this._trackCacheMap);
-            return this;
         }
     }
 
@@ -139,7 +147,7 @@ class AnimationProcess {
         // }
 
         if (isNumber(percent)) {
-            // console.log(percent);
+            // console.log(this._target);
             this.trigger("during", this._target, percent);
         } else {
             this.trigger("during", this._target, 1);
@@ -159,9 +167,22 @@ class AnimationProcess {
         this._running = false;
         this._paused = false;
 
-        [...this._trackCacheMap.values()].forEach((track, index) => {
-            track.stop(this._target, 1);
-        });
+        if (this._target instanceof Array && this._target.length) {
+            [...this._trackCacheMap.entries()].forEach((track, index) => {
+                let tg = null;
+                for (let item of this._target) {
+                    if (track[0] in item) {
+                        tg = item;
+                    }
+                }
+
+                tg && track[1].stop(tg, 1);
+            });
+        } else {
+            [...this._trackCacheMap.values()].forEach((track, index) => {
+                track.stop(this._target, 1);
+            });
+        }
         this._trackCacheMap = new Map();
         this.trigger("stop");
         return this;

@@ -4,7 +4,7 @@
  */
 
 import AnimationProcess from "./AnimationProcess";
-let Animatable = function() {
+let Animatable = function () {
     this.animationProcessList = []; //动画实例列表
 };
 
@@ -14,9 +14,9 @@ Animatable.prototype = {
      * @param {string} path --- 元素的属性 shape.width   style.fill
      * @param {boolean} loop --- 动画循环
      */
-    animate: function(path, loop) {
+    animate: function (path, loop) {
         let target = this;
-        if (path) {
+        if (path && typeof path === "string") {
             let path_split = path.split(".");
             for (let i = 0; i < path_split.length; i++) {
                 let item = path_split[i]; //'shape' or 'style'...
@@ -25,6 +25,17 @@ Animatable.prototype = {
                 } else {
                     target = this[item];
                     break;
+                }
+            }
+        } else if (path instanceof Array && path.length) {
+            // 处理多个属性 shape and  style
+            target = [];
+            for (let i = 0; i < path.length; i++) {
+                let item = path[i];
+                if (!this[item]) {
+                    continue;
+                } else {
+                    target.push(this[item]);
                 }
             }
         }
@@ -49,20 +60,20 @@ Animatable.prototype = {
     },
 
     //从动画队列中删除一组动画
-    removeAnimationProcess: function(animationProcess) {
+    removeAnimationProcess: function (animationProcess) {
         let index = this.animationProcessList.indexOf(animationProcess);
         if (index >= 0) {
             this.animationProcessList.splice(index, 1);
         }
     },
     //停止动画
-    stopAnimation: function(forwardToLast = false) {
+    stopAnimation: function (forwardToLast = false) {
         this.animationProcessList.forEach((ap, index) => {
             ap.stop(forwardToLast);
         });
         this.animationProcessList.length = 0;
         return this;
-    }
+    },
 };
 
 export default Animatable;

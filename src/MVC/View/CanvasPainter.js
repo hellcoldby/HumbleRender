@@ -60,6 +60,7 @@ class CanvasPainter {
         // console.log("123");
         //从 storage 中获取 元素数组列表
         let ele_ary = this.storage.getDisplayList(true);
+
         this._redrawId = Math.random(); // 重绘id
         // console.log(ele_ary);
         this._paintList(ele_ary, paintAll, this._redrawId); //1.2 更新图层，动态创建图层， 绘制图层
@@ -341,7 +342,7 @@ class CanvasPainter {
             // && !(ele.culling && this.isDisplayableCulled())
         ) {
             ele.beforeBrush && ele.beforeBrush(ctx);
-
+            // console.log(ele);
             ele.brush(ctx, scope.prevEl || null);
             scope.prevEl = ele;
             ele.afterBrush && ele.afterBrush(ctx);

@@ -1,18 +1,18 @@
-
 /**
  *  圆形
  */
 import Path from "../../Path/Path";
 import { merge } from "../../../tools/data_util";
-let defaultConfig = {
-    shape: {
-        cx: 0,
-        cy: 0,
-        r: 0
-    }
-};
+
 export default class Circle extends Path {
     constructor(opts) {
+        let defaultConfig = {
+            shape: {
+                cx: 0,
+                cy: 0,
+                r: 0,
+            },
+        };
         super(merge(defaultConfig, opts, true));
         this.type = "circle";
     }

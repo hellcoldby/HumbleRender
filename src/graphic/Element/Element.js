@@ -20,7 +20,7 @@ class Element {
         this.id = "el-" + guid();
         this.type = "element";
         this.name = "";
-        this.parent = null;
+        this.parent = null; //元素的父节点，添加到Group 的元素存在父节点。
 
         this.ignore = false; // 为true时，忽略图形绘制和事件触发
         this.clipPath = null; //用于裁剪的路径，所有 Group 内的路径在绘制时都会被这个路径裁剪，该路径会继承被裁减对象的变换。
@@ -53,7 +53,14 @@ class Element {
 
         this._rect = null;
 
-        this.__clipPaths = null; //因为仅使用null来检查clipPaths是否已更改很容易
+        /**
+         * 用于裁剪的路径(shape)，所有 Group 内的路径在绘制时都会被这个路径裁剪
+         * 该路径会继承被裁减对象的变换
+         * @type {module:zrender/graphic/Path}
+         * @see http://www.w3.org/TR/2dcontext/#clipping-region
+         * @readOnly
+         */
+        this.__clipPaths = null;
 
         this.style = new Style(this.opts.style);
 
@@ -75,7 +82,7 @@ class Element {
         copyOwnProperties(this, this.opts, ["style", "shape"]);
 
         // console.log(this);
-        // this.on("addToStorage", this.addToStorageHandler);
+        this.on("addToStorage", this.addToStorageHandler);
         // this.on("delFromStorage", this.delFromStorageHandler);
     }
 
@@ -118,6 +125,49 @@ class Element {
                 this[key] = val;
                 break;
         }
+    }
+
+    /**
+     * 动态设置剪裁路径。 ---- svg 使用
+     * @param {Path} clipPath
+     */
+    setClipPath(clipPath) {
+        // Remove previous clip path
+        if (this.clipPath && this.clipPath !== clipPath) {
+            this.removeClipPath();
+        }
+
+        this.clipPath = clipPath;
+        clipPath.__hr = this.__hr;
+        clipPath.__clipTarget = this;
+        clipPath.trigger("addToStorage", this.__storage); // trigger addToStorage manually
+
+        //TODO: FIX this，子类 Path 中的 dirty() 方法有参数。
+        this.dirty();
+    }
+
+    removeClipPath() {
+        if (this.clipPath) {
+            this.clipPath.__hr = null;
+            this.clipPath.__clipTarget = null;
+            this.clipPath && this.clipPath.trigger("delFromStorage", this.__storage);
+            this.clipPath = null;
+        }
+    }
+
+    dirty() {
+        this.__dirty = this.__dirtyText = true;
+        this.__hr && this.__hr.refresh();
+    }
+
+    //更新最新的Storage,  这样当前元素可以获取到最新的 元素列表（数据模型）
+    addToStorageHandler(storage) {
+        this.__storage = storage;
+
+        this.__qr && this.__hr.watchAnim.addAnimatable(this);
+        this.clipPath && this.clipPath.trigger("addToStorage", this.__storage);
+        // console.log(this);
+        this.dirty();
     }
 }
 
