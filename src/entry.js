@@ -23,7 +23,7 @@ let instances = {};
 
 //tools -- 图形环境 map
 let painterMap = {
-    canvas: CanvasPainter
+    canvas: CanvasPainter,
 };
 
 export let version = "1.0.0";
@@ -45,6 +45,10 @@ export function dispose(hr) {
     if (hr) {
         hr.dispose();
     }
+}
+
+export function getInstance(id) {
+    return instances[id];
 }
 
 //tools --- 初始化图形环境
@@ -71,7 +75,7 @@ class HumbleRender {
         // this.eventHandler = new HRenderEventHandler(this.storage, this.painter, handerProxy);
 
         this.watchAnim = new WatchAnim();
-        this.watchAnim.on("frame", function() {
+        this.watchAnim.on("frame", function () {
             self.flush(); //每间隔16.7ms 监控一次flush
         });
         this.watchAnim.start();
@@ -136,5 +140,11 @@ class HumbleRender {
         this.painter = null;
 
         delete instances[this.id];
+    }
+
+    //清空画布上的所有对象。
+    clear() {
+        this.storage.delFromRoot();
+        this.painter.clear();
     }
 }
