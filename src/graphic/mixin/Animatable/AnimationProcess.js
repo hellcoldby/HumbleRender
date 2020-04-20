@@ -16,9 +16,9 @@ import Eventful from "../../../tools/EventEmitter";
 import Track from "./Track";
 
 class AnimationProcess {
-    constructor(target, loop) {
+    constructor(target, path, loop) {
         this._trackCacheMap = new Map(); //属性轨道Map {属性名： 对应的track}
-
+        this.path = path;
         this._target = target; // target 可能是字符串，也可能是数组
         this._loop = loop || false;
         this._delay = 0;
@@ -28,19 +28,29 @@ class AnimationProcess {
     }
 
     when(time, props) {
-        if (this._target instanceof Array && this._target.length) {
-            for (let target of this._target) {
+        //解析 path 属性
+        if (this.path && typeof this.path === "string") {
+            if (this._target[this.path]) {
+                this.setTrack(this._target[this.path], time, props);
+            }
+        } else if (this.path instanceof Array && this.path.length) {
+            for (let name of this.path) {
+                let target = this._target[name];
+                if (!name || name === "transform") {
+                    target = this._target;
+                }
+                // console.log(target);
                 this.setTrack(target, time, props);
             }
         } else {
-            this.setTrack(target, time, props);
+            this.setTrack(this._target, time, props);
         }
 
-        // console.log(this);
         return this;
     }
 
     setTrack(target, time, props) {
+        // console.log(props);
         for (let propName in props) {
             if (!props.hasOwnProperty(propName)) {
                 continue;

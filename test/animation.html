@@ -36,36 +36,40 @@
             let main = document.querySelector('#box');
             let hr = HumbleRender.init(main);
             let rect = new HumbleRender.Rect({
+                origin: [150, 100],
                 shape: {
-                    x: 0,
-                    y: 0,
+                    x: 100,
+                    y: 100,
                     width: 200,
                     height: 100,
                     r: [10, 25, 10]
                 },
                 style: {
+                    text: 'hello world',
+                    textAlign: "center",
+                    textFill: "blue",
+                    fontSize: 12,
+                    textLineHeight:20,
                     fill: 'yellow',
                     lineWidth : 10,
                     stroke: 'green'
                 }
             }); 
-            // hr.add(rect);
+            hr.add(rect);
           
-            let gr = new HumbleRender.Group({
-                position:[50,50],
-                scale: [1.2, 1]
-            });
+            // let gr = new HumbleRender.Group({
+            //     position:[50,50],
+            //     scale: [1.2, 1]
+            // });
 
-            gr.add(rect);
-            hr.add(gr);
+            // gr.add(rect);
+            // hr.add(gr);
 
-            rect.animate(['shape', 'style'])
-            .when(1000, {
-                x:200
-            })
+            rect.animate()
             .when(500, {
-                opacity: 0.3
+                rotation: Math.PI * 60 /180
             })
+           
             .start();
 
             // rect.attr({
@@ -73,17 +77,17 @@
             //     rotation: Math.PI* 60/180,
             // });
 
-            rect.attr({
-                style: {
-                    text: "text123456789012345",
-                    textAlign: "center",
-                    textFill: "blue",
-                    fontSize: 14,
-                    textLineHeight:20,
-                    fontWeight: 'bold',
-                    limitWidth: 50
-                }
-            });
+            // rect.attr({
+            //     style: {
+            //         text: "text123456789012345",
+            //         textAlign: "center",
+            //         textFill: "blue",
+            //         fontSize: 14,
+            //         textLineHeight:20,
+            //         fontWeight: 'bold',
+            //         limitWidth: 50
+            //     }
+            // });
 
             // console.log(rect);
 

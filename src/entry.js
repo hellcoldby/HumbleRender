@@ -23,7 +23,7 @@ let instances = {};
 
 //tools -- 图形环境 map
 let painterMap = {
-    canvas: CanvasPainter
+    canvas: CanvasPainter,
 };
 
 export let version = "1.0.0";
@@ -71,7 +71,7 @@ class HumbleRender {
         // this.eventHandler = new HRenderEventHandler(this.storage, this.painter, handerProxy);
 
         this.watchAnim = new WatchAnim();
-        this.watchAnim.on("frame", function() {
+        this.watchAnim.on("frame", function () {
             self.flush(); //每间隔16.7ms 监控一次flush
         });
         this.watchAnim.start();
@@ -108,7 +108,7 @@ class HumbleRender {
 
     //移除元素
     remove(ele) {
-        // this.storage.delFromRoot(ele);
+        this.storage.delFromRoot(ele);
         this.refresh();
     }
 

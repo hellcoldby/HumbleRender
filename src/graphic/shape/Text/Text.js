@@ -8,6 +8,7 @@ export default class Text extends Path {
     }
 
     brush(ctx, prevEle) {
+        console.log(this);
         this.style.bind(ctx, this, prevEle);
         if (this.style.text) {
             ctx.save();

@@ -30,7 +30,7 @@ export default class Track {
     start(propName, loop = false, easing = "", forceAnimate = false) {
         //将所有关键帧的值，统一长度，填充空缺。
         let options = this._parseKeyFrames(easing, propName, loop, forceAnimate);
-        // console.log(options);
+
         if (!options) {
             return null;
         }
@@ -50,7 +50,6 @@ export default class Track {
         if (isString(result) && result === "destroy") {
             this.isFinished = true;
         }
-        // console.log(result);
         return result;
     }
     /**
@@ -230,6 +229,7 @@ export default class Track {
                     }
                     // console.log(value);
                     target[propName] = value;
+                    // console.log(target);
                 }
             }
         };

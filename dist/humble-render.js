@@ -1056,6 +1056,37 @@
             this.ele_ary = null; //包含所有图形的数组
             this.ele_map = null;
         }
+
+        delFromStorage(el) {
+            if (this.ele_map.get(el.id)) {
+                this.ele_map.delete(el.id);
+                // this.trigger("delFromStorage",el);
+                el.trigger("delFromStorage", this);
+            }
+            return this;
+        }
+
+        delFromRoot(el) {
+            if (el == null) {
+                this.ele_map.forEach((el, id, map) => {
+                    this.delFromStorage(el);
+                });
+                this.ele_map = new Map();
+                this.ele_ary = [];
+                this.ele_ary_len = 0;
+                return;
+            }
+
+            if (el.forEach) {
+                // Array like.
+                el.forEach((item, index) => {
+                    this.delFromRoot(item);
+                });
+                return;
+            }
+
+            this.delFromStorage(el);
+        }
     }
 
     /* 
@@ -1608,7 +1639,7 @@
                 // && !(ele.culling && this.isDisplayableCulled())
             ) {
                 ele.beforeBrush && ele.beforeBrush(ctx);
-                // console.log(ele);
+                // console.log(ele.brush);
                 ele.brush(ctx, scope.prevEl || null);
                 scope.prevEl = ele;
                 ele.afterBrush && ele.afterBrush(ctx);
@@ -1769,7 +1800,7 @@
 
     //tools -- 图形环境 map
     let painterMap = {
-        canvas: CanvasPainter
+        canvas: CanvasPainter,
     };
 
     let version = "1.0.0";
@@ -1811,7 +1842,7 @@
             // this.eventHandler = new HRenderEventHandler(this.storage, this.painter, handerProxy);
 
             this.watchAnim = new WatchAnim();
-            this.watchAnim.on("frame", function() {
+            this.watchAnim.on("frame", function () {
                 self.flush(); //每间隔16.7ms 监控一次flush
             });
             this.watchAnim.start();
@@ -1848,7 +1879,7 @@
 
         //移除元素
         remove(ele) {
-            // this.storage.delFromRoot(ele);
+            this.storage.delFromRoot(ele);
             this.refresh();
         }
 
@@ -3587,7 +3618,7 @@
         start(propName, loop = false, easing = "", forceAnimate = false) {
             //将所有关键帧的值，统一长度，填充空缺。
             let options = this._parseKeyFrames(easing, propName, loop, forceAnimate);
-            // console.log(options);
+
             if (!options) {
                 return null;
             }
@@ -3607,7 +3638,6 @@
             if (isString(result) && result === "destroy") {
                 this.isFinished = true;
             }
-            // console.log(result);
             return result;
         }
         /**
@@ -3787,6 +3817,7 @@
                         }
                         // console.log(value);
                         target[propName] = value;
+                        // console.log(target);
                     }
                 }
             };
@@ -3818,9 +3849,9 @@
      */
 
     class AnimationProcess {
-        constructor(target, loop) {
+        constructor(target, path, loop) {
             this._trackCacheMap = new Map(); //属性轨道Map {属性名： 对应的track}
-
+            this.path = path;
             this._target = target; // target 可能是字符串，也可能是数组
             this._loop = loop || false;
             this._delay = 0;
@@ -3830,19 +3861,29 @@
         }
 
         when(time, props) {
-            if (this._target instanceof Array && this._target.length) {
-                for (let target of this._target) {
+            //解析 path 属性
+            if (this.path && typeof this.path === "string") {
+                if (this._target[this.path]) {
+                    this.setTrack(this._target[this.path], time, props);
+                }
+            } else if (this.path instanceof Array && this.path.length) {
+                for (let name of this.path) {
+                    let target = this._target[name];
+                    if (!name || name === "transform") {
+                        target = this._target;
+                    }
+                    // console.log(target);
                     this.setTrack(target, time, props);
                 }
             } else {
-                this.setTrack(target, time, props);
+                this.setTrack(this._target, time, props);
             }
 
-            // console.log(this);
             return this;
         }
 
         setTrack(target, time, props) {
+            // console.log(props);
             for (let propName in props) {
                 if (!props.hasOwnProperty(propName)) {
                     continue;
@@ -4029,34 +4070,10 @@
          * @param {boolean} loop --- 动画循环
          */
         animate: function (path, loop) {
-            let target = this;
-            if (path && typeof path === "string") {
-                let path_split = path.split(".");
-                for (let i = 0; i < path_split.length; i++) {
-                    let item = path_split[i]; //'shape' or 'style'...
-                    if (!this[item]) {
-                        continue;
-                    } else {
-                        target = this[item];
-                        break;
-                    }
-                }
-            } else if (path instanceof Array && path.length) {
-                // 处理多个属性 shape and  style
-                target = [];
-                for (let i = 0; i < path.length; i++) {
-                    let item = path[i];
-                    if (!this[item]) {
-                        continue;
-                    } else {
-                        target.push(this[item]);
-                    }
-                }
-            }
-
             //创建动画实例
-            let animationProcess = new AnimationProcess(target);
+            let animationProcess = new AnimationProcess(this, path);
             animationProcess.during(() => {
+                // console.log(this);
                 this.dirty();
             });
             animationProcess.on("done", () => {
@@ -4673,7 +4690,8 @@
                 fontSize = parseFloat(fontSize);
                 font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
             }
-            style.font = style.font || font;
+            style.font = font || style.font;
+            // console.log(style.font);
 
             //文字行高
             textLineHeight = textLineHeight || fontSize;
@@ -4703,16 +4721,23 @@
             let textY = cen.y;
             let { textWidth, textLines } = getTextWidth(text, style.font); //获取单行文字宽度 和 行数
 
-            if (limitWidth) {
-                text = cutText(text, limitWidth);
+            if (limitWidth && text) {
                 function cutText(text, limitWidth) {
                     let { textWidth } = getTextWidth(text, style.font); //获取单行文字宽度 和 行数
+
                     while (textWidth > limitWidth) {
-                        text = text.substring(0, text.length - 4);
-                        textWidth = getTextWidth(text, style.font).textWidth;
+                        text = text.substring(0, text.length - 1);
+                        let res = getTextWidth(text, style.font);
+                        textWidth = res && res.textWidth;
                     }
-                    return text + "...";
+                    return {
+                        newText: text,
+                        newTextWidth: textWidth,
+                    };
                 }
+
+                let { newText, newTextWidth } = cutText(text, limitWidth);
+                text = newText === text ? text : newText + "...";
             }
 
             this.textWidth = textWidth;
@@ -5635,6 +5660,7 @@
         }
 
         brush(ctx, prevEle) {
+            console.log(this);
             this.style.bind(ctx, this, prevEle);
             if (this.style.text) {
                 ctx.save();

@@ -6,7 +6,7 @@
 import Element from "../Element/Element";
 import PathProxy from "./PathProxy/PathProxy";
 import TextRender from "./TextRender";
-import { mixin } from "../../tools/data_util";
+import { mixin, isObject, merge } from "../../tools/data_util";
 
 class Path extends Element {
     constructor(opts) {
@@ -218,6 +218,19 @@ class Path extends Element {
                 cen,
             };
         }
+    }
+
+    setShape(key, value) {
+        if (!this.shape) {
+            return this;
+        }
+        if (isObject(key)) {
+            merge(this.shape, key);
+        } else {
+            this.shape[key] = value;
+        }
+        this.dirty(true);
+        return this;
     }
 }
 

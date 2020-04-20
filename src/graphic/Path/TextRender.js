@@ -25,7 +25,8 @@ export default class TextRender {
             fontSize = parseFloat(fontSize);
             font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
         }
-        style.font = style.font || font;
+        style.font = font || style.font;
+        // console.log(style.font);
 
         //文字行高
         textLineHeight = textLineHeight || fontSize;
@@ -57,16 +58,23 @@ export default class TextRender {
         let textY = cen.y;
         let { textWidth, textLines } = getTextWidth(text, style.font); //获取单行文字宽度 和 行数
 
-        if (limitWidth) {
-            text = cutText(text, limitWidth);
+        if (limitWidth && text) {
             function cutText(text, limitWidth) {
                 let { textWidth } = getTextWidth(text, style.font); //获取单行文字宽度 和 行数
+
                 while (textWidth > limitWidth) {
-                    text = text.substring(0, text.length - 4);
-                    textWidth = getTextWidth(text, style.font).textWidth;
+                    text = text.substring(0, text.length - 1);
+                    let res = getTextWidth(text, style.font);
+                    textWidth = res && res.textWidth;
                 }
-                return text + "...";
+                return {
+                    newText: text,
+                    newTextWidth: textWidth,
+                };
             }
+
+            let { newText, newTextWidth } = cutText(text, limitWidth);
+            text = newText === text ? text : newText + "...";
         }
 
         this.textWidth = textWidth;

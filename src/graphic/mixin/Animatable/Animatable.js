@@ -15,34 +15,10 @@ Animatable.prototype = {
      * @param {boolean} loop --- 动画循环
      */
     animate: function (path, loop) {
-        let target = this;
-        if (path && typeof path === "string") {
-            let path_split = path.split(".");
-            for (let i = 0; i < path_split.length; i++) {
-                let item = path_split[i]; //'shape' or 'style'...
-                if (!this[item]) {
-                    continue;
-                } else {
-                    target = this[item];
-                    break;
-                }
-            }
-        } else if (path instanceof Array && path.length) {
-            // 处理多个属性 shape and  style
-            target = [];
-            for (let i = 0; i < path.length; i++) {
-                let item = path[i];
-                if (!this[item]) {
-                    continue;
-                } else {
-                    target.push(this[item]);
-                }
-            }
-        }
-
         //创建动画实例
-        let animationProcess = new AnimationProcess(target);
+        let animationProcess = new AnimationProcess(this, path);
         animationProcess.during(() => {
+            // console.log(this);
             this.dirty();
         });
         animationProcess.on("done", () => {
@@ -53,7 +29,7 @@ Animatable.prototype = {
         });
 
         this.animationProcessList.push(animationProcess);
-        if (this.__hr) {
+        if (this.__hr && this.__hr.watchAnim) {
             this.__hr.watchAnim.addAnimatable(this); //保存带有带有动画的元素列表
         }
         return animationProcess;

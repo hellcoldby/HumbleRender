@@ -342,7 +342,7 @@ class CanvasPainter {
             // && !(ele.culling && this.isDisplayableCulled())
         ) {
             ele.beforeBrush && ele.beforeBrush(ctx);
-            // console.log(ele);
+            // console.log(ele.brush);
             ele.brush(ctx, scope.prevEl || null);
             scope.prevEl = ele;
             ele.afterBrush && ele.afterBrush(ctx);

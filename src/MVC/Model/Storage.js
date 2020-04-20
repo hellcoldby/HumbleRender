@@ -112,6 +112,37 @@ class Storage extends Eventful {
         this.ele_ary = null; //包含所有图形的数组
         this.ele_map = null;
     }
+
+    delFromStorage(el) {
+        if (this.ele_map.get(el.id)) {
+            this.ele_map.delete(el.id);
+            // this.trigger("delFromStorage",el);
+            el.trigger("delFromStorage", this);
+        }
+        return this;
+    }
+
+    delFromRoot(el) {
+        if (el == null) {
+            this.ele_map.forEach((el, id, map) => {
+                this.delFromStorage(el);
+            });
+            this.ele_map = new Map();
+            this.ele_ary = [];
+            this.ele_ary_len = 0;
+            return;
+        }
+
+        if (el.forEach) {
+            // Array like.
+            el.forEach((item, index) => {
+                this.delFromRoot(item);
+            });
+            return;
+        }
+
+        this.delFromStorage(el);
+    }
 }
 
 export default Storage;
