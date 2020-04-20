@@ -225,7 +225,7 @@ class Path extends Element {
             return this;
         }
         if (isObject(key)) {
-            merge(this.shape, key);
+            merge(this.shape, key, true); //覆盖之前的属性
         } else {
             this.shape[key] = value;
         }
