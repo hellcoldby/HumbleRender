@@ -113,17 +113,9 @@ class Storage extends Eventful {
         this.ele_map = null;
     }
 
-    delFromStorage(el) {
-        if (this.ele_map.get(el.id)) {
-            this.ele_map.delete(el.id);
-            // this.trigger("delFromStorage",el);
-            el.trigger("delFromStorage", this);
-        }
-        return this;
-    }
-
     delFromRoot(el) {
         if (el == null) {
+            // Clear all.
             this.ele_map.forEach((el, id, map) => {
                 this.delFromStorage(el);
             });
@@ -142,6 +134,18 @@ class Storage extends Eventful {
         }
 
         this.delFromStorage(el);
+    }
+
+    /** 从 Storage 中删除元素。
+     * @param {Element} el
+     */
+    delFromStorage(el) {
+        if (this.ele_map.get(el.id)) {
+            this.ele_map.delete(el.id);
+            this.trigger("delFromStorage", el);
+            el.trigger("delFromStorage", this);
+        }
+        return this;
     }
 }
 

@@ -47,6 +47,10 @@ export function dispose(hr) {
     }
 }
 
+export function getInstance(id) {
+    return instances[id];
+}
+
 //tools --- 初始化图形环境
 class HumbleRender {
     constructor(root, opts = {}) {
@@ -136,5 +140,11 @@ class HumbleRender {
         this.painter = null;
 
         delete instances[this.id];
+    }
+
+    //清空画布上的所有对象。
+    clear() {
+        this.storage.delFromRoot();
+        this.painter.clear();
     }
 }
