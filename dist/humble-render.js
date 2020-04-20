@@ -1702,7 +1702,7 @@ class WatchAnim extends Eventful {
         this._pause = {
             startTime: 0, //暂停开始时间
             flag: false, //暂停开关
-            duration: 0 //暂停持续时间
+            duration: 0, //暂停持续时间
         };
 
         this._animatableMap = new Map();
@@ -1778,9 +1778,11 @@ class WatchAnim extends Eventful {
 
     //清除所有元素的动画
     clear() {
-        this._animatableMap.forEach(ele => {
+        this._animatableMap.forEach((ele) => {
             ele.stopAnimation();
         });
+        this._running = false;
+        this._animatableMap = new Map();
     }
 }
 
@@ -5113,7 +5115,7 @@ class Path extends Element {
             return this;
         }
         if (isObject(key)) {
-            merge(this.shape, key, true);
+            merge(this.shape, key, true); //覆盖之前的属性
         } else {
             this.shape[key] = value;
         }
