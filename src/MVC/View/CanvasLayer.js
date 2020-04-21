@@ -138,6 +138,26 @@ export default class CanvasLayer {
     //         this.hiddenContext.scale(this.dpr, this.dpr);
     //     }
     // }
-}
 
-let a = function() {};
+    resize(width, height) {
+        //Can NOT get canvas instance in Wechat mini-program.
+        if (!this.canvasDOM) {
+            return;
+        }
+        if (this.canvasDOM.style) {
+            this.canvasDOM.style.width = width + "px";
+            this.canvasDOM.style.height = height + "px";
+        }
+        this.canvasDOM.width = width * this.dpr;
+        this.canvasDOM.height = height * this.dpr;
+
+        if (!this.hiddenCanvas) {
+            return;
+        }
+        // this.hiddenCanvas.width = width * this.dpr;
+        // this.hiddenCanvas.height = height * this.dpr;
+        // if (this.dpr !== 1) {
+        //     this.hiddenContext.scale(this.dpr, this.dpr);
+        // }
+    }
+}

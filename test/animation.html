@@ -56,6 +56,11 @@
                 }
             }); 
             hr.add(rect);
+            hr.resize({
+                width: 300,
+                height: 300,
+            });
+           
           
             // let gr = new HumbleRender.Group({
             //     position:[50,50],
@@ -65,12 +70,14 @@
             // gr.add(rect);
             // hr.add(gr);
 
-            rect.animate()
-            .when(500, {
-                rotation: Math.PI * 60 /180
-            })
+            // rect.animate()
+            // .when(500, {
+            //     rotation: Math.PI * 60 /180
+            // }).done(()=>{
+              
+            // })
            
-            .start();
+            // .start();
 
             // rect.attr({
             //     origin:[200, 250],

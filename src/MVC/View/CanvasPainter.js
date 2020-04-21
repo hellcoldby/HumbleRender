@@ -230,6 +230,7 @@ class CanvasPainter {
         }
 
         layer_id_list.splice(index + 1, 0, levelId); //插入 新图层id
+        console.log(layer_id_list);
         layers_map[levelId] = layer; // 新图层id 对应图层map
 
         //没有需要合并的图层
@@ -370,6 +371,46 @@ class CanvasPainter {
         this.storage = null;
         this._root = null;
         this.layers_map = null;
+    }
+
+    resize(width, height) {
+        if (!this.root.style) {
+            // Maybe in node or worker or Wechat
+            if (width == null || height == null) {
+                return;
+            }
+            // this._width = width;
+            // this._height = height;
+            // this.getLayer(CANVAS_QLEVEL).resize(width, height);
+        } else {
+            let domRoot = this.root;
+            domRoot.style.display = "none";
+
+            // Save input w/h
+            let options = this.opts;
+            width && (options.width = width);
+            height && (options.height = height);
+
+            domRoot.style.display = "";
+
+            // 优化没有实际改变的resize
+            if (this._width !== width || height !== this._height) {
+                domRoot.style.width = width + "px";
+                domRoot.style.height = height + "px";
+
+                for (let id in this.layers_map) {
+                    if (this.layers_map.hasOwnProperty(id)) {
+                        this.layers_map[id].resize(width, height);
+                    }
+                }
+
+                this.refresh(true);
+            }
+
+            this._width = width;
+            this._height = height;
+        }
+        return this;
     }
 }
 

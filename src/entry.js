@@ -147,4 +147,11 @@ class HumbleRender {
         this.storage.delFromRoot();
         this.painter.clear();
     }
+
+    //尺寸变化重新渲染画布
+    resize(options) {
+        options = options || {};
+        this.painter.resize(options.width, options.height);
+        // this.eventDispatcher.resize();
+    }
 }
