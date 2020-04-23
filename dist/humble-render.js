@@ -1700,11 +1700,11 @@ class CanvasPainter {
             if (width == null || height == null) {
                 return;
             }
-            // this._width = width;
-            // this._height = height;
+            this._width = width;
+            this._height = height;
             // this.getLayer(CANVAS_QLEVEL).resize(width, height);
         } else {
-            let domRoot = this.root;
+            let domRoot = this._root;
             domRoot.style.display = "none";
 
             // Save input w/h
@@ -1724,14 +1724,25 @@ class CanvasPainter {
                         this.layers_map[id].resize(width, height);
                     }
                 }
+                this._width = width;
+                this._height = height;
 
                 this.refresh(true);
             }
-
-            this._width = width;
-            this._height = height;
         }
         return this;
+    }
+
+    /**
+     * @method clear
+     * 清除hover层外所有内容
+     */
+    clear() {
+        this._eachBuiltinLayer(this._clearLayer);
+        return this;
+    }
+    _clearLayer(layer) {
+        layer.clear();
     }
 }
 
