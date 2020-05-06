@@ -151,7 +151,35 @@ class HumbleRender {
     //尺寸变化重新渲染画布
     resize(options) {
         options = options || {};
-        this.painter.resize(options.width, options.height);
+        const { _width, _height } = this.painter.resize(options.width, options.height);
+        console.log(_width, _height);
         // this.eventDispatcher.resize();
+        return this;
+    }
+
+    //复制画布上的像素数据
+    // 在添加完图形后延迟调用
+    getImageData() {
+        let imgData = this.painter.getImageData();
+        this.clear();
+        return imgData;
+    }
+
+    //
+    putImageData(imgData, opts) {
+        if (!imgData) return;
+        this.clear();
+        let ctx = this.painter.putImageData(imgData, opts);
+        return ctx;
+    }
+
+    //停止监控
+    stopWatch() {
+        this.watchAnim.pause();
+    }
+
+    //启动监控
+    startWatch() {
+        this.watchAnim.start();
     }
 }

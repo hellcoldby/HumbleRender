@@ -162,19 +162,35 @@ export default class TextRender {
 function getTextForPadding(x, y, textAlign, textPadding) {
     let curX = 0;
     let curY = 0;
+    let offsetY = 0; //y轴偏移
+    let offsetX = 0; //x轴偏移
+    if (Math.abs(textPadding[0]) > Math.abs(textPadding[2])) {
+        offsetY = textPadding[0];
+    } else {
+        offsetY = textPadding[2];
+    }
+    if (Math.abs(textPadding[1]) > Math.abs(textPadding[3])) {
+        offsetX = textPadding[1];
+    } else {
+        offsetX = textPadding[3];
+    }
 
+    // console.log(offsetY);
     switch (textAlign) {
         case "right":
             curX = x - textPadding[1];
+            curY = y + offsetY;
             break;
         case "center":
-            curX = x + textPadding[3] / 2 - textPadding[1] / 2;
+            curX = x + offsetX;
+            curY = y + offsetY;
             break;
         default:
             curX = x + textPadding[3];
+            curY = y + offsetY;
             break;
     }
-    curY = Math.max(y + textPadding[0], y - textPadding[2]);
+
     return {
         curX,
         curY,

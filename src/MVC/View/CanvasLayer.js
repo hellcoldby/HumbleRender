@@ -120,7 +120,7 @@ export default class CanvasLayer {
         //     this.hiddenContext.globalCompositeOperation = "copy";
         //     this.hiddenContext.drawImage(this.canvasDOM, 0, 0, width / dpr, height / dpr);
         // }
-        // console.log(this.width, this.height);
+        console.log(this.width * this.dpr, this.height * this.dpr);
         this.ctx.clearRect(0, 0, this.width * this.dpr, this.height * this.dpr);
 
         // if (haveMotionBLur && this.hiddenCanvas) {

@@ -52,14 +52,14 @@
                     textLineHeight:20,
                     fill: 'yellow',
                     lineWidth : 10,
-                    stroke: 'green'
+                    stroke: 'green',
+                    textPadding:[-10, 0, 0, -10]
                 }
             }); 
             hr.add(rect);
-            hr.resize({
-                width: 300,
-                height: 300,
-            });
+            
+ 
+         
            
           
             // let gr = new HumbleRender.Group({
@@ -98,10 +98,17 @@
 
             // console.log(rect);
 
-            // rect.animate('style')
-            // .when(1000, {
-            //     opacity: 0.2
-            // }).start();
+            rect.animate('style')
+            .when(1000, {
+                opacity: 0.2
+            }).done(()=>{
+
+                hr.resize({
+                    width: 500,
+                    height: 400,
+                });
+            })
+            .start();
 
             
 

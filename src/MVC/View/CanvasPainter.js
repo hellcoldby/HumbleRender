@@ -1,6 +1,8 @@
 import { devicePixelRatio } from "../../tools/dpr";
 import CanvasLayer from "./CanvasLayer";
 import { RAF } from "../../tools/anim_util";
+import { createCanvas, getContext } from "../../tools/canvas_util";
+
 const CANVAS_LEVEL_ID = 314159; //图层id;
 const HOVER_LAYER_LEVEL_ID = 1e5; //事件图层id
 const ELE_AFTER_INCREMENTAL_INC = 0.01; //图形 增量的初始id
@@ -20,6 +22,7 @@ class CanvasPainter {
 
         this._singleCanvas = !this.root.nodeName || this.root.nodeName.toUpperCase() === "CANVAS"; //根节点canvas
         if (this._singleCanvas) {
+            console.log("lalalala");
             // 如果根节点是一个canvas
             let width = this.root.width;
             let height = this.root.height;
@@ -57,7 +60,7 @@ class CanvasPainter {
      * @param {Boolean} [paintAll=false] 是否强制绘制所有元素
      */
     refresh(paintAll) {
-        // console.log("123");
+        console.log("123");
         //从 storage 中获取 元素数组列表
         let ele_ary = this.storage.getDisplayList(true);
 
@@ -91,8 +94,7 @@ class CanvasPainter {
         paintAll = paintAll || false;
         //1.2_1  动态创建图层 更新图层状态
         this._updateLayerStatus(ele_ary);
-        //1.2_2开始绘制图形
-        // console.log("update");
+        //1.2_2开始绘制图形, 保证每一帧都绘制完成
         let finished = this._doPaintList(ele_ary, paintAll);
         if (!finished) {
             let self = this;
@@ -104,6 +106,7 @@ class CanvasPainter {
 
     //1.2_1 更新图层状态 动态创建图层
     _updateLayerStatus(ele_ary) {
+        console.log("update");
         this._eachBuiltinLayer(function (layer, z) {
             layer.__dirty = layer.__used = false;
         });
@@ -189,6 +192,7 @@ class CanvasPainter {
         if (this._singleCanvas && !this._needsManuallyCompositing) {
             curLevelId = CANVAS_LEVEL_ID;
         }
+        console.log(this._width, this._height);
         //多个元素 同一个图层，id是一样的，就直接返回创建 好的图层。
         let layer = this.layers_map[curLevelId];
         if (!layer) {
@@ -230,7 +234,7 @@ class CanvasPainter {
         }
 
         layer_id_list.splice(index + 1, 0, levelId); //插入 新图层id
-        console.log(layer_id_list);
+        // console.log(layer_id_list);
         layers_map[levelId] = layer; // 新图层id 对应图层map
 
         //没有需要合并的图层
@@ -410,6 +414,73 @@ class CanvasPainter {
             }
         }
         return this;
+    }
+
+    //复制画布上的像素数据
+    getImageData(context) {
+        if (!this.layer_id_list.length) return;
+        const layers = this.layer_id_list;
+        const layersMap = this.layers_map;
+        //创建一个虚拟的canvas画布，将所有图层的图像合并到一个画布上
+        const virCanvas = createCanvas("", this._width, this._height, this.dpr);
+        const ctx = getContext(virCanvas);
+        const imagedataAry = [];
+
+        for (let i = 0, len = layers.length; i < len; i++) {
+            const id = layers[i];
+            const curLayer = layersMap[id];
+            console.log(curLayer);
+            const curCtx = curLayer.ctx;
+            const curImageData = curCtx.getImageData(0, 0, this._width * this.dpr, this._height * this.dpr);
+            // console.log(curImageData);
+            imagedataAry.push(curImageData);
+        }
+        imagedataAry.forEach((item) => {
+            ctx.putImageData(item, 0, 0);
+        });
+
+        const virImageData = ctx.getImageData(0, 0, this._width * this.dpr, this._height * this.dpr);
+
+        return virImageData;
+    }
+
+    //将合并后的截图恢复到画布中
+    putImageData(imgData, opts) {
+        //判断根是 div 还是 canvas'
+        let curCtx = null;
+        let newCtx = null;
+        let tmpData = imgData;
+        const { scale } = opts;
+
+        if (this._singleCanvas) {
+            curCtx = this._root;
+            curCtx.putImageData(imgData, 0, 0);
+        } else {
+            const virCanvas = createCanvas("", this._width, this._height, this.dpr);
+            this._root.appendChild(virCanvas);
+            const ctx = getContext(virCanvas);
+
+            tmpData = this._scaleImageData(imgData, scale);
+            ctx.putImageData(tmpData, 0, 0);
+            // ctx.drawImage(tmpData, 0, 0, 2 * this._width, 2 * this._height);
+
+            curCtx = ctx;
+        }
+        return curCtx;
+    }
+
+    _scaleImageData(imgData, scale) {
+        const oneCanvas = createCanvas("", this._width, this._height, this.dpr);
+        const oneCtx = getContext(oneCanvas);
+        oneCtx.putImageData(imgData, 0, 0);
+        const twoCanvas = createCanvas("", this._width, this._height, this.dpr);
+        const twoCtx = getContext(twoCanvas);
+        twoCtx.scale(scale.x, scale.y);
+        twoCtx.drawImage(oneCanvas, 0, 0);
+
+        const twoImageData = twoCtx.getImageData(0, 0, this._width * this.dpr, this._height * this.dpr);
+        return twoImageData;
+        // return oneCanvas;
     }
 
     /**
