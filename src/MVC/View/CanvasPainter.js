@@ -418,7 +418,6 @@ class CanvasPainter {
                 }
                 this._width = width;
                 this._height = height;
-                // console.log(this.finished);
 
                 this.refresh(true);
             }

@@ -66,11 +66,12 @@ class HumbleRender {
         this.storage = new Storage();
         this.painter = new painterMap[renderType](this.root, this.storage, opts, this.id);
 
-        let handerProxy = null;
+        let handlerProxy = null;
         if (typeof this.root.moveTo !== "function") {
-            // if (!env.node && !env.worker && !env.wxa) {
-            //     handerProxy = new EventProxy(this.painter.root);
-            // }
+            if (!env.node && !env.worker && !env.wxa) {
+                console.log(21321);
+                handlerProxy = new EventProxy(this.painter.root);
+            }
         }
         // this.eventHandler = new HRenderEventHandler(this.storage, this.painter, handerProxy);
 
