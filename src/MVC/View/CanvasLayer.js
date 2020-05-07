@@ -81,28 +81,6 @@ export default class CanvasLayer {
     getElementCount() {
         return this.__endIndex - this.__startIndex;
     }
-    //改变尺寸
-    resize(width, height) {
-        //Can NOT get canvas instance in Wechat mini-program.
-        if (!this.canvasDOM) {
-            return;
-        }
-        if (this.canvasDOM.style) {
-            this.canvasDOM.style.width = width + "px";
-            this.canvasDOM.style.height = height + "px";
-        }
-        this.canvasDOM.width = width * this.dpr;
-        this.canvasDOM.height = height * this.dpr;
-
-        if (!this.hiddenCanvas) {
-            return;
-        }
-        this.hiddenCanvas.width = width * this.dpr;
-        this.hiddenCanvas.height = height * this.dpr;
-        if (this.dpr !== 1) {
-            this.hiddenContext.scale(this.dpr, this.dpr);
-        }
-    }
 
     clear(clearAll, clearColor) {
         clearColor = clearColor || this.clearColor;
@@ -120,7 +98,7 @@ export default class CanvasLayer {
         //     this.hiddenContext.globalCompositeOperation = "copy";
         //     this.hiddenContext.drawImage(this.canvasDOM, 0, 0, width / dpr, height / dpr);
         // }
-        console.log(this.width * this.dpr, this.height * this.dpr);
+        // console.log(this.width * this.dpr, this.height * this.dpr);
         this.ctx.clearRect(0, 0, this.width * this.dpr, this.height * this.dpr);
 
         // if (haveMotionBLur && this.hiddenCanvas) {
@@ -150,6 +128,9 @@ export default class CanvasLayer {
         }
         this.canvasDOM.width = width * this.dpr;
         this.canvasDOM.height = height * this.dpr;
+
+        this.width = width;
+        this.height = height;
 
         if (!this.hiddenCanvas) {
             return;

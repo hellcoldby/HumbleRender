@@ -144,15 +144,18 @@ class HumbleRender {
 
     //清空画布上的所有对象。
     clear() {
+        //应该先停止循环监控
+        this.stopWatch();
         this.storage.delFromRoot();
         this.painter.clear();
+        this.startWatch();
     }
 
     //尺寸变化重新渲染画布
     resize(options) {
         options = options || {};
         const { _width, _height } = this.painter.resize(options.width, options.height);
-        console.log(_width, _height);
+        // console.log(_width, _height);
         // this.eventDispatcher.resize();
         return this;
     }

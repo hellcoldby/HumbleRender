@@ -25,6 +25,7 @@ export default class WatchAnim extends Eventful {
     start() {
         this._startTime = new Date().getTime();
         this._pause.duration = 0;
+        this._pause.flag = false;
         this._startLoop();
     }
     //暂停监控

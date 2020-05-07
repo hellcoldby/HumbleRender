@@ -132,7 +132,6 @@ class Storage extends Eventful {
             });
             return;
         }
-
         this.delFromStorage(el);
     }
 
@@ -142,8 +141,8 @@ class Storage extends Eventful {
     delFromStorage(el) {
         if (this.ele_map.get(el.id)) {
             this.ele_map.delete(el.id);
-            this.trigger("delFromStorage", el);
-            el.trigger("delFromStorage", this);
+            // this.trigger("delFromStorage", el);
+            // el.trigger("delFromStorage", this);
         }
         return this;
     }

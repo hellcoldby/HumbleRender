@@ -20,9 +20,10 @@ class CanvasPainter {
         this._layerConfig = {}; //?
         this._needsManuallyCompositing = false; //? 是否需要手动合成
 
+        this.finished = false;
+
         this._singleCanvas = !this.root.nodeName || this.root.nodeName.toUpperCase() === "CANVAS"; //根节点canvas
         if (this._singleCanvas) {
-            console.log("lalalala");
             // 如果根节点是一个canvas
             let width = this.root.width;
             let height = this.root.height;
@@ -60,7 +61,6 @@ class CanvasPainter {
      * @param {Boolean} [paintAll=false] 是否强制绘制所有元素
      */
     refresh(paintAll) {
-        console.log("123");
         //从 storage 中获取 元素数组列表
         let ele_ary = this.storage.getDisplayList(true);
 
@@ -96,7 +96,9 @@ class CanvasPainter {
         this._updateLayerStatus(ele_ary);
         //1.2_2开始绘制图形, 保证每一帧都绘制完成
         let finished = this._doPaintList(ele_ary, paintAll);
+        this.finished = finished;
         if (!finished) {
+            console.log("resize");
             let self = this;
             RAF(function () {
                 self._paintList(ele_ary, paintAll, redrawId);
@@ -106,17 +108,17 @@ class CanvasPainter {
 
     //1.2_1 更新图层状态 动态创建图层
     _updateLayerStatus(ele_ary) {
-        console.log("update");
         this._eachBuiltinLayer(function (layer, z) {
             layer.__dirty = layer.__used = false;
         });
+
         let prevLayer = null;
         let idx = 0;
         for (let i = 0; i < ele_ary.length; ) {
             let ele = ele_ary[i];
             let hLevel = ele.hLevel; //图形对应的图层
             let tmp_id = 0;
-            //1.2_1_1 同一个图层的元素只创建一次图层，否则就创建过个图层
+            //1.2_1_1 同一个图层的元素只创建一次图层，否则就创建多个图层
             let layer = this.getLayer(hLevel + tmp_id, this._needsManuallyCompositing);
             if (layer !== prevLayer) {
                 layer.__used = true;
@@ -146,6 +148,7 @@ class CanvasPainter {
             i++;
             idx = i;
         }
+
         updatePrevLayer(idx);
         this._eachBuiltinLayer(function (layer, z) {
             // Used in last frame but not in this frame. Needs clear
@@ -192,9 +195,11 @@ class CanvasPainter {
         if (this._singleCanvas && !this._needsManuallyCompositing) {
             curLevelId = CANVAS_LEVEL_ID;
         }
-        console.log(this._width, this._height);
+        // console.log(this._width, this._height);
+
         //多个元素 同一个图层，id是一样的，就直接返回创建 好的图层。
         let layer = this.layers_map[curLevelId];
+
         if (!layer) {
             //如果没有初始图层存在就创建一个 canvas 图层
             layer = new CanvasLayer("hr_" + curLevelId, this._width, this._height, this.dpr);
@@ -206,6 +211,7 @@ class CanvasPainter {
             //1.2_1_1_1图层 插入到页面中
             this.insertLayer(curLevelId, layer);
             layer.initContext();
+        } else {
         }
         return layer;
     }
@@ -267,6 +273,7 @@ class CanvasPainter {
                 layerList.push(cur_layer);
             }
         }
+
         // console.log(layerList);
 
         let finished = true;
@@ -324,6 +331,7 @@ class CanvasPainter {
 
             if (cur_layer.__drawIndex < cur_layer.__endIndex) {
                 finished = false;
+                this.finished = false;
             }
 
             if (scope.prevElClipPaths) {
@@ -335,6 +343,7 @@ class CanvasPainter {
             return finished;
         }
     }
+
     //1.2_2_1 开始绘制图层里的 元素
     _doPaintEl(ele, cur_layer, paintAll, scope) {
         let ctx = cur_layer.ctx;
@@ -409,6 +418,7 @@ class CanvasPainter {
                 }
                 this._width = width;
                 this._height = height;
+                // console.log(this.finished);
 
                 this.refresh(true);
             }

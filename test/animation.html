@@ -58,8 +58,17 @@
             }); 
             hr.add(rect);
             
- 
-         
+
+            // setTimeout(() => {
+                
+                hr.resize({
+                    width: 500,
+                    height: 400,
+                });
+
+                // hr.clear();
+             
+            // }, 2000);
            
           
             // let gr = new HumbleRender.Group({
@@ -98,17 +107,14 @@
 
             // console.log(rect);
 
-            rect.animate('style')
-            .when(1000, {
-                opacity: 0.2
-            }).done(()=>{
+            // rect.animate('style')
+            // .when(1000, {
+            //     opacity: 0.2
+            // }).done(()=>{
 
-                hr.resize({
-                    width: 500,
-                    height: 400,
-                });
-            })
-            .start();
+             
+            // })
+            // .start();
 
             
 
