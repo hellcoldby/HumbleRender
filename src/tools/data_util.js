@@ -118,7 +118,7 @@ export function mixin() {
 
         tmp_keys = Object.getOwnPropertyNames(tmp);
         if (tmp_keys.length) {
-            tmp_keys.forEach(function(prop) {
+            tmp_keys.forEach(function (prop) {
                 if (prop !== "constructor" && prop !== "prototype") {
                     if (tmp.hasOwnProperty(prop) && (overwrite ? tmp[prop] != null : target.hasOwnProperty(prop) === false)) {
                         target[prop] = tmp[prop];
@@ -254,7 +254,6 @@ export function interpolateNumber(p0, p1, percent) {
     return (p1 - p0) * percent + p0;
 }
 
-
 /**
  * Catmull Rom interpolate number
  * @param  {Number} p0
@@ -269,9 +268,7 @@ export function interpolateNumber(p0, p1, percent) {
 export function catmullRomInterpolate(p0, p1, p2, p3, t, t2, t3) {
     var v0 = (p2 - p0) * 0.5;
     var v1 = (p3 - p1) * 0.5;
-    return (2 * (p1 - p2) + v0 + v1) * t3
-            + (-3 * (p1 - p2) - 2 * v0 - v1) * t2
-            + v0 * t + p1;
+    return (2 * (p1 - p2) + v0 + v1) * t3 + (-3 * (p1 - p2) - 2 * v0 - v1) * t2 + v0 * t + p1;
 }
 
 export function rgba2String(rgba) {
@@ -279,9 +276,8 @@ export function rgba2String(rgba) {
     rgba[1] = Math.floor(rgba[1]);
     rgba[2] = Math.floor(rgba[2]);
 
-    return 'rgba(' + rgba.join(',') + ')';
+    return "rgba(" + rgba.join(",") + ")";
 }
-
 
 /**
  * Catmull Rom interpolate array
@@ -295,26 +291,65 @@ export function rgba2String(rgba) {
  * @param  {Array} out
  * @param  {Number} arrDim
  */
-export function catmullRomInterpolateArray(
-    p0, p1, p2, p3, t, t2, t3, out, arrDim
-) {
+export function catmullRomInterpolateArray(p0, p1, p2, p3, t, t2, t3, out, arrDim) {
     let len = p0.length;
     if (arrDim === 1) {
         for (let i = 0; i < len; i++) {
-            out[i] = catmullRomInterpolate(
-                p0[i], p1[i], p2[i], p3[i], t, t2, t3
-            );
+            out[i] = catmullRomInterpolate(p0[i], p1[i], p2[i], p3[i], t, t2, t3);
         }
-    }
-    else {
+    } else {
         let len2 = p0[0].length;
         for (let i = 0; i < len; i++) {
             for (let j = 0; j < len2; j++) {
-                out[i][j] = catmullRomInterpolate(
-                    p0[i][j], p1[i][j], p2[i][j], p3[i][j],
-                    t, t2, t3
-                );
+                out[i][j] = catmullRomInterpolate(p0[i][j], p1[i][j], p2[i][j], p3[i][j], t, t2, t3);
             }
         }
+    }
+}
+
+/**
+ * 数组或对象遍历
+ * @param {Object|Array} obj
+ * @param {Function} cb
+ * @param {*} [context]
+ */
+export function each(obj, cb, context) {
+    if (!(obj && cb)) {
+        return;
+    }
+    if (obj.forEach && obj.forEach === Array.prototype.forEach) {
+        obj.forEach(cb, context);
+    } else if (obj.length === +obj.length) {
+        for (var i = 0, len = obj.length; i < len; i++) {
+            cb.call(context, obj[i], i, obj);
+        }
+    } else {
+        for (var key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                cb.call(context, obj[key], key, obj);
+            }
+        }
+    }
+}
+
+/**
+ * 数组映射
+ * @param {Array} obj
+ * @param {Function} cb
+ * @param {*} [context]
+ * @return {Array}
+ */
+export function map(obj, cb, context) {
+    if (!(obj && cb)) {
+        return;
+    }
+    if (obj.map && obj.map === Array.prototype.map) {
+        return obj.map(cb, context);
+    } else {
+        var result = [];
+        for (var i = 0, len = obj.length; i < len; i++) {
+            result.push(cb.call(context, obj[i], i, obj));
+        }
+        return result;
     }
 }

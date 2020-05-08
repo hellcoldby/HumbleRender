@@ -69,10 +69,11 @@ class HumbleRender {
         let handlerProxy = null;
         if (typeof this.root.moveTo !== "function") {
             if (!env.node && !env.worker && !env.wxa) {
-                console.log(21321);
-                handlerProxy = new EventProxy(this.painter.root);
+                // console.log(this.painter._root);
+                handlerProxy = new EventProxy(this.painter._root);
             }
         }
+
         // this.eventHandler = new HRenderEventHandler(this.storage, this.painter, handerProxy);
 
         this.watchAnim = new WatchAnim();

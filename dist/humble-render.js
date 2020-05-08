@@ -7,7 +7,7 @@
     /*
      *  检测设备支持情况
      */
-    let env = {};
+    let env$1 = {};
     //tools --- 浏览器环境检测
     function detect(ua) {
         let os = {};
@@ -52,7 +52,7 @@
     // if (typeof wx === "object" && typeof wx.getSystemInfoSync === "function") {
     if(navigator.userAgent.toLowerCase().indexOf('micromessenger') > -1 || typeof navigator.wxuserAgent !== 'undefined'){
         // 判断微信环境
-        env = {
+        env$1 = {
             browser: {},
             os: {},
             node: false,
@@ -64,7 +64,7 @@
         };
     } else if (typeof document === "undefined" && typeof window.Worker!== "undefined") {
         // web worker 环境
-        env = {
+        env$1 = {
             browser: {},
             os: {},
             node: false,
@@ -74,7 +74,7 @@
         };
     } else if (typeof navigator === "undefined") {
         // node 环境
-        env = {
+        env$1 = {
             browser: {},
             os: {},
             node: true,
@@ -85,10 +85,10 @@
         };
     } else {
         //浏览器环境检测
-        env = detect(navigator.userAgent);
+        env$1 = detect(navigator.userAgent);
     }
 
-    var env$1 = env;
+    var env$2 = env$1;
 
     /*
      * 生成唯一 id
@@ -1358,6 +1358,10 @@
             }
         }
 
+        getHost() {
+            return this._root;
+        }
+
         /**1.1
          * @param {Boolean} [paintAll=false] 是否强制绘制所有元素
          */
@@ -1822,394 +1826,137 @@
     }
 
     /*
-     * 拦截浏览器默认事件，用自定义事件来代替
+     * event_util 常用事件函数 工具集合
      */
-
-    let dev_support = env$1.domSupported; //获取设备支持情况
-    class EventProxy {
-        constructor(dom) {
-            this.dom = dom;
-
-            //canvas 内部事件,只监听画布里边
-            this._canvasEvent = new DOMHandlerScope(dom);
-
-            //页面全局事件,直接监听document
-            if (dev_support) {
-                this._globalEvent = new DOMHandlerScope(document);
-            }
+    let isDomLevel2 = typeof window !== "undefined" && !!window.addEventListener; //验证dom二级事件
+    function addEventListener(el, name, handler) {
+        if (isDomLevel2) {
+            el.addEventListener(name, handler);
+        } else {
+            el.attachEvent("on" + name, handler);
         }
     }
 
-    function DOMHandlerScope(domTarget, domHandlers) {
-        this.domTarget = domTarget;
-        this.domHandlers = domHandlers;
-        this.mounted = {};
-        this.touchTimer = null;
-        this.touching = false;
+    function removeEventListener(el, name, handler) {
+        if (isDomLevel2) {
+            el.removeEventListener(name, handler);
+        } else {
+            el.detachEvent("on" + name, handler);
+        }
     }
 
-    /*
-     *  用来记录 动画开关， 时间戳， 添加动画序列
-     */
+    // event 兼容
+    function getNativeEvent(e) {
+        return e || window.event;
+    }
 
-    class WatchAnim extends Eventful {
-        constructor(opts) {
-            super();
-            this._running = false; //动画启动
+    //tools
+    function preparePointerTransformer(markers, saved) {
+        var transformer = saved.transformer;
+        var oldSrcCoords = saved.srcCoords;
+        var useOld = true;
+        var srcCoords = [];
+        var destCoords = [];
 
-            this._startTime = 0; //开始时间
-            this._pause = {
-                startTime: 0, //暂停开始时间
-                flag: false, //暂停开关
-                duration: 0, //暂停持续时间
-            };
-
-            this._animatableMap = new Map();
+        for (var i = 0; i < 4; i++) {
+            var rect = markers[i].getBoundingClientRect();
+            var ii = 2 * i;
+            var x = rect.left;
+            var y = rect.top;
+            srcCoords.push(x, y);
+            useOld &= oldSrcCoords && x === oldSrcCoords[ii] && y === oldSrcCoords[ii + 1];
+            destCoords.push(markers[i].offsetLeft, markers[i].offsetTop);
         }
 
-        //启动监控
-        start() {
-            this._startTime = new Date().getTime();
-            this._pause.duration = 0;
-            this._pause.flag = false;
-            this._startLoop();
-        }
-        //暂停监控
-        pause() {
-            if (!this._pause.flag) {
-                this._pause.startTime = new Date().getTime();
-                this._pause.flag = true;
-            }
-        }
+        // Cache to avoid time consuming of `buildTransformer`.
+        return useOld ? transformer : ((saved.srcCoords = srcCoords), (saved.transformer = buildTransformer(srcCoords, destCoords)));
+    }
 
-        _startLoop() {
-            let self = this;
-            this._running = true;
-            function nextFrame() {
-                if (self._running) {
-                    RAF(nextFrame);
-                    !self._pause.flag && self._update();
-                }
-            }
-            RAF(nextFrame);
-        }
+    //tools --- 被 clientToLocal 引用
+    function calculateQrXY(el, e, out) {
+        // BlackBerry 5, iOS 3 (original iPhone) don't have getBoundingRect.
+        if (el.getBoundingClientRect && env.domSupported) {
+            var ex = e.clientX;
+            var ey = e.clientY;
 
-        //动画循环中的更新逻辑
-        _update() {
-            let time = new Date().getTime() - this._pause.duration; //从暂停位置开始计时，没有暂停就是当前事件
-            let delta = time - this._startTime; // 监控持续时间
-
-            this._animatableMap.forEach((ele, id, map) => {
-                //查找当前元素的动画系统是否存在
-
-                let ele_anim_process = ele.animationProcessList[0];
-
-                if (!ele_anim_process) {
-                    this.removeAnimatable(ele);
+            if (el.nodeName.toUpperCase() === "CANVAS") {
+                // Original approach, which do not support CSS transform.
+                // marker can not be locationed in a canvas container
+                // (getBoundingClientRect is always 0). We do not support
+                // that input a pre-created canvas to qr while using css
+                // transform in iOS.
+                var box = el.getBoundingClientRect();
+                out.qrX = ex - box.left;
+                out.qrY = ey - box.top;
+                return;
+            } else {
+                var saved = el[EVENT_SAVED_PROP] || (el[EVENT_SAVED_PROP] = {});
+                var transformer = preparePointerTransformer(prepareCoordMarkers(el, saved), saved);
+                if (transformer) {
+                    transformer(_calcOut, ex, ey);
+                    out.qrX = _calcOut[0];
+                    out.qrY = _calcOut[1];
                     return;
-                } else {
-                    // console.log([...this._animatableMap]);
-                    //存在动画系统，就在下一帧渲染（AnimationProcess.js）
-                    ele_anim_process.nextFrame(time, delta);
-                }
-            });
-
-            this._startTime = time;
-
-            this.trigger("frame"); //激活订阅的frame 事件，触发视图刷新
-        }
-
-        //重置动画
-        resume() {
-            if (this._pause.flag) {
-                this._pause.duration += new Date().getTime() - this._pause.startTime;
-                this._pause.flag = false;
-            }
-        }
-
-        //在animatable.js 的when()方法中调用
-        addAnimatable(ele) {
-            this._animatableMap.set(ele.id, ele);
-        }
-
-        removeAnimatable(ele) {
-            this._animatableMap.delete(ele.id);
-        }
-
-        //清除所有元素的动画
-        clear() {
-            this._animatableMap.forEach((ele) => {
-                ele.stopAnimation();
-            });
-            this._running = false;
-            this._animatableMap = new Map();
-        }
-    }
-
-    /*
-     *  注释:tools --- 表示是被其他函数引用 的工具函数
-     *  引入 Storage.js 保存 绘制对象 的列表 （Model)
-     *  引入 CanvasPainter.js 来生成绘图环境 创建图层 等 (view)
-     *  引入 EvetProxy.js 转发DOM 事件，一部分到 容器div上，一部分到document， 或到绘制元素
-     *  引入 GlobalAnimationMgr.js  无限循环监控 视图变化
-     */
-
-    //检测浏览器的支持情况
-    if (!env$1.canvasSupported) {
-        throw new Error("Need Canvas Environment");
-    }
-
-    //tools -- 初始保存实例 map
-    let instances = {};
-
-    //tools -- 图形环境 map
-    let painterMap = {
-        canvas: CanvasPainter,
-    };
-
-    let version = "1.0.0";
-
-    /**
-     *  main 初始化生成 绘图环境的实例
-     *
-     * @export
-     * @param {DOM | Canvas | Context} root
-     * @param {Object} opts
-     */
-    function init(root, opts) {
-        let hr = new HumbleRender(root, opts);
-        instances[hr.id] = hr;
-        return hr;
-    }
-
-    function dispose(hr) {
-        if (hr) {
-            hr.dispose();
-        }
-    }
-
-    function getInstance(id) {
-        return instances[id];
-    }
-
-    //tools --- 初始化图形环境
-    class HumbleRender {
-        constructor(root, opts = {}) {
-            this.id = guid();
-            this.root = root;
-            let self = this;
-
-            let renderType = opts.render;
-            if (!renderType || !painterMap[renderType]) {
-                renderType = "canvas";
-            }
-
-            this.storage = new Storage();
-            this.painter = new painterMap[renderType](this.root, this.storage, opts, this.id);
-
-            let handlerProxy = null;
-            if (typeof this.root.moveTo !== "function") {
-                if (!env$1.node && !env$1.worker && !env$1.wxa) {
-                    console.log(21321);
-                    handlerProxy = new EventProxy(this.painter.root);
                 }
             }
-            // this.eventHandler = new HRenderEventHandler(this.storage, this.painter, handerProxy);
-
-            this.watchAnim = new WatchAnim();
-            this.watchAnim.on("frame", function () {
-                self.flush(); //每间隔16.7ms 监控一次flush
-            });
-            this.watchAnim.start();
-            this._needRefresh = false;
         }
-
-        //监控 this._needRefresh 的开关
-        flush() {
-            // console.log(this._needRefresh);
-            if (this._needRefresh) {
-                this.refreshImmediately(); //全部重绘
-            }
-            if (this._needRefreshHover) {
-                this.refreshHoverImmediaterly(); //重绘特定元素
-            }
-        }
-
-        //获取图形实例唯一id
-        getId() {
-            return this.id;
-        }
-
-        //向数据仓库storage中添加元素，并开启刷新
-        add(ele) {
-            ele.__hr = this; //保存当前元素的绘图环境
-            this.storage.addToRoot(ele);
-            this.refresh();
-        }
-
-        //开启刷新
-        refresh() {
-            this._needRefresh = true;
-        }
-
-        //移除元素
-        remove(ele) {
-            this.storage.delFromRoot(ele);
-            this.refresh();
-        }
-
-        //立即重绘
-        refreshImmediately() {
-            this._needRefresh = this._needRefreshHover = false;
-            this.painter.refresh();
-            this._needRefresh = this._needRefreshHover = false;
-        }
-
-        //立即重绘特定元素
-        refreshHoverImmediaterly() {
-            this._needRefreshHover = false;
-            this.painter.refreshHover && this.painter.refreshHover();
-        }
-
-        //销毁
-        dispose() {
-            this.watchAnim.clear();
-            this.storage.dispose();
-            this.painter.dispose();
-
-            this.watchAnim = null;
-            this.storage = null;
-            this.painter = null;
-
-            delete instances[this.id];
-        }
-
-        //清空画布上的所有对象。
-        clear() {
-            //应该先停止循环监控
-            this.stopWatch();
-            this.storage.delFromRoot();
-            this.painter.clear();
-            this.startWatch();
-        }
-
-        //尺寸变化重新渲染画布
-        resize(options) {
-            options = options || {};
-            const { _width, _height } = this.painter.resize(options.width, options.height);
-            // console.log(_width, _height);
-            // this.eventDispatcher.resize();
-            return this;
-        }
-
-        //复制画布上的像素数据
-        // 在添加完图形后延迟调用
-        getImageData() {
-            let imgData = this.painter.getImageData();
-            this.clear();
-            return imgData;
-        }
-
-        //
-        putImageData(imgData, opts) {
-            if (!imgData) return;
-            this.clear();
-            let ctx = this.painter.putImageData(imgData, opts);
-            return ctx;
-        }
-
-        //停止监控
-        stopWatch() {
-            this.watchAnim.pause();
-        }
-
-        //启动监控
-        startWatch() {
-            this.watchAnim.start();
-        }
+        out.qrX = out.qrY = 0;
     }
 
-    function round_rect(ctx, shape) {
-        let x = shape.x;
-        let y = shape.y;
-        let width = shape.width;
-        let height = shape.height;
-        let r = shape.r;
-        let r1, r2, r3, r4;
+    //tools --- 被 normalizeEvent 引用
+    function clientToLocal(el, e, out, calculate) {
+        out = out || {};
 
-        if(width < 0){
-            x = x + width; 
-            width = - width;
+        if (calculate || !env.canvasSupported) {
+            calculateQrXY(el, e, out);
+        } else if (env.browser.firefox && e.layerX != null && e.layerX !== e.offsetX) {
+            out.qrX = e.layerX;
+            out.qrY = e.layerY;
         }
-
-        if(height < 0) {
-            y = y + height;
-            height = - height;
+        // For IE6+, chrome, safari, opera. (When will ff support offsetX?)
+        else if (e.offsetX != null) {
+            out.qrX = e.offsetX;
+            out.qrY = e.offsetY;
         }
-
-        if(typeof r === 'number') {
-            r1 = r2 = r3 = r4 = r;
-        }else if(r instanceof Array) {
-            switch (r.length) {
-                case 1:
-                    r1 = r2 = r3 = r4 = r[0];
-                    break;
-                case 2:
-                    r1 = r3 = r[0];
-                    r2 = r4 = r[2]; 
-                    break;
-                case 3:
-                    r1 = r[0];
-                    r2 = r4 = r[1];
-                    r3 = r[2];
-                    break;
-                default:
-                    r1 = r[0];
-                    r2 = r[1];
-                    r3 = r[2];
-                    r4 = r[4];
-                    break;
-            }
-       
-        }else{
-            r1 = r2 = r3 = r4 = 0;
+        // For some other device, e.g., IOS safari.
+        else {
+            calculateQrXY(el, e, out);
         }
-
-        let total;
-        if(r1 + r2 > width) {
-            total = r1 + r2;
-            r1 *= width / total;
-            r2 *= width / total;
-        }
-
-        if (r3 + r4 > width) {
-            total = r3 + r4;
-            r3 *= width / total;
-            r4 *= width / total;
-        }
-        if (r2 + r3 > height) {
-            total = r2 + r3;
-            r2 *= height / total;
-            r3 *= height / total;
-        }
-        if (r1 + r4 > height) {
-            total = r1 + r4;
-            r1 *= height / total;
-            r4 *= height / total;
-        }
-
-        ctx.moveTo(x + r1, y);
-        ctx.lineTo(x + width - r2, y);
-        r2 !== 0 && ctx.arc(x + width - r2, y + r2, r2, -Math.PI /2, 0);
-        ctx.lineTo(x + width, y + height - r3);
-        r3 !== 0 && ctx.arc(x + width - r3, y + height - r3, r3, 0, Math.PI / 2);
-        ctx.lineTo(x + r4, y + height);
-        r4 !== 0 && ctx.arc(x + r4, y + height - r4, r4, Math.PI / 2, Math.PI);
-        ctx.lineTo(x, y + r1);
-        r1 !== 0 && ctx.arc(x + r1, y + r1, r1, Math.PI, Math.PI * 1.5);
-
-
+        return out;
     }
+
+    //事件优化
+    function normalizeEvent(el, e, calculate) {
+        e = e || window.event;
+        if (e.qrX != null) {
+            return e;
+        }
+        var eventType = e.type;
+        var isTouch = eventType && eventType.indexOf("touch") >= 0;
+
+        if (!isTouch) {
+            clientToLocal(el, e, e, calculate);
+            e.qrDelta = e.wheelDelta ? e.wheelDelta / 120 : -(e.detail || 0) / 3;
+        } else {
+            var touch = eventType !== "touchend" ? e.targetTouches[0] : e.changedTouches[0];
+            touch && clientToLocal(el, touch, e, calculate);
+        }
+
+        var button = e.button;
+        if (e.which == null && button !== undefined && MOUSE_EVENT_REG.test(e.type)) {
+            e.which = button & 1 ? 1 : button & 2 ? 3 : button & 4 ? 2 : 0;
+        }
+        return e;
+    }
+
+    var eventUtil = /*#__PURE__*/Object.freeze({
+        __proto__: null,
+        addEventListener: addEventListener,
+        removeEventListener: removeEventListener,
+        getNativeEvent: getNativeEvent,
+        clientToLocal: clientToLocal,
+        normalizeEvent: normalizeEvent
+    });
 
     // Simple LRU cache use doubly linked list
 
@@ -2869,7 +2616,7 @@
 
             tmp_keys = Object.getOwnPropertyNames(tmp);
             if (tmp_keys.length) {
-                tmp_keys.forEach(function(prop) {
+                tmp_keys.forEach(function (prop) {
                     if (prop !== "constructor" && prop !== "prototype") {
                         if (tmp.hasOwnProperty(prop) && (overwrite ? tmp[prop] != null : target.hasOwnProperty(prop) === false)) {
                             target[prop] = tmp[prop];
@@ -3005,7 +2752,6 @@
         return (p1 - p0) * percent + p0;
     }
 
-
     /**
      * Catmull Rom interpolate number
      * @param  {Number} p0
@@ -3020,9 +2766,7 @@
     function catmullRomInterpolate(p0, p1, p2, p3, t, t2, t3) {
         var v0 = (p2 - p0) * 0.5;
         var v1 = (p3 - p1) * 0.5;
-        return (2 * (p1 - p2) + v0 + v1) * t3
-                + (-3 * (p1 - p2) - 2 * v0 - v1) * t2
-                + v0 * t + p1;
+        return (2 * (p1 - p2) + v0 + v1) * t3 + (-3 * (p1 - p2) - 2 * v0 - v1) * t2 + v0 * t + p1;
     }
 
     function rgba2String(rgba) {
@@ -3030,9 +2774,8 @@
         rgba[1] = Math.floor(rgba[1]);
         rgba[2] = Math.floor(rgba[2]);
 
-        return 'rgba(' + rgba.join(',') + ')';
+        return "rgba(" + rgba.join(",") + ")";
     }
-
 
     /**
      * Catmull Rom interpolate array
@@ -3046,28 +2789,617 @@
      * @param  {Array} out
      * @param  {Number} arrDim
      */
-    function catmullRomInterpolateArray(
-        p0, p1, p2, p3, t, t2, t3, out, arrDim
-    ) {
+    function catmullRomInterpolateArray(p0, p1, p2, p3, t, t2, t3, out, arrDim) {
         let len = p0.length;
         if (arrDim === 1) {
             for (let i = 0; i < len; i++) {
-                out[i] = catmullRomInterpolate(
-                    p0[i], p1[i], p2[i], p3[i], t, t2, t3
-                );
+                out[i] = catmullRomInterpolate(p0[i], p1[i], p2[i], p3[i], t, t2, t3);
             }
-        }
-        else {
+        } else {
             let len2 = p0[0].length;
             for (let i = 0; i < len; i++) {
                 for (let j = 0; j < len2; j++) {
-                    out[i][j] = catmullRomInterpolate(
-                        p0[i][j], p1[i][j], p2[i][j], p3[i][j],
-                        t, t2, t3
-                    );
+                    out[i][j] = catmullRomInterpolate(p0[i][j], p1[i][j], p2[i][j], p3[i][j], t, t2, t3);
                 }
             }
         }
+    }
+
+    /**
+     * 数组或对象遍历
+     * @param {Object|Array} obj
+     * @param {Function} cb
+     * @param {*} [context]
+     */
+    function each(obj, cb, context) {
+        if (!(obj && cb)) {
+            return;
+        }
+        if (obj.forEach && obj.forEach === Array.prototype.forEach) {
+            obj.forEach(cb, context);
+        } else if (obj.length === +obj.length) {
+            for (var i = 0, len = obj.length; i < len; i++) {
+                cb.call(context, obj[i], i, obj);
+            }
+        } else {
+            for (var key in obj) {
+                if (obj.hasOwnProperty(key)) {
+                    cb.call(context, obj[key], key, obj);
+                }
+            }
+        }
+    }
+
+    /**
+     * 数组映射
+     * @param {Array} obj
+     * @param {Function} cb
+     * @param {*} [context]
+     * @return {Array}
+     */
+    function map(obj, cb, context) {
+        if (!(obj && cb)) {
+            return;
+        }
+        if (obj.map && obj.map === Array.prototype.map) {
+            return obj.map(cb, context);
+        } else {
+            var result = [];
+            for (var i = 0, len = obj.length; i < len; i++) {
+                result.push(cb.call(context, obj[i], i, obj));
+            }
+            return result;
+        }
+    }
+
+    /*
+     * 拦截浏览器默认事件，用自定义事件来代替
+     */
+    let dev_support = env$2.domSupported; //获取设备支持情况
+
+    /**-----------------------------tools--start------------------------------------------------ */
+    /* 防止鼠标事件在 Touch 事件之后触发
+     * @see <https://github.com/deltakosh/handjs/blob/master/src/hand.base.js>
+     * 1. 移动端的浏览器会在触摸之后 300ms 派发鼠标事件。
+     * 2. Android 上的 Chrome 浏览器会在长按约 650ms 之后派发 mousedown 事件。
+     * 所以最终结果就是：禁止鼠标事件 700ms。
+     *
+     * @param {DOMHandlerScope} scope
+     */
+    function setTouchTimer(scope) {
+        scope.touching = true;
+        if (scope.touchTimer != null) {
+            clearTimeout(scope.touchTimer);
+            scope.touchTimer = null;
+        }
+        scope.touchTimer = setTimeout(function () {
+            scope.touching = false;
+            scope.touchTimer = null;
+        }, 700);
+    }
+
+    function markTriggeredFromLocal(event) {
+        event && (event.qrIsFromLocal = true);
+    }
+
+    //转换自定义事件名
+    let localNativeListenerNames = (function () {
+        let mouseHandlerNames = ["click", "dblclick", "mousewheel", "mouseout", "mouseup", "mousedown", "mousemove", "contextmenu"];
+        let touchHandlerNames = ["touchstart", "touchend", "touchmove"];
+        let pointerEventNameMap = {
+            pointerdown: 1,
+            pointerup: 1,
+            pointermove: 1,
+            pointerout: 1,
+        };
+
+        let pointerHandlerNames = map(mouseHandlerNames, function (name) {
+            let nm = name.replace("mouse", "pointer");
+            return pointerEventNameMap.hasOwnProperty(nm) ? nm : name;
+        });
+
+        return {
+            mouse: mouseHandlerNames,
+            touch: touchHandlerNames,
+            pointer: pointerHandlerNames,
+        };
+    })();
+
+    /** -------------------------- tools -- end----------------------------------------- */
+
+    class EventProxy {
+        constructor(dom) {
+            if (!dom) return;
+            this.dom = dom;
+
+            //canvas 内部事件,只监听画布里边
+            this._canvasEvent = new DOMHandlerScope(dom, localDOMHandlers);
+
+            //页面全局事件,直接监听document
+            // if (dev_support) {
+            //     this._globalEvent = new DOMHandlerScope(document);
+            // }
+
+            //在构造 DomEventInterceptor 实例的时候，挂载 DOM 事件监听器。
+            mountDOMEventListeners(this, this._canvasEvent, localNativeListenerNames, true);
+        }
+
+        dispose() {}
+    }
+
+    mixin(EventProxy.prototype, Eventful.prototype);
+
+    /**-------------------- tools ------------------------------ */
+
+    //生成事件池
+    function DOMHandlerScope(domTarget, domHandlers) {
+        this.domTarget = domTarget;
+        this.domHandlers = domHandlers;
+        this.mounted = {};
+        this.touchTimer = null;
+        this.touching = false;
+    }
+
+    //事件选择器
+    let localDOMHandlers = {
+        pointermove: function (event) {
+            if (isPointerFromTouch(event)) {
+                localDOMHandlers.mousemove.call(this, event);
+            }
+        },
+
+        pointerup: function (event) {
+            localDOMHandlers.mouseup.call(this, event);
+        },
+
+        mousemove: function (event) {
+            event = undefined;
+        },
+
+        mouseup: function (event) {},
+
+        keyup: function (event) {},
+        keydown: function (event) {},
+    };
+
+    //兼容事件名称
+    function eventNameFix(name) {
+        return name === "mousewheel" && env$2.browser.firefox ? "DOMMouseScroll" : name;
+    }
+
+    /**生成事件池的时候， 挂载DOM事件监听器。
+     * @private
+     * @method mountDOMEventListeners
+     * @param {DomEventInterceptor} domEventInterceptor
+     * @param {DOMHandlerScope} domHandlerScope
+     * @param {Object} nativeListenerNames {mouse: Array<String>, touch: Array<String>, poiner: Array<String>}
+     * @param {Boolean} localOrGlobal `true`: target local, `false`: target global.
+     */
+    function mountDOMEventListeners(instance, scope, nativeListenerNames, localOrGlobal) {
+        let domHandlers = scope.domHandlers;
+        let domTarget = scope.domTarget;
+
+        if (env$2.pointerEventsSuported) {
+            // Only IE11+/Edge
+            each(nativeListenerNames.pointer, function (evName) {
+                mountSingle(nativeEventName, function (event) {
+                    if (localOrGlobal || !isTriggeredFromLocal(event)) {
+                        localOrGlobal && markTriggeredFromLocal(event);
+                        domHandlers[nativeEventName].call(instance, event);
+                    }
+                });
+            });
+        } else {
+            if (env$2.touchEventsSupported) {
+                each(nativeListenerNames.touch, function (nativeEventName) {
+                    mountSingle(nativeEventName, function (event) {
+                        if (localOrGlobal || !isTriggeredFromLocal(event)) {
+                            localOrGlobal && markTriggeredFromLocal(event);
+                            domHandlers[nativeEventName].call(instance, event);
+                            setTouchTimer(scope);
+                        }
+                    });
+                });
+            }
+
+            console.log(nativeListenerNames);
+            console.log(domHandlers);
+            each(nativeListenerNames.mouse, function (nativeEventName) {
+                mountSingle(nativeEventName, function (event) {
+                    event = getNativeEvent(event);
+                    if (!scope.touching && (localOrGlobal || !isTriggeredFromLocal(event))) {
+                        localOrGlobal && markTriggeredFromLocal(event);
+                        domHandlers[nativeEventName].call(instance, event);
+                    }
+                });
+            });
+
+            //挂载键盘事件
+            each(nativeListenerNames.keyboard, function (nativeEventName) {
+                mountSingle(nativeEventName, function (event) {
+                    if (localOrGlobal || !isTriggeredFromLocal(event)) {
+                        localOrGlobal && markTriggeredFromLocal(event);
+                        domHandlers[nativeEventName].call(instance, event);
+                    }
+                });
+            });
+        }
+
+        //用来监听原生 DOM 事件
+        function mountSingle(nativeEventName, listener) {
+            scope.mounted[nativeEventName] = listener;
+            addEventListener(domTarget, eventNameFix(nativeEventName), listener);
+        }
+    }
+
+    //判断触摸设备
+    function isPointerFromTouch(event) {
+        let pointerType = event.pointerType;
+        return pointerType === "pen" || pointerType === "touch";
+    }
+
+    /*
+     *  用来记录 动画开关， 时间戳， 添加动画序列
+     */
+
+    class WatchAnim extends Eventful {
+        constructor(opts) {
+            super();
+            this._running = false; //动画启动
+
+            this._startTime = 0; //开始时间
+            this._pause = {
+                startTime: 0, //暂停开始时间
+                flag: false, //暂停开关
+                duration: 0, //暂停持续时间
+            };
+
+            this._animatableMap = new Map();
+        }
+
+        //启动监控
+        start() {
+            this._startTime = new Date().getTime();
+            this._pause.duration = 0;
+            this._pause.flag = false;
+            this._startLoop();
+        }
+        //暂停监控
+        pause() {
+            if (!this._pause.flag) {
+                this._pause.startTime = new Date().getTime();
+                this._pause.flag = true;
+            }
+        }
+
+        _startLoop() {
+            let self = this;
+            this._running = true;
+            function nextFrame() {
+                if (self._running) {
+                    RAF(nextFrame);
+                    !self._pause.flag && self._update();
+                }
+            }
+            RAF(nextFrame);
+        }
+
+        //动画循环中的更新逻辑
+        _update() {
+            let time = new Date().getTime() - this._pause.duration; //从暂停位置开始计时，没有暂停就是当前事件
+            let delta = time - this._startTime; // 监控持续时间
+
+            this._animatableMap.forEach((ele, id, map) => {
+                //查找当前元素的动画系统是否存在
+
+                let ele_anim_process = ele.animationProcessList[0];
+
+                if (!ele_anim_process) {
+                    this.removeAnimatable(ele);
+                    return;
+                } else {
+                    // console.log([...this._animatableMap]);
+                    //存在动画系统，就在下一帧渲染（AnimationProcess.js）
+                    ele_anim_process.nextFrame(time, delta);
+                }
+            });
+
+            this._startTime = time;
+
+            this.trigger("frame"); //激活订阅的frame 事件，触发视图刷新
+        }
+
+        //重置动画
+        resume() {
+            if (this._pause.flag) {
+                this._pause.duration += new Date().getTime() - this._pause.startTime;
+                this._pause.flag = false;
+            }
+        }
+
+        //在animatable.js 的when()方法中调用
+        addAnimatable(ele) {
+            this._animatableMap.set(ele.id, ele);
+        }
+
+        removeAnimatable(ele) {
+            this._animatableMap.delete(ele.id);
+        }
+
+        //清除所有元素的动画
+        clear() {
+            this._animatableMap.forEach((ele) => {
+                ele.stopAnimation();
+            });
+            this._running = false;
+            this._animatableMap = new Map();
+        }
+    }
+
+    /*
+     *  注释:tools --- 表示是被其他函数引用 的工具函数
+     *  引入 Storage.js 保存 绘制对象 的列表 （Model)
+     *  引入 CanvasPainter.js 来生成绘图环境 创建图层 等 (view)
+     *  引入 EvetProxy.js 转发DOM 事件，一部分到 容器div上，一部分到document， 或到绘制元素
+     *  引入 GlobalAnimationMgr.js  无限循环监控 视图变化
+     */
+
+    //检测浏览器的支持情况
+    if (!env$2.canvasSupported) {
+        throw new Error("Need Canvas Environment");
+    }
+
+    //tools -- 初始保存实例 map
+    let instances = {};
+
+    //tools -- 图形环境 map
+    let painterMap = {
+        canvas: CanvasPainter,
+    };
+
+    let version = "1.0.0";
+
+    /**
+     *  main 初始化生成 绘图环境的实例
+     *
+     * @export
+     * @param {DOM | Canvas | Context} root
+     * @param {Object} opts
+     */
+    function init(root, opts) {
+        let hr = new HumbleRender(root, opts);
+        instances[hr.id] = hr;
+        return hr;
+    }
+
+    function dispose(hr) {
+        if (hr) {
+            hr.dispose();
+        }
+    }
+
+    function getInstance(id) {
+        return instances[id];
+    }
+
+    //tools --- 初始化图形环境
+    class HumbleRender {
+        constructor(root, opts = {}) {
+            this.id = guid();
+            this.root = root;
+            let self = this;
+
+            let renderType = opts.render;
+            if (!renderType || !painterMap[renderType]) {
+                renderType = "canvas";
+            }
+
+            this.storage = new Storage();
+            this.painter = new painterMap[renderType](this.root, this.storage, opts, this.id);
+
+            let handlerProxy = null;
+            if (typeof this.root.moveTo !== "function") {
+                if (!env$2.node && !env$2.worker && !env$2.wxa) {
+                    // console.log(this.painter._root);
+                    handlerProxy = new EventProxy(this.painter._root);
+                }
+            }
+
+            // this.eventHandler = new HRenderEventHandler(this.storage, this.painter, handerProxy);
+
+            this.watchAnim = new WatchAnim();
+            this.watchAnim.on("frame", function () {
+                self.flush(); //每间隔16.7ms 监控一次flush
+            });
+            this.watchAnim.start();
+            this._needRefresh = false;
+        }
+
+        //监控 this._needRefresh 的开关
+        flush() {
+            // console.log(this._needRefresh);
+            if (this._needRefresh) {
+                this.refreshImmediately(); //全部重绘
+            }
+            if (this._needRefreshHover) {
+                this.refreshHoverImmediaterly(); //重绘特定元素
+            }
+        }
+
+        //获取图形实例唯一id
+        getId() {
+            return this.id;
+        }
+
+        //向数据仓库storage中添加元素，并开启刷新
+        add(ele) {
+            ele.__hr = this; //保存当前元素的绘图环境
+            this.storage.addToRoot(ele);
+            this.refresh();
+        }
+
+        //开启刷新
+        refresh() {
+            this._needRefresh = true;
+        }
+
+        //移除元素
+        remove(ele) {
+            this.storage.delFromRoot(ele);
+            this.refresh();
+        }
+
+        //立即重绘
+        refreshImmediately() {
+            this._needRefresh = this._needRefreshHover = false;
+            this.painter.refresh();
+            this._needRefresh = this._needRefreshHover = false;
+        }
+
+        //立即重绘特定元素
+        refreshHoverImmediaterly() {
+            this._needRefreshHover = false;
+            this.painter.refreshHover && this.painter.refreshHover();
+        }
+
+        //销毁
+        dispose() {
+            this.watchAnim.clear();
+            this.storage.dispose();
+            this.painter.dispose();
+
+            this.watchAnim = null;
+            this.storage = null;
+            this.painter = null;
+
+            delete instances[this.id];
+        }
+
+        //清空画布上的所有对象。
+        clear() {
+            //应该先停止循环监控
+            this.stopWatch();
+            this.storage.delFromRoot();
+            this.painter.clear();
+            this.startWatch();
+        }
+
+        //尺寸变化重新渲染画布
+        resize(options) {
+            options = options || {};
+            const { _width, _height } = this.painter.resize(options.width, options.height);
+            // console.log(_width, _height);
+            // this.eventDispatcher.resize();
+            return this;
+        }
+
+        //复制画布上的像素数据
+        // 在添加完图形后延迟调用
+        getImageData() {
+            let imgData = this.painter.getImageData();
+            this.clear();
+            return imgData;
+        }
+
+        //
+        putImageData(imgData, opts) {
+            if (!imgData) return;
+            this.clear();
+            let ctx = this.painter.putImageData(imgData, opts);
+            return ctx;
+        }
+
+        //停止监控
+        stopWatch() {
+            this.watchAnim.pause();
+        }
+
+        //启动监控
+        startWatch() {
+            this.watchAnim.start();
+        }
+    }
+
+    function round_rect(ctx, shape) {
+        let x = shape.x;
+        let y = shape.y;
+        let width = shape.width;
+        let height = shape.height;
+        let r = shape.r;
+        let r1, r2, r3, r4;
+
+        if(width < 0){
+            x = x + width; 
+            width = - width;
+        }
+
+        if(height < 0) {
+            y = y + height;
+            height = - height;
+        }
+
+        if(typeof r === 'number') {
+            r1 = r2 = r3 = r4 = r;
+        }else if(r instanceof Array) {
+            switch (r.length) {
+                case 1:
+                    r1 = r2 = r3 = r4 = r[0];
+                    break;
+                case 2:
+                    r1 = r3 = r[0];
+                    r2 = r4 = r[2]; 
+                    break;
+                case 3:
+                    r1 = r[0];
+                    r2 = r4 = r[1];
+                    r3 = r[2];
+                    break;
+                default:
+                    r1 = r[0];
+                    r2 = r[1];
+                    r3 = r[2];
+                    r4 = r[4];
+                    break;
+            }
+       
+        }else{
+            r1 = r2 = r3 = r4 = 0;
+        }
+
+        let total;
+        if(r1 + r2 > width) {
+            total = r1 + r2;
+            r1 *= width / total;
+            r2 *= width / total;
+        }
+
+        if (r3 + r4 > width) {
+            total = r3 + r4;
+            r3 *= width / total;
+            r4 *= width / total;
+        }
+        if (r2 + r3 > height) {
+            total = r2 + r3;
+            r2 *= height / total;
+            r3 *= height / total;
+        }
+        if (r1 + r4 > height) {
+            total = r1 + r4;
+            r1 *= height / total;
+            r4 *= height / total;
+        }
+
+        ctx.moveTo(x + r1, y);
+        ctx.lineTo(x + width - r2, y);
+        r2 !== 0 && ctx.arc(x + width - r2, y + r2, r2, -Math.PI /2, 0);
+        ctx.lineTo(x + width, y + height - r3);
+        r3 !== 0 && ctx.arc(x + width - r3, y + height - r3, r3, 0, Math.PI / 2);
+        ctx.lineTo(x + r4, y + height);
+        r4 !== 0 && ctx.arc(x + r4, y + height - r4, r4, Math.PI / 2, Math.PI);
+        ctx.lineTo(x, y + r1);
+        r1 !== 0 && ctx.arc(x + r1, y + r1, r1, Math.PI, Math.PI * 1.5);
+
+
     }
 
     let ArrayCtor = typeof Float32Array === "undefined" ? Array : Float32Array;

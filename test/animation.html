@@ -58,17 +58,25 @@
                     },
                 });
                 hr.add(rect);
+
+
+                rect.on('click', function(){
+                    console.log('点击了矩形');
+                })
             }
 
             drawRect(200, 100);
-            setTimeout(() => {
-                hr.resize({
-                    width: 500,
-                    height: 400,
-                });
-                hr.clear();
-                drawRect(100, 100);
-            }, 2000);
+
+            
+
+            // setTimeout(() => {
+            //     hr.resize({
+            //         width: 500,
+            //         height: 400,
+            //     });
+            //     hr.clear();
+            //     drawRect(100, 100);
+            // }, 2000);
 
             // let gr = new HumbleRender.Group({
             //     position:[50,50],

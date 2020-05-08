@@ -57,6 +57,10 @@ class CanvasPainter {
         }
     }
 
+    getHost() {
+        return this._root;
+    }
+
     /**1.1
      * @param {Boolean} [paintAll=false] 是否强制绘制所有元素
      */
