@@ -28,11 +28,26 @@ function setTouchTimer(scope) {
     }, 700);
 }
 
+//判断触摸设备
+function isPointerFromTouch(event) {
+    let pointerType = event.pointerType;
+    return pointerType === "pen" || pointerType === "touch";
+}
+
+//兼容事件名称
+function eventNameFix(name) {
+    return name === "mousewheel" && env.browser.firefox ? "DOMMouseScroll" : name;
+}
+
 function markTriggeredFromLocal(event) {
     event && (event.qrIsFromLocal = true);
 }
 
-//转换自定义事件名
+function isTriggeredFromLocal(event) {
+    return !!(event && event.qrIsFromLocal);
+}
+
+//转换默认事件名称---成为自定义事件名称
 let localNativeListenerNames = (function () {
     let mouseHandlerNames = ["click", "dblclick", "mousewheel", "mouseout", "mouseup", "mousedown", "mousemove", "contextmenu"];
     let touchHandlerNames = ["touchstart", "touchend", "touchmove"];
@@ -55,33 +70,6 @@ let localNativeListenerNames = (function () {
     };
 })();
 
-/** -------------------------- tools -- end----------------------------------------- */
-
-class EventProxy {
-    constructor(dom) {
-        if (!dom) return;
-        this.dom = dom;
-
-        //canvas 内部事件,只监听画布里边
-        this._canvasEvent = new DOMHandlerScope(dom, localDOMHandlers);
-
-        //页面全局事件,直接监听document
-        // if (dev_support) {
-        //     this._globalEvent = new DOMHandlerScope(document);
-        // }
-
-        //在构造 DomEventInterceptor 实例的时候，挂载 DOM 事件监听器。
-        mountDOMEventListeners(this, this._canvasEvent, localNativeListenerNames, true);
-    }
-
-    dispose() {}
-}
-
-dataUtil.mixin(EventProxy.prototype, Eventful.prototype);
-export default EventProxy;
-
-/**-------------------- tools ------------------------------ */
-
 //生成事件池
 function DOMHandlerScope(domTarget, domHandlers) {
     this.domTarget = domTarget;
@@ -93,6 +81,10 @@ function DOMHandlerScope(domTarget, domHandlers) {
 
 //事件选择器
 let localDOMHandlers = {
+    pointerdown: function (event) {
+        localDOMHandlers.mousedown.call(this, event);
+    },
+
     pointermove: function (event) {
         if (isPointerFromTouch(event)) {
             localDOMHandlers.mousemove.call(this, event);
@@ -103,20 +95,38 @@ let localDOMHandlers = {
         localDOMHandlers.mouseup.call(this, event);
     },
 
-    mousemove: function (event) {
-        event = eventUtil.no;
+    pointerout: function (event) {
+        if (!isPointerFromTouch(event)) {
+            localDOMHandlers.mouseout.call(this, event);
+        }
     },
+    mouseout: function (event) {
+        event = eventUtil.normalizeEvent(this.dom, event);
+        let element = event.toElement || event.relatedTarget;
+        if (element !== this.dom) {
+            while (element && element.nodeType !== 9) {
+                if (element == this.dom) {
+                    return;
+                }
+                element = element.parentNode;
+            }
+        }
 
-    mouseup: function (event) {},
-
-    keyup: function (event) {},
-    keydown: function (event) {},
+        // this.trigger("mouseout", event);
+    },
 };
 
-//兼容事件名称
-function eventNameFix(name) {
-    return name === "mousewheel" && env.browser.firefox ? "DOMMouseScroll" : name;
-}
+dataUtil.each(["click", "mousemove", "mousedown", "mouseup", "mousewheel", "dblclick", "contextmenu"], function (name) {
+    localDOMHandlers[name] = function (event) {
+        event = eventUtil.normalizeEvent(this.dom, event);
+        // this.trigger(name, event);
+
+        if (name === "mousemove" || name === "mouseup") {
+            // this.trigger("page" + name, event);
+        }
+    };
+});
+// console.log(localDOMHandlers);
 
 /**生成事件池的时候， 挂载DOM事件监听器。
  * @private
@@ -131,6 +141,7 @@ function mountDOMEventListeners(instance, scope, nativeListenerNames, localOrGlo
     let domTarget = scope.domTarget;
 
     if (env.pointerEventsSuported) {
+        console.log("ie 11");
         // Only IE11+/Edge
         dataUtil.each(nativeListenerNames.pointer, function (evName) {
             mountSingle(nativeEventName, function (event) {
@@ -155,11 +166,13 @@ function mountDOMEventListeners(instance, scope, nativeListenerNames, localOrGlo
 
         console.log(nativeListenerNames);
         console.log(domHandlers);
+
         dataUtil.each(nativeListenerNames.mouse, function (nativeEventName) {
             mountSingle(nativeEventName, function (event) {
-                event = eventUtil.getNativeEvent(event);
+                event = event || window.event;
                 if (!scope.touching && (localOrGlobal || !isTriggeredFromLocal(event))) {
                     localOrGlobal && markTriggeredFromLocal(event);
+                    // console.log(domHandlers, nativeEventName);
                     domHandlers[nativeEventName].call(instance, event);
                 }
             });
@@ -193,8 +206,37 @@ function unmountDOMEventListeners(scope) {
     scope.mounted = {};
 }
 
-//判断触摸设备
-function isPointerFromTouch(event) {
-    let pointerType = event.pointerType;
-    return pointerType === "pen" || pointerType === "touch";
+/** -------------------------- tools -- end----------------------------------------- */
+class EventProxy {
+    constructor(dom) {
+        if (!dom) return;
+        this.dom = dom;
+
+        //canvas画布内的事件，生成自定义事件池
+        this._canvasEvent = new DOMHandlerScope(dom, localDOMHandlers);
+
+        //页面全局事件,直接监听document
+        if (dev_support) {
+            //     this._globalEvent = new DOMHandlerScope(document);
+        }
+
+        //在构造 DomEventInterceptor 实例的时候，挂载 DOM 事件监听器。
+        mountDOMEventListeners(this, this._canvasEvent, localNativeListenerNames, true);
+    }
+
+    //取消监听
+    dispose() {
+        unmountDOMEventListeners(this._canvasEvent);
+        if (dev_support) {
+            // unmountDOMEventListeners(this._globalEvent);
+        }
+    }
+
+    //设置指针
+    setCursor(cursorStyle) {
+        this.dom.style && (this.dom.style.cursor = cursorStyle || "default");
+    }
 }
+
+dataUtil.mixin(EventProxy.prototype, Eventful.prototype);
+export default EventProxy;

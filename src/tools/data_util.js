@@ -353,3 +353,15 @@ export function map(obj, cb, context) {
         return result;
     }
 }
+
+/**
+ *
+ * @param {*} func
+ * @param {*} context
+ */
+export function bind(func, context) {
+    var args = Array.prototype.slice.call(arguments, 2);
+    return function () {
+        return func.apply(context, args.concat(Array.prototype.slice.call(arguments)));
+    };
+}

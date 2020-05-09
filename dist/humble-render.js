@@ -7,7 +7,7 @@
     /*
      *  检测设备支持情况
      */
-    let env$1 = {};
+    let env = {};
     //tools --- 浏览器环境检测
     function detect(ua) {
         let os = {};
@@ -52,7 +52,7 @@
     // if (typeof wx === "object" && typeof wx.getSystemInfoSync === "function") {
     if(navigator.userAgent.toLowerCase().indexOf('micromessenger') > -1 || typeof navigator.wxuserAgent !== 'undefined'){
         // 判断微信环境
-        env$1 = {
+        env = {
             browser: {},
             os: {},
             node: false,
@@ -64,7 +64,7 @@
         };
     } else if (typeof document === "undefined" && typeof window.Worker!== "undefined") {
         // web worker 环境
-        env$1 = {
+        env = {
             browser: {},
             os: {},
             node: false,
@@ -74,7 +74,7 @@
         };
     } else if (typeof navigator === "undefined") {
         // node 环境
-        env$1 = {
+        env = {
             browser: {},
             os: {},
             node: true,
@@ -85,10 +85,10 @@
         };
     } else {
         //浏览器环境检测
-        env$1 = detect(navigator.userAgent);
+        env = detect(navigator.userAgent);
     }
 
-    var env$2 = env$1;
+    var env$1 = env;
 
     /*
      * 生成唯一 id
@@ -138,6 +138,7 @@
          * @param {Object} context
          */
         on(event, query, fn, context) {
+            console.log(event, query, fn, context);
             return on(this, event, query, fn, context, false);
         }
 
@@ -206,6 +207,7 @@
 
     //tools -- 订阅事件
     function on(_this, event, query, fn, context, isOnce) {
+        console.log(_this);
         let _map = _this._handle_map;
 
         if (typeof query === "function") {
@@ -242,7 +244,7 @@
             ctx: context || _this,
             // FIXME
             // Do not publish this feature util it is proved that it makes sense.  我不知道callAtLast 是干嘛的
-            callAtLast: fn.qrEventfulCallAtLast
+            callAtLast: fn.qrEventfulCallAtLast,
         };
 
         let lastIndex = _map[event].length - 1;
@@ -1828,6 +1830,7 @@
     /*
      * event_util 常用事件函数 工具集合
      */
+
     let isDomLevel2 = typeof window !== "undefined" && !!window.addEventListener; //验证dom二级事件
     function addEventListener(el, name, handler) {
         if (isDomLevel2) {
@@ -1843,11 +1846,6 @@
         } else {
             el.detachEvent("on" + name, handler);
         }
-    }
-
-    // event 兼容
-    function getNativeEvent(e) {
-        return e || window.event;
     }
 
     //tools
@@ -1875,7 +1873,7 @@
     //tools --- 被 clientToLocal 引用
     function calculateQrXY(el, e, out) {
         // BlackBerry 5, iOS 3 (original iPhone) don't have getBoundingRect.
-        if (el.getBoundingClientRect && env.domSupported) {
+        if (el.getBoundingClientRect && env$1.domSupported) {
             var ex = e.clientX;
             var ey = e.clientY;
 
@@ -1907,9 +1905,9 @@
     function clientToLocal(el, e, out, calculate) {
         out = out || {};
 
-        if (calculate || !env.canvasSupported) {
+        if (calculate || !env$1.canvasSupported) {
             calculateQrXY(el, e, out);
-        } else if (env.browser.firefox && e.layerX != null && e.layerX !== e.offsetX) {
+        } else if (env$1.browser.firefox && e.layerX != null && e.layerX !== e.offsetX) {
             out.qrX = e.layerX;
             out.qrY = e.layerY;
         }
@@ -1948,15 +1946,6 @@
         }
         return e;
     }
-
-    var eventUtil = /*#__PURE__*/Object.freeze({
-        __proto__: null,
-        addEventListener: addEventListener,
-        removeEventListener: removeEventListener,
-        getNativeEvent: getNativeEvent,
-        clientToLocal: clientToLocal,
-        normalizeEvent: normalizeEvent
-    });
 
     // Simple LRU cache use doubly linked list
 
@@ -2852,10 +2841,22 @@
         }
     }
 
+    /**
+     *
+     * @param {*} func
+     * @param {*} context
+     */
+    function bind(func, context) {
+        var args = Array.prototype.slice.call(arguments, 2);
+        return function () {
+            return func.apply(context, args.concat(Array.prototype.slice.call(arguments)));
+        };
+    }
+
     /*
      * 拦截浏览器默认事件，用自定义事件来代替
      */
-    let dev_support = env$2.domSupported; //获取设备支持情况
+    let dev_support = env$1.domSupported; //获取设备支持情况
 
     /**-----------------------------tools--start------------------------------------------------ */
     /* 防止鼠标事件在 Touch 事件之后触发
@@ -2878,11 +2879,26 @@
         }, 700);
     }
 
+    //判断触摸设备
+    function isPointerFromTouch(event) {
+        let pointerType = event.pointerType;
+        return pointerType === "pen" || pointerType === "touch";
+    }
+
+    //兼容事件名称
+    function eventNameFix(name) {
+        return name === "mousewheel" && env$1.browser.firefox ? "DOMMouseScroll" : name;
+    }
+
     function markTriggeredFromLocal(event) {
         event && (event.qrIsFromLocal = true);
     }
 
-    //转换自定义事件名
+    function isTriggeredFromLocal(event) {
+        return !!(event && event.qrIsFromLocal);
+    }
+
+    //转换默认事件名称---成为自定义事件名称
     let localNativeListenerNames = (function () {
         let mouseHandlerNames = ["click", "dblclick", "mousewheel", "mouseout", "mouseup", "mousedown", "mousemove", "contextmenu"];
         let touchHandlerNames = ["touchstart", "touchend", "touchmove"];
@@ -2905,32 +2921,6 @@
         };
     })();
 
-    /** -------------------------- tools -- end----------------------------------------- */
-
-    class EventProxy {
-        constructor(dom) {
-            if (!dom) return;
-            this.dom = dom;
-
-            //canvas 内部事件,只监听画布里边
-            this._canvasEvent = new DOMHandlerScope(dom, localDOMHandlers);
-
-            //页面全局事件,直接监听document
-            // if (dev_support) {
-            //     this._globalEvent = new DOMHandlerScope(document);
-            // }
-
-            //在构造 DomEventInterceptor 实例的时候，挂载 DOM 事件监听器。
-            mountDOMEventListeners(this, this._canvasEvent, localNativeListenerNames, true);
-        }
-
-        dispose() {}
-    }
-
-    mixin(EventProxy.prototype, Eventful.prototype);
-
-    /**-------------------- tools ------------------------------ */
-
     //生成事件池
     function DOMHandlerScope(domTarget, domHandlers) {
         this.domTarget = domTarget;
@@ -2942,6 +2932,10 @@
 
     //事件选择器
     let localDOMHandlers = {
+        pointerdown: function (event) {
+            localDOMHandlers.mousedown.call(this, event);
+        },
+
         pointermove: function (event) {
             if (isPointerFromTouch(event)) {
                 localDOMHandlers.mousemove.call(this, event);
@@ -2952,20 +2946,33 @@
             localDOMHandlers.mouseup.call(this, event);
         },
 
-        mousemove: function (event) {
-            event = undefined;
+        pointerout: function (event) {
+            if (!isPointerFromTouch(event)) {
+                localDOMHandlers.mouseout.call(this, event);
+            }
         },
+        mouseout: function (event) {
+            event = normalizeEvent(this.dom, event);
+            let element = event.toElement || event.relatedTarget;
+            if (element !== this.dom) {
+                while (element && element.nodeType !== 9) {
+                    if (element == this.dom) {
+                        return;
+                    }
+                    element = element.parentNode;
+                }
+            }
 
-        mouseup: function (event) {},
-
-        keyup: function (event) {},
-        keydown: function (event) {},
+            // this.trigger("mouseout", event);
+        },
     };
 
-    //兼容事件名称
-    function eventNameFix(name) {
-        return name === "mousewheel" && env$2.browser.firefox ? "DOMMouseScroll" : name;
-    }
+    each(["click", "mousemove", "mousedown", "mouseup", "mousewheel", "dblclick", "contextmenu"], function (name) {
+        localDOMHandlers[name] = function (event) {
+            event = normalizeEvent(this.dom, event);
+        };
+    });
+    // console.log(localDOMHandlers);
 
     /**生成事件池的时候， 挂载DOM事件监听器。
      * @private
@@ -2979,7 +2986,8 @@
         let domHandlers = scope.domHandlers;
         let domTarget = scope.domTarget;
 
-        if (env$2.pointerEventsSuported) {
+        if (env$1.pointerEventsSuported) {
+            console.log("ie 11");
             // Only IE11+/Edge
             each(nativeListenerNames.pointer, function (evName) {
                 mountSingle(nativeEventName, function (event) {
@@ -2990,7 +2998,7 @@
                 });
             });
         } else {
-            if (env$2.touchEventsSupported) {
+            if (env$1.touchEventsSupported) {
                 each(nativeListenerNames.touch, function (nativeEventName) {
                     mountSingle(nativeEventName, function (event) {
                         if (localOrGlobal || !isTriggeredFromLocal(event)) {
@@ -3004,11 +3012,13 @@
 
             console.log(nativeListenerNames);
             console.log(domHandlers);
+
             each(nativeListenerNames.mouse, function (nativeEventName) {
                 mountSingle(nativeEventName, function (event) {
-                    event = getNativeEvent(event);
+                    event = event || window.event;
                     if (!scope.touching && (localOrGlobal || !isTriggeredFromLocal(event))) {
                         localOrGlobal && markTriggeredFromLocal(event);
+                        // console.log(domHandlers, nativeEventName);
                         domHandlers[nativeEventName].call(instance, event);
                     }
                 });
@@ -3032,11 +3042,41 @@
         }
     }
 
-    //判断触摸设备
-    function isPointerFromTouch(event) {
-        let pointerType = event.pointerType;
-        return pointerType === "pen" || pointerType === "touch";
+    function unmountDOMEventListeners(scope) {
+        let mounted = scope.mounted;
+        for (let nativeEventName in mounted) {
+            if (mounted.hasOwnProperty(nativeEventName)) {
+                removeEventListener(scope.domTarget, eventNameFix(nativeEventName), mounted[nativeEventName]);
+            }
+        }
+        scope.mounted = {};
     }
+
+    /** -------------------------- tools -- end----------------------------------------- */
+    class EventProxy {
+        constructor(dom) {
+            if (!dom) return;
+            this.dom = dom;
+
+            //canvas画布内的事件，生成自定义事件池
+            this._canvasEvent = new DOMHandlerScope(dom, localDOMHandlers);
+
+            //在构造 DomEventInterceptor 实例的时候，挂载 DOM 事件监听器。
+            mountDOMEventListeners(this, this._canvasEvent, localNativeListenerNames, true);
+        }
+
+        //取消监听
+        dispose() {
+            unmountDOMEventListeners(this._canvasEvent);
+        }
+
+        //设置指针
+        setCursor(cursorStyle) {
+            this.dom.style && (this.dom.style.cursor = cursorStyle || "default");
+        }
+    }
+
+    mixin(EventProxy.prototype, Eventful.prototype);
 
     /*
      *  用来记录 动画开关， 时间戳， 添加动画序列
@@ -3136,6 +3176,105 @@
         }
     }
 
+    /**
+     * canvas API 没有提供画布内部的事件系统， canvasEvent 用来封装画布内部元素的事件处理逻辑。
+     * 此实现的整体概念与 w3c定义的DOM 事件系统一致。
+     * canvasEvent 的核心逻辑是拦截所有的 鼠标、 键盘、触摸事件派发给 canvas 内部的元素。
+     */
+
+    /**--------------------- tools --- start------------------------------------- */
+
+    let handlerNames = ["click", "dblclick", "mousewheel", "mouseout", "mouseup", "mousedown", "mousemove", "contextmenu", "pagemousemove", "pagemouseup", "pagekeydown", "pagekeyup"];
+    //拦截器
+    function EmptyInterceptor() {}
+    EmptyInterceptor.prototype.dispose = function () {};
+
+    //监听整个页面上的事件
+    function afterListenerChanged(handlerInstance) {
+        let allSilent =
+            handlerInstance.isSilent("pagemousemove") && handlerInstance.isSilent("pagemouseup") && handlerInstance.isSilent("pagekeydown") && handlerInstance.isSilent("pagekeyup");
+        let interceptor = handlerInstance.interceptor;
+        interceptor && interceptor.togglePageEvent && interceptor.togglePageEvent(!allSilent);
+    }
+
+    /**--------------------- tools --- end------------------------------------- */
+
+    /**
+     *
+     * @param {*} storage   待绘制的图形数据
+     * @param {*} painter   图层逻辑
+     * @param {*} interceptor  拦截器
+     * @param {*} painterRoot
+     */
+    let afterEvent = bind(afterListenerChanged, null, undefined);
+    class CanvasEvent extends Eventful {
+        constructor(storage, painter, interceptor, painterRoot) {
+            super(afterEvent);
+
+            this.storage = storage;
+            this.painter = painter;
+            this.painterRoot = painterRoot;
+
+            interceptor = interceptor || new EmptyInterceptor(); //拦截器
+
+            this.interceptor = null;
+            this._hovered = {};
+
+            this._lastTouchMoment;
+
+            this._lastX;
+            this._lastY;
+
+            this._gestureMgr;
+
+            this.setHandlerProxy(interceptor);
+
+            // this._ddMgr = new DragDropMgr(this).startListen();
+
+            // this._transformMgr = new TransformEventMgr(this).startListen();
+
+            // this._linkMgr = new LinkMgr(this).startListen();
+        }
+
+        disableTransform() {}
+
+        enableTransform() {}
+
+        setHandlerProxy(interceptor) {
+            //先清空已经挂载过的事件拦截
+            if (this.interceptor) {
+                this.interceptor.dispose();
+            }
+            //
+            if (interceptor) {
+                console.log(interceptor);
+                each(
+                    handlerNames,
+                    function (name) {
+                        // 监听 Proxy 上面派发的原生DOM事件，转发给本类的处理方法。
+                        interceptor.on && interceptor.on(name, this[name], this);
+                    },
+                    this
+                );
+                interceptor.handler = this;
+            }
+            this.interceptor = interceptor;
+        }
+
+        mousemove(event) {}
+
+        mouseout(event) {}
+
+        resize() {}
+
+        dispatch(eventName, eventArgs) {
+            // let handler = this[eventName];
+            // handler && handler.call(this, eventArgs);
+        }
+
+        dispose() {}
+    }
+
     /*
      *  注释:tools --- 表示是被其他函数引用 的工具函数
      *  引入 Storage.js 保存 绘制对象 的列表 （Model)
@@ -3145,7 +3284,7 @@
      */
 
     //检测浏览器的支持情况
-    if (!env$2.canvasSupported) {
+    if (!env$1.canvasSupported) {
         throw new Error("Need Canvas Environment");
     }
 
@@ -3199,13 +3338,14 @@
 
             let handlerProxy = null;
             if (typeof this.root.moveTo !== "function") {
-                if (!env$2.node && !env$2.worker && !env$2.wxa) {
-                    // console.log(this.painter._root);
+                if (!env$1.node && !env$1.worker && !env$1.wxa) {
+                    console.log(this.painter._root);
                     handlerProxy = new EventProxy(this.painter._root);
                 }
             }
 
-            // this.eventHandler = new HRenderEventHandler(this.storage, this.painter, handerProxy);
+            this.eventHandler = new CanvasEvent(this.storage, this.painter, handlerProxy, this.painter._root);
+            console.log(this.eventHandler._handle_map);
 
             this.watchAnim = new WatchAnim();
             this.watchAnim.on("frame", function () {

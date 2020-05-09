@@ -1,6 +1,8 @@
 /*
  * event_util 常用事件函数 工具集合
  */
+import env from "../tools/dev_support"; //检测设备支持情况
+
 let isDomLevel2 = typeof window !== "undefined" && !!window.addEventListener; //验证dom二级事件
 export function addEventListener(el, name, handler) {
     if (isDomLevel2) {

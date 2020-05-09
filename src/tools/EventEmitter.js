@@ -36,6 +36,7 @@ class Eventful {
      * @param {Object} context
      */
     on(event, query, fn, context) {
+        console.log(event, query, fn, context);
         return on(this, event, query, fn, context, false);
     }
 
@@ -104,6 +105,7 @@ class Eventful {
 
 //tools -- 订阅事件
 function on(_this, event, query, fn, context, isOnce) {
+    console.log(_this);
     let _map = _this._handle_map;
 
     if (typeof query === "function") {
@@ -140,7 +142,7 @@ function on(_this, event, query, fn, context, isOnce) {
         ctx: context || _this,
         // FIXME
         // Do not publish this feature util it is proved that it makes sense.  我不知道callAtLast 是干嘛的
-        callAtLast: fn.qrEventfulCallAtLast
+        callAtLast: fn.qrEventfulCallAtLast,
     };
 
     let lastIndex = _map[event].length - 1;

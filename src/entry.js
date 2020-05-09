@@ -10,8 +10,9 @@ import env from "./tools/dev_support";
 import guid from "./tools/guid";
 import Storage from "./MVC/Model/Storage"; // 数据模型  model
 import CanvasPainter from "./MVC/View/CanvasPainter"; //视图 view
-import EventProxy from "./MVC/Control/EventProxy";
+import EventProxy from "./MVC/Control/EventProxy"; //自定义事件
 import WatchAnim from "./MVC/WatchAnim/WatchAnim"; //动画
+import CanvasEvent from "./MVC/Control/CanvasEvent"; // 画布事件
 
 //检测浏览器的支持情况
 if (!env.canvasSupported) {
@@ -69,12 +70,13 @@ class HumbleRender {
         let handlerProxy = null;
         if (typeof this.root.moveTo !== "function") {
             if (!env.node && !env.worker && !env.wxa) {
-                // console.log(this.painter._root);
+                console.log(this.painter._root);
                 handlerProxy = new EventProxy(this.painter._root);
             }
         }
 
-        // this.eventHandler = new HRenderEventHandler(this.storage, this.painter, handerProxy);
+        this.eventHandler = new CanvasEvent(this.storage, this.painter, handlerProxy, this.painter._root);
+        console.log(this.eventHandler._handle_map);
 
         this.watchAnim = new WatchAnim();
         this.watchAnim.on("frame", function () {
