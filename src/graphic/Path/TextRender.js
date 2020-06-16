@@ -11,7 +11,7 @@ export default class TextRender {
         // const dpr = ctx.dpr;
         // console.log(box);
         // console.log(style);
-        let { fontSize, fontFamily, fontStyle, fontWeight, text, textLineHeight, limitWidth } = style;
+        let { fontSize, fontFamily, fontStyle, fontWeight, newText, textLineHeight, limitWidth, text } = style;
         fontFamily = fontFamily || "sans-serif";
         fontStyle = fontStyle || "normal";
         fontWeight = fontWeight || "normal";
@@ -58,24 +58,30 @@ export default class TextRender {
         let textY = cen.y;
         let { textWidth, textLines } = getTextWidth(text, style.font); //获取单行文字宽度 和 行数
 
-        if (limitWidth && text) {
-            function cutText(text, limitWidth) {
-                let { textWidth } = getTextWidth(text, style.font); //获取单行文字宽度 和 行数
+        function getLimitText(limitWidth, text) {
+            if (limitWidth && text) {
+                function cutText(text, limitWidth) {
+                    let { textWidth } = getTextWidth(text, style.font); //获取单行文字宽度 和 行数
 
-                while (textWidth > limitWidth) {
-                    text = text.substring(0, text.length - 1);
-                    let res = getTextWidth(text, style.font);
-                    textWidth = res && res.textWidth;
+                    while (textWidth > limitWidth) {
+                        text = text.substring(0, text.length - 1);
+                        let res = getTextWidth(text, style.font);
+                        textWidth = res && res.textWidth;
+                    }
+                    return {
+                        newText: text,
+                        newTextWidth: textWidth,
+                    };
                 }
-                return {
-                    newText: text,
-                    newTextWidth: textWidth,
-                };
+
+                let { newText, newTextWidth } = cutText(text, limitWidth);
+                text = newText === text ? text : newText.substring(0, newText.length - 2) + "...";
+                // console.log(text);
             }
 
-            let { newText, newTextWidth } = cutText(text, limitWidth);
-            text = newText === text ? text : newText + "...";
+            return text;
         }
+        text = getLimitText(limitWidth, text);
 
         this.textWidth = textWidth;
 
@@ -133,13 +139,14 @@ export default class TextRender {
                         break;
                 }
 
+                let limText = getLimitText(limitWidth, item);
                 if (style.textFill) {
                     ctx.fillStyle = style.textFill;
-                    ctx.fillText(item, textX, textY);
+                    ctx.fillText(limText, textX, textY);
                 }
                 if (style.textStroke) {
                     ctx.strokeStyle = style.textStroke;
-                    ctx.strokeText(item, textX, textY);
+                    ctx.strokeText(limText, textX, textY);
                 }
             });
         } else {

@@ -138,7 +138,7 @@
          * @param {Object} context
          */
         on(event, query, fn, context) {
-            console.log(event, query, fn, context);
+            // console.log(event, query, fn, context);
             return on(this, event, query, fn, context, false);
         }
 
@@ -207,7 +207,7 @@
 
     //tools -- 订阅事件
     function on(_this, event, query, fn, context, isOnce) {
-        console.log(_this);
+        // console.log(_this);
         let _map = _this._handle_map;
 
         if (typeof query === "function") {
@@ -3182,13 +3182,6 @@
      * canvasEvent 的核心逻辑是拦截所有的 鼠标、 键盘、触摸事件派发给 canvas 内部的元素。
      */
 
-    /**--------------------- tools --- start------------------------------------- */
-
-    let handlerNames = ["click", "dblclick", "mousewheel", "mouseout", "mouseup", "mousedown", "mousemove", "contextmenu", "pagemousemove", "pagemouseup", "pagekeydown", "pagekeyup"];
-    //拦截器
-    function EmptyInterceptor() {}
-    EmptyInterceptor.prototype.dispose = function () {};
-
     //监听整个页面上的事件
     function afterListenerChanged(handlerInstance) {
         let allSilent =
@@ -3207,73 +3200,6 @@
      * @param {*} painterRoot
      */
     let afterEvent = bind(afterListenerChanged, null, undefined);
-    class CanvasEvent extends Eventful {
-        constructor(storage, painter, interceptor, painterRoot) {
-            super(afterEvent);
-
-            this.storage = storage;
-            this.painter = painter;
-            this.painterRoot = painterRoot;
-
-            interceptor = interceptor || new EmptyInterceptor(); //拦截器
-
-            this.interceptor = null;
-            this._hovered = {};
-
-            this._lastTouchMoment;
-
-            this._lastX;
-            this._lastY;
-
-            this._gestureMgr;
-
-            this.setHandlerProxy(interceptor);
-
-            // this._ddMgr = new DragDropMgr(this).startListen();
-
-            // this._transformMgr = new TransformEventMgr(this).startListen();
-
-            // this._linkMgr = new LinkMgr(this).startListen();
-        }
-
-        disableTransform() {}
-
-        enableTransform() {}
-
-        setHandlerProxy(interceptor) {
-            //先清空已经挂载过的事件拦截
-            if (this.interceptor) {
-                this.interceptor.dispose();
-            }
-            //
-            if (interceptor) {
-                console.log(interceptor);
-                each(
-                    handlerNames,
-                    function (name) {
-                        // 监听 Proxy 上面派发的原生DOM事件，转发给本类的处理方法。
-                        interceptor.on && interceptor.on(name, this[name], this);
-                    },
-                    this
-                );
-                interceptor.handler = this;
-            }
-            this.interceptor = interceptor;
-        }
-
-        mousemove(event) {}
-
-        mouseout(event) {}
-
-        resize() {}
-
-        dispatch(eventName, eventArgs) {
-            // let handler = this[eventName];
-            // handler && handler.call(this, eventArgs);
-        }
-
-        dispose() {}
-    }
 
     /*
      *  注释:tools --- 表示是被其他函数引用 的工具函数
@@ -3335,17 +3261,12 @@
 
             this.storage = new Storage();
             this.painter = new painterMap[renderType](this.root, this.storage, opts, this.id);
-
-            let handlerProxy = null;
             if (typeof this.root.moveTo !== "function") {
-                if (!env$1.node && !env$1.worker && !env$1.wxa) {
-                    console.log(this.painter._root);
-                    handlerProxy = new EventProxy(this.painter._root);
-                }
+                if (!env$1.node && !env$1.worker && !env$1.wxa) ;
             }
 
-            this.eventHandler = new CanvasEvent(this.storage, this.painter, handlerProxy, this.painter._root);
-            console.log(this.eventHandler._handle_map);
+            // this.eventHandler = new CanvasEvent(this.storage, this.painter, handlerProxy, this.painter._root);
+            // console.log(this.eventHandler._handle_map);
 
             this.watchAnim = new WatchAnim();
             this.watchAnim.on("frame", function () {
@@ -4816,6 +4737,7 @@
         if (opts) {
             let res = mixin(this, opts, false);
         }
+        this.extendStyle(opts, false);
     }
 
     Style.prototype = {
@@ -4903,6 +4825,7 @@
             }
 
             if (this.hasStroke()) {
+                // console.log(this.lineWidth);
                 let lineWidth = this.lineWidth;
                 let scaleLine = this.strokeNoScale && ele && ele.getLineScale();
                 ctx.lineWidth = lineWidth / (scaleLine ? scaleLine : 1);
@@ -5163,199 +5086,203 @@
     // import BoundingRect from "../../mixin/Transformable/BoundingRect";
 
     function PathProxy(notSaveData) {
-        this._saveData = !(notSaveData || false);
-        if (this._saveData) {
-            this.data = [];
-        }
-        this._ctx = null;
+    	this._saveData = !(notSaveData || false);
+    	if (this._saveData) {
+    		this.data = [];
+    	}
+    	this._ctx = null;
     }
 
     PathProxy.prototype = {
-        constructor: PathProxy,
-        _xi: 0, // xi, yi 记录当前点
-        _yi: 0,
-        _x0: 0, // x0, y0 记录起始点
-        _y0: 0,
+    	constructor: PathProxy,
+    	_xi: 0, // xi, yi 记录当前点
+    	_yi: 0,
+    	_x0: 0, // x0, y0 记录起始点
+    	_y0: 0,
 
-        _ux: 0, //线段的最小值
-        _uy: 0,
+    	_ux: 0, //线段的最小值
+    	_uy: 0,
 
-        _len: 0,
-        _lineDash: null, // 设置虚线，数组格式
+    	_len: 0,
+    	_lineDash: null, // 设置虚线，数组格式
 
-        _dashOffset: 0,
-        _dashIdx: 0,
-        _dashSum: 0,
+    	_dashOffset: 0,
+    	_dashIdx: 0,
+    	_dashSum: 0,
 
-        getContext: function() {
-            return this._ctx;
-        },
+    	getContext: function () {
+    		return this._ctx;
+    	},
 
-        beginPath: function(ctx) {
-            this._ctx = ctx;
-            ctx && ctx.beginPath();
-            ctx && (this.dpr = ctx.dpr);
+    	beginPath: function (ctx) {
+    		this._ctx = ctx;
+    		ctx && ctx.beginPath();
+    		ctx && (this.dpr = ctx.dpr);
 
-            //Reset
-            if (this._saveData) {
-                this._len = 0;
-            }
+    		//Reset
+    		if (this._saveData) {
+    			this._len = 0;
+    		}
 
-            if (this._lineDash) {
-                this._lineDash = null;
-                this._dashOffset = 0;
-            }
-            return this;
-        },
+    		if (this._lineDash) {
+    			this._lineDash = null;
+    			this._dashOffset = 0;
+    		}
+    		return this;
+    	},
 
-        moveTo: function(x, y) {
-            this._ctx && this._ctx.moveTo(x, y);
-            // x0, y0, xi, yi 是记录在 _dashedXXXXTo 方法中使用
-            // xi, yi 记录当前点, x0, y0 在 closePath 的时候回到起始点。
-            // 有可能在 beginPath 之后直接调用 lineTo，这时候 x0, y0 需要
-            // 在 lineTo 方法中记录，这里先不考虑这种情况，dashed line 也只在 IE10- 中不支持
-            this._x0 = x;
-            this._y0 = y;
+    	moveTo: function (x, y) {
+    		this._ctx && this._ctx.moveTo(x, y);
+    		// x0, y0, xi, yi 是记录在 _dashedXXXXTo 方法中使用
+    		// xi, yi 记录当前点, x0, y0 在 closePath 的时候回到起始点。
+    		// 有可能在 beginPath 之后直接调用 lineTo，这时候 x0, y0 需要
+    		// 在 lineTo 方法中记录，这里先不考虑这种情况，dashed line 也只在 IE10- 中不支持
+    		this._x0 = x;
+    		this._y0 = y;
 
-            this._xi = x;
-            this._yi = y;
+    		this._xi = x;
+    		this._yi = y;
 
-            return this;
-        },
+    		return this;
+    	},
 
-        lineTo: function(x, y) {
-            //判断是否超过 线段的最小值
-            let exceedUnit = Math.abs(x - this.xi) > this._ux || Math.abs(y - this._yi) > this._uy || this._len < 5;
-            if (exceedUnit) {
-                this._xi = x;
-                this._yi = y;
-            }
-            if (this._ctx && exceedUnit) {
-                this._ctx.lineTo(x, y);
-            }
+    	lineTo: function (x, y) {
+    		//判断是否超过 线段的最小值
+    		let exceedUnit = Math.abs(x - this.xi) > this._ux || Math.abs(y - this._yi) > this._uy || this._len < 5;
+    		if (exceedUnit) {
+    			this._xi = x;
+    			this._yi = y;
+    		}
+    		if (this._ctx && exceedUnit) {
+    			this._ctx.lineTo(x, y);
+    		}
 
-            return this;
-        },
+    		return this;
+    	},
 
-        arc: function(cx, cy, r, startAngle, endAngle, anticlockwise) {
-            this._ctx && this._ctx.arc(cx, cy, r, startAngle, endAngle, anticlockwise);
+    	lineCap: function (lineCap) {
+    		this._ctx.lineCap = lineCap;
+    	},
 
-            // let startPos = {
-            //     x:  Math.cos(startAngle) * r + cx,
-            //     y: Math.sin(startAngle) * r + cy
-            // }
-            // let endPos = {
-            //     x: Math.cos(endAngle) * r + cx,
-            //     y: Math.cos(endAngle) * r + cx
-            // }
+    	arc: function (cx, cy, r, startAngle, endAngle, anticlockwise) {
+    		this._ctx && this._ctx.arc(cx, cy, r, startAngle, endAngle, anticlockwise);
 
-            return this;
-        },
+    		// let startPos = {
+    		//     x:  Math.cos(startAngle) * r + cx,
+    		//     y: Math.sin(startAngle) * r + cy
+    		// }
+    		// let endPos = {
+    		//     x: Math.cos(endAngle) * r + cx,
+    		//     y: Math.cos(endAngle) * r + cx
+    		// }
 
-        bezierCurveTo: function(x1, y1, x2, y2, x3, y3) {
-            if (this._ctx) {
-                this._needsDash() ? this._dashedBezierTo(x1, y1, x2, y2, x3, y3) : this._ctx.bezierCurveTo(x1, y1, x2, y2, x3, y3);
-            }
-            this._xi = x3;
-            this._yi = y3;
-            return this;
-        },
+    		return this;
+    	},
 
-        quadraticCurveTo: function(x1, y1, x2, y2) {
-            if (this._ctx) {
-                this._needsDash() ? this._dashedQuadraticTo(x1, y1, x2, y2) : this._ctx.quadraticCurveTo(x1, y1, x2, y2);
-            }
-            this._xi = x2;
-            this._yi = y2;
-            return this;
-        },
+    	bezierCurveTo: function (x1, y1, x2, y2, x3, y3) {
+    		if (this._ctx) {
+    			this._needsDash() ? this._dashedBezierTo(x1, y1, x2, y2, x3, y3) : this._ctx.bezierCurveTo(x1, y1, x2, y2, x3, y3);
+    		}
+    		this._xi = x3;
+    		this._yi = y3;
+    		return this;
+    	},
 
-        fill: function(ctx) {
-            ctx && ctx.fill();
-            // this.toStatic();
-        },
+    	quadraticCurveTo: function (x1, y1, x2, y2) {
+    		if (this._ctx) {
+    			this._needsDash() ? this._dashedQuadraticTo(x1, y1, x2, y2) : this._ctx.quadraticCurveTo(x1, y1, x2, y2);
+    		}
+    		this._xi = x2;
+    		this._yi = y2;
+    		return this;
+    	},
 
-        stroke: function(ctx) {
-            ctx && ctx.stroke();
-        },
+    	fill: function (ctx) {
+    		ctx && ctx.fill();
+    		// this.toStatic();
+    	},
 
-        setLineDash: function(lineDash) {
-            if (lineDash instanceof Array) {
-                this._lineDash = lineDash;
-                this._dashIdx = 0;
-                let lineDashSum = 0;
-                for (let i = 0; i < lineDash.length; i++) {
-                    lineDashSum += lineDashSum[i];
-                }
-                this._dashSum = lineDashSum;
-            }
-            return this;
-        },
+    	stroke: function (ctx) {
+    		ctx && ctx.stroke();
+    	},
 
-        setLineDashOffset: function(offset) {
-            this._dashOffset = offset;
-            return this;
-        },
+    	setLineDash: function (lineDash) {
+    		if (lineDash instanceof Array) {
+    			this._lineDash = lineDash;
+    			this._dashIdx = 0;
+    			let lineDashSum = 0;
+    			for (let i = 0; i < lineDash.length; i++) {
+    				lineDashSum += lineDashSum[i];
+    			}
+    			this._dashSum = lineDashSum;
+    		}
+    		return this;
+    	},
 
-        closePath: function() {
-            var ctx = this._ctx;
-            var x0 = this._x0;
-            var y0 = this._y0;
-            if (ctx) {
-                // this._needsDash() && this._dashedLineTo(x0, y0);
-                ctx.closePath();
-            }
+    	setLineDashOffset: function (offset) {
+    		this._dashOffset = offset;
+    		return this;
+    	},
 
-            this._xi = x0;
-            this._yi = y0;
-            return this;
-        },
+    	closePath: function () {
+    		var ctx = this._ctx;
+    		var x0 = this._x0;
+    		var y0 = this._y0;
+    		if (ctx) {
+    			// this._needsDash() && this._dashedLineTo(x0, y0);
+    			ctx.closePath();
+    		}
 
-        rect: function(x, y, w, h) {
-            // console.log(this);
-            this._ctx && this._ctx.rect(x, y, w, h);
+    		this._xi = x0;
+    		this._yi = y0;
+    		return this;
+    	},
 
-            return this;
-        },
+    	rect: function (x, y, w, h) {
+    		// console.log(this);
+    		this._ctx && this._ctx.rect(x, y, w, h);
 
-        _needsDash: function() {
-            return this._lineDash;
-        },
+    		return this;
+    	},
 
-        //填充path 数据， 尽量复用而不申明新的数组。 大部分图形绘制的数据长度是不变的
-        addData: function(cmd) {
-            if (!this._saveData) {
-                return;
-            }
+    	_needsDash: function () {
+    		return this._lineDash;
+    	},
 
-            var data = this.data;
-            if (this._len + arguments.length > data.length) {
-                // 因为之前的数组已经转换成静态的 Float32Array
-                // 所以不够用时需要扩展一个新的动态数组
-                this._expandData();
-                data = this.data;
-            }
-            for (var i = 0; i < arguments.length; i++) {
-                data[this._len++] = arguments[i];
-            }
+    	//填充path 数据， 尽量复用而不申明新的数组。 大部分图形绘制的数据长度是不变的
+    	addData: function (cmd) {
+    		if (!this._saveData) {
+    			return;
+    		}
 
-            this._prevCmd = cmd;
-        },
+    		var data = this.data;
+    		if (this._len + arguments.length > data.length) {
+    			// 因为之前的数组已经转换成静态的 Float32Array
+    			// 所以不够用时需要扩展一个新的动态数组
+    			this._expandData();
+    			data = this.data;
+    		}
+    		for (var i = 0; i < arguments.length; i++) {
+    			data[this._len++] = arguments[i];
+    		}
 
-        _expandData: function() {
-            // Only if data is Float32Array
-            if (!(this.data instanceof Array)) {
-                var newData = [];
-                for (var i = 0; i < this._len; i++) {
-                    newData[i] = this.data[i];
-                }
-                this.data = newData;
-            }
-        },
+    		this._prevCmd = cmd;
+    	},
 
-        getBoundingRect: function() {
-            console.log(this);
-        }
+    	_expandData: function () {
+    		// Only if data is Float32Array
+    		if (!(this.data instanceof Array)) {
+    			var newData = [];
+    			for (var i = 0; i < this._len; i++) {
+    				newData[i] = this.data[i];
+    			}
+    			this.data = newData;
+    		}
+    	},
+
+    	getBoundingRect: function () {
+    		console.log(this);
+    	},
     };
 
     class TextRender {
@@ -5367,7 +5294,7 @@
             // const dpr = ctx.dpr;
             // console.log(box);
             // console.log(style);
-            let { fontSize, fontFamily, fontStyle, fontWeight, text, textLineHeight, limitWidth } = style;
+            let { fontSize, fontFamily, fontStyle, fontWeight, newText, textLineHeight, limitWidth, text } = style;
             fontFamily = fontFamily || "sans-serif";
             fontStyle = fontStyle || "normal";
             fontWeight = fontWeight || "normal";
@@ -5412,24 +5339,30 @@
             let textY = cen.y;
             let { textWidth, textLines } = getTextWidth(text, style.font); //获取单行文字宽度 和 行数
 
-            if (limitWidth && text) {
-                function cutText(text, limitWidth) {
-                    let { textWidth } = getTextWidth(text, style.font); //获取单行文字宽度 和 行数
+            function getLimitText(limitWidth, text) {
+                if (limitWidth && text) {
+                    function cutText(text, limitWidth) {
+                        let { textWidth } = getTextWidth(text, style.font); //获取单行文字宽度 和 行数
 
-                    while (textWidth > limitWidth) {
-                        text = text.substring(0, text.length - 1);
-                        let res = getTextWidth(text, style.font);
-                        textWidth = res && res.textWidth;
+                        while (textWidth > limitWidth) {
+                            text = text.substring(0, text.length - 1);
+                            let res = getTextWidth(text, style.font);
+                            textWidth = res && res.textWidth;
+                        }
+                        return {
+                            newText: text,
+                            newTextWidth: textWidth,
+                        };
                     }
-                    return {
-                        newText: text,
-                        newTextWidth: textWidth,
-                    };
+
+                    let { newText, newTextWidth } = cutText(text, limitWidth);
+                    text = newText === text ? text : newText.substring(0, newText.length - 2) + "...";
+                    // console.log(text);
                 }
 
-                let { newText, newTextWidth } = cutText(text, limitWidth);
-                text = newText === text ? text : newText + "...";
+                return text;
             }
+            text = getLimitText(limitWidth, text);
 
             this.textWidth = textWidth;
 
@@ -5483,13 +5416,14 @@
                             textY = index > 0 ? textY + textLineHeight : textY;
                     }
 
+                    let limText = getLimitText(limitWidth, item);
                     if (style.textFill) {
                         ctx.fillStyle = style.textFill;
-                        ctx.fillText(item, textX, textY);
+                        ctx.fillText(limText, textX, textY);
                     }
                     if (style.textStroke) {
                         ctx.strokeStyle = style.textStroke;
-                        ctx.strokeText(item, textX, textY);
+                        ctx.strokeText(limText, textX, textY);
                     }
                 });
             } else {
@@ -5595,229 +5529,279 @@
      */
 
     class Path extends Element {
-        constructor(opts) {
-            // console.log(opts);
-            super(opts);
-            this.type = "path";
-            this.path = null;
-            this.__dirtyPath = true;
+    	constructor(opts) {
+    		// console.log(opts);
+    		super(opts);
+    		this.type = "path";
+    		this.path = null;
+    		this.__dirtyPath = true;
 
-            this.strokeContainThreshold = 5; //绘制 临界值
-            this.segmentIgnoreThreshold = 0; //部分 忽略 临界值
-            this.subPixelOptimize = false; //设备优化
-        }
+    		this.strokeContainThreshold = 5; //绘制 临界值
+    		this.segmentIgnoreThreshold = 0; //部分 忽略 临界值
+    		this.subPixelOptimize = false; //设备优化
+    	}
 
-        //调用canvas API 绘制i
-        brush(ctx, prevEl) {
-            // console.log(this.shape);
-            let path = this.path || new PathProxy(true); //拦截api,增加功能
+    	//调用canvas API 绘制i
+    	brush(ctx, prevEl) {
+    		// console.log(this.shape);
+    		let path = this.path || new PathProxy(true); //拦截api,增加功能
 
-            let hasStroke = this.style.hasStroke(); //绘制需求
-            let hasFill = this.style.hasFill(); //填充需求
+    		let hasStroke = this.style.hasStroke(); //绘制需求
+    		let hasFill = this.style.hasFill(); //填充需求
 
-            let fill = this.style.fill;
-            let stroke = this.style.stroke;
-            // console.log(fill, stroke);
-            let hasFillGradient = hasFill && !!fill.colorStops;
-            let hasStrokeGradient = hasStroke && !!stroke.colorStops;
+    		let fill = this.style.fill;
+    		let stroke = this.style.stroke;
+    		// console.log(fill, stroke);
+    		let hasFillGradient = hasFill && !!fill.colorStops;
+    		let hasStrokeGradient = hasStroke && !!stroke.colorStops;
 
-            let hasFillPattern = hasFill && !!fill.image;
-            let hasStrokePattern = hasStroke && !!stroke.image;
+    		let hasFillPattern = hasFill && !!fill.image;
+    		let hasStrokePattern = hasStroke && !!stroke.image;
 
-            let ctxLineDash = !!ctx.setLineDash;
-            let lineDash = this.style.lineDash;
-            let lineDashOffset = this.style.lineDashOffset;
+    		let ctxLineDash = !!ctx.setLineDash;
+    		let lineDash = this.style.lineDash;
+    		let lineDashOffset = this.style.lineDashOffset;
 
-            //在style.bind()中完成 fillSytle  和 strokeStyle的设置
+    		let lineCap = this.style.lineCap;
 
-            this.style.bind(ctx, this, prevEl);
-            //调用transformable.js 中的 设置矩阵
-            this.setTransform(ctx);
+    		//在style.bind()中完成 fillSytle  和 strokeStyle的设置
 
-            if (this.__dirty) {
-                let rect;
-                if (hasFillGradient) {
-                    // rect = rect || this.getBoundingRect();
+    		this.style.bind(ctx, this, prevEl);
+    		//调用transformable.js 中的 设置矩阵
+    		this.setTransform(ctx);
 
-                    this._fillGradient = this.style.getGradient(ctx, fill, rect);
-                }
+    		if (this.__dirty) {
+    			let rect;
+    			if (hasFillGradient) {
+    				// rect = rect || this.getBoundingRect();
 
-                if (hasStrokeGradient) {
-                    // rect = rect || this.getBoundingRect();
-                    //  如果描边为渐变色{stroke:  new linearGradient()}
-                    this._strokeGradient = this.style.getGradient(ctx, stroke, rect);
-                }
-            }
+    				this._fillGradient = this.style.getGradient(ctx, fill, rect);
+    			}
 
-            if (hasFillGradient) {
-                ctx.fillStyle = this._fillGradient;
-            }
+    			if (hasStrokeGradient) {
+    				// rect = rect || this.getBoundingRect();
+    				//  如果描边为渐变色{stroke:  new linearGradient()}
+    				this._strokeGradient = this.style.getGradient(ctx, stroke, rect);
+    			}
+    		}
 
-            if (hasStrokeGradient) {
-                ctx.strokeStyle = this._strokeGradient;
-            }
+    		if (hasFillGradient) {
+    			ctx.fillStyle = this._fillGradient;
+    		}
 
-            if (this.__dirtyPath) {
-                path.beginPath(ctx);
-                if (lineDash && ctxLineDash) {
-                    ctx.setLineDash(lineDash);
-                    ctx.lineDashOffset = lineDashOffset;
-                }
+    		if (hasStrokeGradient) {
+    			ctx.strokeStyle = this._strokeGradient;
+    		}
 
-                this.buildPath(path, this.shape, false);
-                if (this.path) {
-                    this.__dirtyPath = false;
-                }
-            } else {
-                ctx.beginPath();
-            }
+    		if (this.__dirtyPath) {
+    			path.beginPath(ctx);
+    			if (lineDash && ctxLineDash) {
+    				ctx.setLineDash(lineDash);
+    				ctx.lineDashOffset = lineDashOffset;
+    			}
 
-            if (hasFill) {
-                if (this.style.fillOpacity != null) {
-                    let originalGlobalAlpha = ctx.globalAlpha;
-                    ctx.globalAlpha = this.style.fillOpacity * this.style.opacity;
-                    path.fill(ctx);
-                    ctx.globalAlpha = originalGlobalAlpha;
-                } else {
-                    path.fill(ctx);
-                }
-            }
+    			if (lineCap) {
+    				// console.log(lineCap);
+    				console.log(path);
+    				path.lineCap(lineCap);
+    			}
 
-            if (hasStroke) {
-                path.stroke(ctx);
-            }
+    			this.buildPath(path, this.shape, lineCap, false);
+    			if (this.path) {
+    				this.__dirtyPath = false;
+    			}
+    		} else {
+    			ctx.beginPath();
+    			if (lineCap) {
+    				path.lineCap(lineCap);
+    			}
+    		}
 
-            //清除 虚线对其他图形的影响
-            if (lineDash && ctxLineDash) {
-                ctx.setLineDash([]);
-            }
+    		if (hasFill) {
+    			if (this.style.fillOpacity != null) {
+    				let originalGlobalAlpha = ctx.globalAlpha;
+    				ctx.globalAlpha = this.style.fillOpacity * this.style.opacity;
+    				path.fill(ctx);
+    				ctx.globalAlpha = originalGlobalAlpha;
+    			} else {
+    				path.fill(ctx);
+    			}
+    		}
 
-            //绘制canvas 文字
-            if (this.style.text) {
-                this.drawRectText(ctx, this.style, this.getBoundingRect());
-            }
-        }
+    		if (hasStroke) {
+    			path.stroke(ctx);
+    		}
 
-        //元素标记为更新，并让绘图环境 this.__hr.refresh()重绘
-        dirty(dirtyPath = true) {
-            if (dirtyPath) {
-                this.__dirtyPath = dirtyPath;
-                this._rect = null;
-            }
+    		//清除 虚线对其他图形的影响
+    		if (lineDash && ctxLineDash) {
+    			ctx.setLineDash([]);
+    		}
 
-            this.__dirty = this.__dirtyText = true;
-            this.__hr && this.__hr.refresh();
-            if (this.__clipTarget) {
-                this.__clipTarget.dirty();
-            }
-        }
+    		//绘制canvas 文字
+    		if (this.style.text) {
+    			this.drawRectText(ctx, this.style, this.getBoundingRect());
+    		}
+    	}
 
-        getLineScale() {
-            let m = this.transform;
-            return m && Math.abs(m[0] - 1) > 1e-10 && Math.abs(m[3] - 1) > 1e-10 ? Math.sqrt(Math.abs(m[0] * m[3] - m[2] * m[1])) : 1;
-        }
+    	//元素标记为更新，并让绘图环境 this.__hr.refresh()重绘
+    	dirty(dirtyPath = true) {
+    		if (dirtyPath) {
+    			this.__dirtyPath = dirtyPath;
+    			this._rect = null;
+    		}
 
-        //获取包围盒
-        getBoundingRect() {
-            const { type, shape } = this;
+    		this.__dirty = this.__dirtyText = true;
+    		this.__hr && this.__hr.refresh();
+    		if (this.__clipTarget) {
+    			this.__clipTarget.dirty();
+    		}
+    	}
 
-            let boxInfo = null;
-            // console.log(this);
-            switch (type) {
-                //弧度按照 整个圆形来取包围盒
-                case "arc":
-                    boxInfo = _getCircleBox(shape);
-                    break;
-                //圆形
-                case "circle":
-                    boxInfo = _getCircleBox(shape);
-                    break;
-                //矩形
-                case "rect":
-                    boxInfo = _getRectBox(shape);
-                    break;
-                //扇形
-                case "sector":
-                    boxInfo = _getCircleBox(shape);
-                    break;
+    	getLineScale() {
+    		let m = this.transform;
+    		return m && Math.abs(m[0] - 1) > 1e-10 && Math.abs(m[3] - 1) > 1e-10 ? Math.sqrt(Math.abs(m[0] * m[3] - m[2] * m[1])) : 1;
+    	}
 
-                //线段
-                case "line":
-                    boxInfo = _getLineBox(shape);
-                    break;
-            }
-            return boxInfo;
+    	//获取包围盒
+    	getBoundingRect() {
+    		const { type, shape } = this;
 
-            function _getCircleBox(shape) {
-                let min = {}; //盒子最小坐标
-                let max = {}; //盒子最大坐标
-                let cen = {}; //盒子中心点坐标
-                const { cx, cy, r } = shape;
-                min.x = cx - r;
-                min.y = cy - r;
-                max.x = cx + r;
-                max.y = cy + r;
-                cen.x = cx;
-                cen.y = cy;
-                return {
-                    min,
-                    max,
-                    cen,
-                };
-            }
+    		let boxInfo = null;
+    		// console.log(this);
+    		switch (type) {
+    			//弧度按照 整个圆形来取包围盒
+    			case "arc":
+    				boxInfo = _getCircleBox(shape);
+    				break;
+    			//圆形
+    			case "circle":
+    				boxInfo = _getCircleBox(shape);
+    				break;
+    			//矩形
+    			case "rect":
+    				boxInfo = _getRectBox(shape);
+    				break;
+    			//扇形
+    			case "sector":
+    				boxInfo = _getCircleBox(shape);
+    				break;
 
-            function _getRectBox(shape) {
-                let min = {}; //盒子最小坐标
-                let max = {}; //盒子最大坐标
-                let cen = {}; //盒子中心点坐标
-                const { x, y, width, height } = shape;
-                min.x = x;
-                min.y = y;
-                max.x = x + width;
-                max.y = y + height;
-                cen.x = min.x + width / 2;
-                cen.y = min.y + height / 2;
-                return {
-                    min,
-                    max,
-                    cen,
-                };
-            }
-            function _getLineBox(shape) {
-                let min = {}; //盒子最小坐标
-                let max = {}; //盒子最大坐标
-                let cen = {}; //盒子中心点坐标
-                const { x1, y1, x2, y2 } = shape;
-                min.x = x1;
-                min.y = y1;
-                max.x = x2;
-                max.y = y2;
-                cen.x = min.x + (max.x - min.x) / 2;
-                cen.y = min.y + (max.y - min.y) / 2;
+    			//线段
+    			case "line":
+    				boxInfo = _getLineBox(shape);
+    				break;
+    		}
+    		return boxInfo;
 
-                return {
-                    min,
-                    max,
-                    cen,
-                };
-            }
-        }
+    		function _getCircleBox(shape) {
+    			let min = {}; //盒子最小坐标
+    			let max = {}; //盒子最大坐标
+    			let cen = {}; //盒子中心点坐标
+    			const { cx, cy, r } = shape;
+    			min.x = cx - r;
+    			min.y = cy - r;
+    			max.x = cx + r;
+    			max.y = cy + r;
+    			cen.x = cx;
+    			cen.y = cy;
+    			return {
+    				min,
+    				max,
+    				cen,
+    			};
+    		}
 
-        setShape(key, value) {
-            if (!this.shape) {
-                return this;
-            }
-            if (isObject(key)) {
-                merge(this.shape, key, true); //覆盖之前的属性
-            } else {
-                this.shape[key] = value;
-            }
-            this.dirty(true);
-            return this;
-        }
+    		function _getRectBox(shape) {
+    			let min = {}; //盒子最小坐标
+    			let max = {}; //盒子最大坐标
+    			let cen = {}; //盒子中心点坐标
+    			const { x, y, width, height } = shape;
+    			min.x = x;
+    			min.y = y;
+    			max.x = x + width;
+    			max.y = y + height;
+    			cen.x = min.x + width / 2;
+    			cen.y = min.y + height / 2;
+    			return {
+    				min,
+    				max,
+    				cen,
+    			};
+    		}
+    		function _getLineBox(shape) {
+    			let min = {}; //盒子最小坐标
+    			let max = {}; //盒子最大坐标
+    			let cen = {}; //盒子中心点坐标
+    			const { x1, y1, x2, y2 } = shape;
+    			min.x = x1;
+    			min.y = y1;
+    			max.x = x2;
+    			max.y = y2;
+    			cen.x = min.x + (max.x - min.x) / 2;
+    			cen.y = min.y + (max.y - min.y) / 2;
+
+    			return {
+    				min,
+    				max,
+    				cen,
+    			};
+    		}
+    	}
+
+    	setShape(key, value) {
+    		if (!this.shape) {
+    			return this;
+    		}
+    		if (isObject(key)) {
+    			merge(this.shape, key, true); //覆盖之前的属性
+    		} else {
+    			this.shape[key] = value;
+    		}
+    		this.dirty(true);
+    		return this;
+    	}
     }
 
     mixin(Path.prototype, TextRender.prototype); //继承
+
+    /**
+     * 扩展一个 图形， 例如 星星， 不规则图形等
+     *
+     */
+    Path.extend = function (defaults) {
+    	class Sub extends Path {
+    		constructor(opts) {
+    			super(opts);
+    			//扩展默认style
+    			if (defaults.style) {
+    				this.style.extendStyle(defaults.style, false);
+    			}
+
+    			//扩展默认的shape
+    			let defaultShape = defaults.shape;
+    			if (defaultShape) {
+    				this.shape = this.shape || {};
+    				for (let name in defaultShape) {
+    					if (!this.shape.hasOwnProperty(name) && defaultShape.hasOwnProperty(name)) {
+    						this.shape[name] = defaultShape[name];
+    					}
+    				}
+    			}
+    			defaults.init && defaults.init.call(this, opts);
+    		}
+    	}
+
+    	mixin(Sub.prototype, Path.prototype);
+    	// FIXME 不能 extend position, rotation 等引用对象
+    	for (var name in defaults) {
+    		// Extending prototype values and methods
+    		if (name !== "style" && name !== "shape") {
+    			Sub.prototype[name] = defaults[name];
+    		}
+    	}
+
+    	return Sub;
+    };
 
     // 左上、右上、右下、左下角的半径依次为r1、r2、r3、r4
     // r缩写为1         相当于 [1, 1, 1, 1]
@@ -6054,56 +6038,58 @@
      */
 
     class Line extends Path {
-        constructor(opts) {
-            let defaultConfig = {
-                shape: {
-                    x1: 0,
-                    y1: 0,
-                    x2: 0,
-                    y2: 0,
-                    percent: 1,
-                },
-                style: {
-                    stroke: "#000",
-                    fill: null,
-                },
-            };
+    	constructor(opts) {
+    		let defaultConfig = {
+    			shape: {
+    				x1: 0,
+    				y1: 0,
+    				x2: 0,
+    				y2: 0,
+    				percent: 1,
+    			},
+    			style: {
+    				stroke: "#000",
+    				fill: null,
+    				lineCap: "butt",
+    			},
+    		};
 
-            super(merge(defaultConfig, opts, true));
-            this.type = "line";
-        }
+    		super(merge(defaultConfig, opts, true));
+    		this.type = "line";
+    	}
 
-        buildPath(ctx, shape) {
-            let x1, x2, y1, y2;
+    	buildPath(ctx, shape, lineCap) {
+    		let x1, x2, y1, y2;
 
-            if (this.subPixelOptimize) {
-                let subPixelOptimizeOutputShape = {};
-                subPixelOptimizeLine(subPixelOptimizeOutputShape, shape, this.style);
-                x1 = subPixelOptimizeOutputShape.x1;
-                y1 = subPixelOptimizeOutputShape.y1;
-                x2 = subPixelOptimizeOutputShape.x2;
-                y2 = subPixelOptimizeOutputShape.y2;
-            } else {
-                x1 = shape.x1;
-                y1 = shape.y1;
-                x2 = shape.x2;
-                y2 = shape.y2;
-            }
+    		if (this.subPixelOptimize) {
+    			let subPixelOptimizeOutputShape = {};
+    			subPixelOptimizeLine(subPixelOptimizeOutputShape, shape, this.style);
+    			x1 = subPixelOptimizeOutputShape.x1;
+    			y1 = subPixelOptimizeOutputShape.y1;
+    			x2 = subPixelOptimizeOutputShape.x2;
+    			y2 = subPixelOptimizeOutputShape.y2;
+    		} else {
+    			x1 = shape.x1;
+    			y1 = shape.y1;
+    			x2 = shape.x2;
+    			y2 = shape.y2;
+    		}
 
-            let percent = shape.percent;
+    		let percent = shape.percent;
 
-            if (percent === 0) {
-                return;
-            }
+    		if (percent === 0) {
+    			return;
+    		}
 
-            ctx.moveTo(x1, y1);
+    		ctx.moveTo(x1, y1);
 
-            if (percent < 1) {
-                x2 = x1 * (1 - percent) + x2 * percent;
-                y2 = y1 * (1 - percent) + y2 * percent;
-            }
-            ctx.lineTo(x2, y2);
-        }
+    		if (percent < 1) {
+    			x2 = x1 * (1 - percent) + x2 * percent;
+    			y2 = y1 * (1 - percent) + y2 * percent;
+    		}
+
+    		ctx.lineTo(x2, y2);
+    	}
     }
 
     /**
@@ -6188,6 +6174,88 @@
     }
 
     /**
+     * 克隆一个向量
+     * @param {Vector2} v
+     * @return {Vector2}
+     */
+    function clone(v) {
+        var out = new ArrayCtor$1(2);
+        out[0] = v[0];
+        out[1] = v[1];
+        return out;
+    }
+
+    /**
+     * 向量相加
+     * @param {Vector2} out
+     * @param {Vector2} v1
+     * @param {Vector2} v2
+     */
+    function add(out, v1, v2) {
+        out[0] = v1[0] + v2[0];
+        out[1] = v1[1] + v2[1];
+        return out;
+    }
+
+    /**
+     * 向量相减
+     * @param {Vector2} out
+     * @param {Vector2} v1
+     * @param {Vector2} v2
+     */
+    function sub(out, v1, v2) {
+        out[0] = v1[0] - v2[0];
+        out[1] = v1[1] - v2[1];
+        return out;
+    }
+
+    /**
+     * 向量缩放
+     * @param {Vector2} out
+     * @param {Vector2} v
+     * @param {Number} s
+     */
+    function scale$1(out, v, s) {
+        out[0] = v[0] * s;
+        out[1] = v[1] * s;
+        return out;
+    }
+
+    /**
+     * 计算向量间距离
+     * @param {Vector2} v1
+     * @param {Vector2} v2
+     * @return {Number}
+     */
+    function distance(v1, v2) {
+        return Math.sqrt((v1[0] - v2[0]) * (v1[0] - v2[0]) + (v1[1] - v2[1]) * (v1[1] - v2[1]));
+    }
+
+    /**
+     * 求两个向量最小值
+     * @param  {Vector2} out
+     * @param  {Vector2} v1
+     * @param  {Vector2} v2
+     */
+    function min(out, v1, v2) {
+        out[0] = Math.min(v1[0], v2[0]);
+        out[1] = Math.min(v1[1], v2[1]);
+        return out;
+    }
+
+    /**
+     * 求两个向量最大值
+     * @param  {Vector2} out
+     * @param  {Vector2} v1
+     * @param  {Vector2} v2
+     */
+    function max(out, v1, v2) {
+        out[0] = Math.max(v1[0], v2[0]);
+        out[1] = Math.max(v1[1], v2[1]);
+        return out;
+    }
+
+    /**
      * 曲线辅助模块
      * @author pissang(https://www.github.com/pissang)
      */
@@ -6255,27 +6323,26 @@
      * 贝塞尔曲线
      */
 
-    let defaultConfig = {
-        shape: {
-            x1: 0, // 开始位置
-            y1: 0,
-            x2: 0, //结束位置
-            y2: 0,
-            cpx1: 0,
-            cpy1: 0,
-            percent: 1
-        },
-        style: {
-            stroke: "#000",
-            fill: null
-        }
-    };
-
-    let out = [];
     class BezierCurve extends Path {
         constructor(opts) {
+            let defaultConfig = {
+                shape: {
+                    x1: 0, // 开始位置
+                    y1: 0,
+                    x2: 0, //结束位置
+                    y2: 0,
+                    cpx1: 0,
+                    cpy1: 0,
+                    percent: 1,
+                },
+                style: {
+                    stroke: "#000",
+                    fill: null,
+                },
+            };
             super(merge(defaultConfig, opts, true));
             this.type = "bezier-curve";
+            this.out = [];
         }
 
         buildPath(ctx, shape) {
@@ -6295,24 +6362,24 @@
             ctx.moveTo(x1, y1);
             if (cpx2 == null || cpy2 == null) {
                 if (percent < 1) {
-                    quadraticSubdivide(x1, cpx1, x2, percent, out); // 细分二次贝塞尔曲线动态生成 cpx2 cpy2
-                    cpx1 = out[1];
-                    x2 = out[2];
-                    quadraticSubdivide(y1, cpy2, y2, percent, out);
-                    cpy1 = out[1];
-                    y2 = out[2];
+                    quadraticSubdivide(x1, cpx1, x2, percent, this.out); // 细分二次贝塞尔曲线动态生成 cpx2 cpy2
+                    cpx1 = this.out[1];
+                    x2 = this.out[2];
+                    quadraticSubdivide(y1, cpy2, y2, percent, this.out);
+                    cpy1 = this.out[1];
+                    y2 = this.out[2];
                 }
                 ctx.quadraticCurveTo(cpx1, cpy1, x2, y2);
             } else {
                 if (percent < 1) {
-                    cubicSubdivide(x1, cpx1, cpx2, x2, percent, out); //细分三次贝塞尔曲线
-                    cpx1 = out[1];
-                    cpx2 = out[2];
-                    x2 = out[3];
-                    cubicSubdivide(y1, cpy1, cpy2, y2, percent, out);
-                    cpy1 = out[1];
-                    cpy2 = out[2];
-                    y2 = out[3];
+                    cubicSubdivide(x1, cpx1, cpx2, x2, percent, this.out); //细分三次贝塞尔曲线
+                    cpx1 = this.out[1];
+                    cpx2 = this.out[2];
+                    x2 = this.out[3];
+                    cubicSubdivide(y1, cpy1, cpy2, y2, percent, this.out);
+                    cpy1 = this.out[1];
+                    cpy2 = this.out[2];
+                    y2 = this.out[3];
                 }
                 ctx.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, x2, y2);
             }
@@ -6422,6 +6489,214 @@
     }
 
     /**
+     * Catmull-Rom spline 插值折线
+     * @module zrender/shape/util/smoothSpline
+     * @author pissang (https://www.github.com/pissang)
+     *         Kener (@Kener-林峰, kener.linfeng@gmail.com)
+     *         errorrik (errorrik@gmail.com)
+     */
+
+    /**
+     * @inner
+     */
+    function interpolate(p0, p1, p2, p3, t, t2, t3) {
+        var v0 = (p2 - p0) * 0.5;
+        var v1 = (p3 - p1) * 0.5;
+        return (2 * (p1 - p2) + v0 + v1) * t3 + (-3 * (p1 - p2) - 2 * v0 - v1) * t2 + v0 * t + p1;
+    }
+
+    /**
+     * @alias module:zrender/shape/util/smoothSpline
+     * @param {Array} points 线段顶点数组
+     * @param {boolean} isLoop
+     * @return {Array}
+     */
+    function smoothSpline (points, isLoop) {
+        var len = points.length;
+        var ret = [];
+
+        var distance$1 = 0;
+        for (var i = 1; i < len; i++) {
+            distance$1 += distance(points[i - 1], points[i]);
+        }
+
+        var segs = distance$1 / 2;
+        segs = segs < len ? len : segs;
+        for (var i = 0; i < segs; i++) {
+            var pos = (i / (segs - 1)) * (isLoop ? len : len - 1);
+            var idx = Math.floor(pos);
+
+            var w = pos - idx;
+
+            var p0;
+            var p1 = points[idx % len];
+            var p2;
+            var p3;
+            if (!isLoop) {
+                p0 = points[idx === 0 ? idx : idx - 1];
+                p2 = points[idx > len - 2 ? len - 1 : idx + 1];
+                p3 = points[idx > len - 3 ? len - 1 : idx + 2];
+            } else {
+                p0 = points[(idx - 1 + len) % len];
+                p2 = points[(idx + 1) % len];
+                p3 = points[(idx + 2) % len];
+            }
+
+            var w2 = w * w;
+            var w3 = w * w2;
+
+            ret.push([interpolate(p0[0], p1[0], p2[0], p3[0], w, w2, w3), interpolate(p0[1], p1[1], p2[1], p3[1], w, w2, w3)]);
+        }
+        return ret;
+    }
+
+    /**
+     * 贝塞尔平滑曲线
+     * @module zrender/shape/util/smoothBezier
+     * @author pissang (https://www.github.com/pissang)
+     *         Kener (@Kener-林峰, kener.linfeng@gmail.com)
+     *         errorrik (errorrik@gmail.com)
+     */
+
+    /**
+     * 贝塞尔平滑曲线
+     * @alias module:zrender/shape/util/smoothBezier
+     * @param {Array} points 线段顶点数组
+     * @param {number} smooth 平滑等级, 0-1
+     * @param {boolean} isLoop
+     * @param {Array} constraint 将计算出来的控制点约束在一个包围盒内
+     *                           比如 [[0, 0], [100, 100]], 这个包围盒会与
+     *                           整个折线的包围盒做一个并集用来约束控制点。
+     * @param {Array} 计算出来的控制点数组
+     */
+    function smoothBezier (points, smooth, isLoop, constraint) {
+        var cps = [];
+
+        var v = [];
+        var v1 = [];
+        var v2 = [];
+        var prevPoint;
+        var nextPoint;
+
+        var min$1;
+        var max$1;
+        if (constraint) {
+            min$1 = [Infinity, Infinity];
+            max$1 = [-Infinity, -Infinity];
+            for (var i = 0, len = points.length; i < len; i++) {
+                min(min$1, min$1, points[i]);
+                max(max$1, max$1, points[i]);
+            }
+            // 与指定的包围盒做并集
+            min(min$1, min$1, constraint[0]);
+            max(max$1, max$1, constraint[1]);
+        }
+
+        for (var i = 0, len = points.length; i < len; i++) {
+            var point = points[i];
+
+            if (isLoop) {
+                prevPoint = points[i ? i - 1 : len - 1];
+                nextPoint = points[(i + 1) % len];
+            } else {
+                if (i === 0 || i === len - 1) {
+                    cps.push(clone(points[i]));
+                    continue;
+                } else {
+                    prevPoint = points[i - 1];
+                    nextPoint = points[i + 1];
+                }
+            }
+
+            sub(v, nextPoint, prevPoint);
+
+            // use degree to scale the handle length
+            scale$1(v, v, smooth);
+
+            var d0 = distance(point, prevPoint);
+            var d1 = distance(point, nextPoint);
+            var sum = d0 + d1;
+            if (sum !== 0) {
+                d0 /= sum;
+                d1 /= sum;
+            }
+
+            scale$1(v1, v, -d0);
+            scale$1(v2, v, d1);
+            var cp0 = add([], point, v1);
+            var cp1 = add([], point, v2);
+            if (constraint) {
+                max(cp0, cp0, min$1);
+                min(cp0, cp0, max$1);
+                max(cp1, cp1, min$1);
+                min(cp1, cp1, max$1);
+            }
+            cps.push(cp0);
+            cps.push(cp1);
+        }
+
+        if (isLoop) {
+            cps.push(cps.shift());
+        }
+
+        return cps;
+    }
+
+    /**
+     * 多边形
+     * @module zrender/shape/Polygon
+     */
+
+    class Polygon extends Path {
+        constructor(opts) {
+            let defaultConfig = {
+                shape: {
+                    points: null,
+                    smooth: false,
+                    smoothConstraint: null,
+                },
+            };
+            let mergeOpts = merge(defaultConfig, opts, true);
+            super(mergeOpts);
+
+            this.type = "polygon";
+        }
+
+        buildPath(ctx, shape, closePath = true) {
+            var points = shape.points;
+            var smooth = shape.smooth;
+            var i = 0;
+            var l = 0;
+            if (points && points.length >= 2) {
+                if (smooth && smooth !== "spline") {
+                    var controlPoints = smoothBezier(points, smooth, closePath, shape.smoothConstraint);
+
+                    ctx.moveTo(points[0][0], points[0][1]);
+
+                    var len = points.length;
+                    for (i = 0; i < (closePath ? len : len - 1); i++) {
+                        var cp1 = controlPoints[i * 2];
+                        var cp2 = controlPoints[i * 2 + 1];
+                        var p = points[(i + 1) % len];
+                        ctx.bezierCurveTo(cp1[0], cp1[1], cp2[0], cp2[1], p[0], p[1]);
+                    }
+                } else {
+                    if (smooth === "spline") {
+                        points = smoothSpline(points, closePath);
+                    }
+
+                    ctx.moveTo(points[0][0], points[0][1]);
+                    for (i = 1, l = points.length; i < l; i++) {
+                        ctx.lineTo(points[i][0], points[i][1]);
+                    }
+                }
+
+                closePath && ctx.closePath();
+            }
+        }
+    }
+
+    /**
      * Group 可以插入子节点， 其他类型不能
      * Group 上的变换也会被应用到子节点。
      */
@@ -6470,6 +6745,8 @@
     exports.Line = Line;
     exports.LineDash = LineDash;
     exports.LinearGradient = LinearGradient;
+    exports.Path = Path;
+    exports.Polygon = Polygon;
     exports.RadialGradient = RadialGradient;
     exports.Rect = Rect;
     exports.Sector = Sector;

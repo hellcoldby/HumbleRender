@@ -70,13 +70,13 @@ class HumbleRender {
         let handlerProxy = null;
         if (typeof this.root.moveTo !== "function") {
             if (!env.node && !env.worker && !env.wxa) {
-                console.log(this.painter._root);
-                handlerProxy = new EventProxy(this.painter._root);
+                // console.log(this.painter._root);
+                // handlerProxy = new EventProxy(this.painter._root);
             }
         }
 
-        this.eventHandler = new CanvasEvent(this.storage, this.painter, handlerProxy, this.painter._root);
-        console.log(this.eventHandler._handle_map);
+        // this.eventHandler = new CanvasEvent(this.storage, this.painter, handlerProxy, this.painter._root);
+        // console.log(this.eventHandler._handle_map);
 
         this.watchAnim = new WatchAnim();
         this.watchAnim.on("frame", function () {

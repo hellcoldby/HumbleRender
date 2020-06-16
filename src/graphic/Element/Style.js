@@ -17,6 +17,7 @@ export default function Style(opts) {
     if (opts) {
         let res = mixin(this, opts, false);
     }
+    this.extendStyle(opts, false);
 }
 
 Style.prototype = {
@@ -104,6 +105,7 @@ Style.prototype = {
         }
 
         if (this.hasStroke()) {
+            // console.log(this.lineWidth);
             let lineWidth = this.lineWidth;
             let scaleLine = this.strokeNoScale && ele && ele.getLineScale();
             ctx.lineWidth = lineWidth / (scaleLine ? scaleLine : 1);

@@ -36,7 +36,7 @@ class Eventful {
      * @param {Object} context
      */
     on(event, query, fn, context) {
-        console.log(event, query, fn, context);
+        // console.log(event, query, fn, context);
         return on(this, event, query, fn, context, false);
     }
 
@@ -105,7 +105,7 @@ class Eventful {
 
 //tools -- 订阅事件
 function on(_this, event, query, fn, context, isOnce) {
-    console.log(_this);
+    // console.log(_this);
     let _map = _this._handle_map;
 
     if (typeof query === "function") {
