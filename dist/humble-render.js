@@ -3381,86 +3381,90 @@
         }
     }
 
+    // 左上、右上、右下、左下角的半径依次为r1、r2、r3、r4
+    // r缩写为1         相当于 [1, 1, 1, 1]
+    // r缩写为[1]       相当于 [1, 1, 1, 1]
+    // r缩写为[1, 2]    相当于 [1, 2, 1, 2]
+    // r缩写为[1, 2, 3] 相当于 [1, 2, 3, 2]
+
+    //tools -- 默认配置
     function round_rect(ctx, shape) {
-        let x = shape.x;
-        let y = shape.y;
-        let width = shape.width;
-        let height = shape.height;
-        let r = shape.r;
-        let r1, r2, r3, r4;
+    	let x = shape.x;
+    	let y = shape.y;
+    	let width = shape.width;
+    	let height = shape.height;
+    	let r = shape.r;
+    	let r1, r2, r3, r4;
 
-        if(width < 0){
-            x = x + width; 
-            width = - width;
-        }
+    	if (width < 0) {
+    		x = x + width;
+    		width = -width;
+    	}
 
-        if(height < 0) {
-            y = y + height;
-            height = - height;
-        }
+    	if (height < 0) {
+    		y = y + height;
+    		height = -height;
+    	}
 
-        if(typeof r === 'number') {
-            r1 = r2 = r3 = r4 = r;
-        }else if(r instanceof Array) {
-            switch (r.length) {
-                case 1:
-                    r1 = r2 = r3 = r4 = r[0];
-                    break;
-                case 2:
-                    r1 = r3 = r[0];
-                    r2 = r4 = r[2]; 
-                    break;
-                case 3:
-                    r1 = r[0];
-                    r2 = r4 = r[1];
-                    r3 = r[2];
-                    break;
-                default:
-                    r1 = r[0];
-                    r2 = r[1];
-                    r3 = r[2];
-                    r4 = r[4];
-                    break;
-            }
-       
-        }else{
-            r1 = r2 = r3 = r4 = 0;
-        }
+    	if (typeof r === "number") {
+    		r1 = r2 = r3 = r4 = r;
+    	} else if (r instanceof Array) {
+    		switch (r.length) {
+    			case 1:
+    				r1 = r2 = r3 = r4 = r[0];
+    				break;
+    			case 2:
+    				r1 = r3 = r[0];
+    				r2 = r4 = r[2];
+    				break;
+    			case 3:
+    				r1 = r[0];
+    				r2 = r4 = r[1];
+    				r3 = r[2];
+    				break;
+    			default:
+    				r1 = r[0];
+    				r2 = r[1];
+    				r3 = r[2];
+    				r4 = r[3];
+    				break;
+    		}
+    	} else {
+    		r1 = r2 = r3 = r4 = 0;
+    	}
 
-        let total;
-        if(r1 + r2 > width) {
-            total = r1 + r2;
-            r1 *= width / total;
-            r2 *= width / total;
-        }
+    	let total;
+    	if (r1 + r2 > width) {
+    		total = r1 + r2;
+    		r1 *= width / total;
+    		r2 *= width / total;
+    	}
 
-        if (r3 + r4 > width) {
-            total = r3 + r4;
-            r3 *= width / total;
-            r4 *= width / total;
-        }
-        if (r2 + r3 > height) {
-            total = r2 + r3;
-            r2 *= height / total;
-            r3 *= height / total;
-        }
-        if (r1 + r4 > height) {
-            total = r1 + r4;
-            r1 *= height / total;
-            r4 *= height / total;
-        }
+    	if (r3 + r4 > width) {
+    		total = r3 + r4;
+    		r3 *= width / total;
+    		r4 *= width / total;
+    	}
+    	if (r2 + r3 > height) {
+    		total = r2 + r3;
+    		r2 *= height / total;
+    		r3 *= height / total;
+    	}
+    	if (r1 + r4 > height) {
+    		total = r1 + r4;
+    		r1 *= height / total;
+    		r4 *= height / total;
+    	}
 
-        ctx.moveTo(x + r1, y);
-        ctx.lineTo(x + width - r2, y);
-        r2 !== 0 && ctx.arc(x + width - r2, y + r2, r2, -Math.PI /2, 0);
-        ctx.lineTo(x + width, y + height - r3);
-        r3 !== 0 && ctx.arc(x + width - r3, y + height - r3, r3, 0, Math.PI / 2);
-        ctx.lineTo(x + r4, y + height);
-        r4 !== 0 && ctx.arc(x + r4, y + height - r4, r4, Math.PI / 2, Math.PI);
-        ctx.lineTo(x, y + r1);
-        r1 !== 0 && ctx.arc(x + r1, y + r1, r1, Math.PI, Math.PI * 1.5);
-
-
+    	ctx.moveTo(x + r1, y);
+    	ctx.lineTo(x + width - r2, y);
+    	r2 !== 0 && ctx.arc(x + width - r2, y + r2, r2, -Math.PI / 2, 0);
+    	ctx.lineTo(x + width, y + height - r3);
+    	r3 !== 0 && ctx.arc(x + width - r3, y + height - r3, r3, 0, Math.PI / 2);
+    	ctx.lineTo(x + r4, y + height);
+    	r4 !== 0 && ctx.arc(x + r4, y + height - r4, r4, Math.PI / 2, Math.PI);
+    	ctx.lineTo(x, y + r1);
+    	r1 !== 0 && ctx.arc(x + r1, y + r1, r1, Math.PI, Math.PI * 1.5);
     }
 
     let ArrayCtor = typeof Float32Array === "undefined" ? Array : Float32Array;
@@ -6570,76 +6574,77 @@
      * @param {Array} 计算出来的控制点数组
      */
     function smoothBezier (points, smooth, isLoop, constraint) {
-        var cps = [];
+    	var cps = [];
 
-        var v = [];
-        var v1 = [];
-        var v2 = [];
-        var prevPoint;
-        var nextPoint;
+    	var v = [];
+    	var v1 = [];
+    	var v2 = [];
+    	var prevPoint;
+    	var nextPoint;
 
-        var min$1;
-        var max$1;
-        if (constraint) {
-            min$1 = [Infinity, Infinity];
-            max$1 = [-Infinity, -Infinity];
-            for (var i = 0, len = points.length; i < len; i++) {
-                min(min$1, min$1, points[i]);
-                max(max$1, max$1, points[i]);
-            }
-            // 与指定的包围盒做并集
-            min(min$1, min$1, constraint[0]);
-            max(max$1, max$1, constraint[1]);
-        }
+    	var min$1;
+    	var max$1;
+    	if (constraint) {
+    		min$1 = [Infinity, Infinity];
+    		max$1 = [-Infinity, -Infinity];
+    		for (var i = 0, len = points.length; i < len; i++) {
+    			min(min$1, min$1, points[i]);
+    			max(max$1, max$1, points[i]);
+    		}
+    		// 与指定的包围盒做并集
+    		min(min$1, min$1, constraint[0]);
+    		max(max$1, max$1, constraint[1]);
+    	}
 
-        for (var i = 0, len = points.length; i < len; i++) {
-            var point = points[i];
+    	for (var i = 0, len = points.length; i < len; i++) {
+    		var point = points[i];
 
-            if (isLoop) {
-                prevPoint = points[i ? i - 1 : len - 1];
-                nextPoint = points[(i + 1) % len];
-            } else {
-                if (i === 0 || i === len - 1) {
-                    cps.push(clone(points[i]));
-                    continue;
-                } else {
-                    prevPoint = points[i - 1];
-                    nextPoint = points[i + 1];
-                }
-            }
+    		if (isLoop) {
+    			prevPoint = points[i ? i - 1 : len - 1];
+    			nextPoint = points[(i + 1) % len];
+    		} else {
+    			if (i === 0 || i === len - 1) {
+    				cps.push(clone(points[i]));
+    				continue;
+    			} else {
+    				prevPoint = points[i - 1];
+    				nextPoint = points[i + 1];
+    			}
+    		}
 
-            sub(v, nextPoint, prevPoint);
+    		sub(v, nextPoint, prevPoint);
 
-            // use degree to scale the handle length
-            scale$1(v, v, smooth);
+    		// use degree to scale the handle length
+    		scale$1(v, v, smooth);
 
-            var d0 = distance(point, prevPoint);
-            var d1 = distance(point, nextPoint);
-            var sum = d0 + d1;
-            if (sum !== 0) {
-                d0 /= sum;
-                d1 /= sum;
-            }
+    		//上一个的点的距离
+    		var d0 = distance(point, prevPoint);
+    		var d1 = distance(point, nextPoint);
+    		var sum = d0 + d1;
+    		if (sum !== 0) {
+    			d0 /= sum;
+    			d1 /= sum;
+    		}
 
-            scale$1(v1, v, -d0);
-            scale$1(v2, v, d1);
-            var cp0 = add([], point, v1);
-            var cp1 = add([], point, v2);
-            if (constraint) {
-                max(cp0, cp0, min$1);
-                min(cp0, cp0, max$1);
-                max(cp1, cp1, min$1);
-                min(cp1, cp1, max$1);
-            }
-            cps.push(cp0);
-            cps.push(cp1);
-        }
+    		scale$1(v1, v, -d0);
+    		scale$1(v2, v, d1);
+    		var cp0 = add([], point, v1);
+    		var cp1 = add([], point, v2);
+    		if (constraint) {
+    			max(cp0, cp0, min$1);
+    			min(cp0, cp0, max$1);
+    			max(cp1, cp1, min$1);
+    			min(cp1, cp1, max$1);
+    		}
+    		cps.push(cp0);
+    		cps.push(cp1);
+    	}
 
-        if (isLoop) {
-            cps.push(cps.shift());
-        }
+    	if (isLoop) {
+    		cps.push(cps.shift());
+    	}
 
-        return cps;
+    	return cps;
     }
 
     /**
