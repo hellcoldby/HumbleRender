@@ -198,7 +198,7 @@
             }
         });
         //曲线
-        let curver = new HumbleRender.BezierCurve({
+        let curve = new HumbleRender.BezierCurve({
             shape: {
                 x1: 0,
                 y1: 400,
@@ -226,7 +226,7 @@
             },
             shape: {
                 points: [[450, 300],[500, 300], [550, 350], [500, 400], [450, 400]],    //坐标集合
-                smooth: 0.4,
+                smooth:0.1,
                 // smoothConstraint: [[450, 300],[550, 400]]
             }
         })
@@ -235,10 +235,12 @@
         hr.add(rect);
         hr.add(rect1);
         hr.add(arc);
+
+
         hr.add(sector);
         hr.add(line);
         hr.add(lineDash);
-        hr.add(curver);
+        hr.add(curve);
 
         rect.attr({
             style: {

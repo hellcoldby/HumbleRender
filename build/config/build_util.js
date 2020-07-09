@@ -2,10 +2,10 @@ const rollup = require("rollup");
 const fs = require("fs");
 const path = require("path");
 
-exports.watch = function(config) {
+exports.watch = function (config) {
     let watch = rollup.watch(config);
 
-    watch.on("event", event => {
+    watch.on("event", (event) => {
         // console.log(event);
         // event.code 会是下面其中一个：
         //   START        — 监听器正在启动（重启）
@@ -18,18 +18,19 @@ exports.watch = function(config) {
         //开始 结束的时间
         if (event.code !== "START" && event.code !== "END") {
             console.log(`${new Date().toLocaleString()}`);
-            event.code.replace(/_/g, " ").toLowerCase();
+
+            // event.code.replace(/_/g, " ").toLowerCase();
         }
 
         //有错误
         if (event.code === "ERROR" || event.code === "FATAL") {
             console.log(`错误` + event.error);
             console.log(event.error.loc);
-            fs.writeFile(path.resolve(__dirname, "./error.json"), `${JSON.stringify(event.error)}`, function(err) {
+            fs.writeFile(path.resolve(__dirname, "./error.json"), `${JSON.stringify(event.error)}`, function (err) {
                 if (err) {
                     throw err;
                 }
-                // console.log('错误文件写入: ' +  path.resolve(__dirname, './error.json'));
+                console.log("错误文件写入: " + path.resolve(__dirname, "./error.json"));
             });
         }
 
@@ -41,7 +42,7 @@ exports.watch = function(config) {
     });
 };
 
-exports.build = function(config) {
+exports.build = function (config) {
     return new Promise((res, rej) => {
         let index = 0;
 
@@ -60,12 +61,12 @@ exports.build = function(config) {
 
             rollup
                 .rollup(singleConfig)
-                .then(bundle => bundle.write(singleConfig))
+                .then((bundle) => bundle.write(singleConfig))
                 .then(() => {
                     console.log("输出文件：" + singleConfig.output.file + " 成功");
                     buildSingle();
                 })
-                .catch(err => {
+                .catch((err) => {
                     console.log("错误" + err);
                     rej();
                 });

@@ -41,9 +41,9 @@
         let str = '第一行\n第二行\n第三行\n第四行';
 
         let arcList = [];
-        for (let i = 0; i < 3; i++) {
-            drawArc(i);
-        }
+        // for (let i = 0; i < 3; i++) {
+        //     drawArc(i);
+        // }
 
         //实时获取渐变坐标
         function gradient(endRad, r, cx, cy, i) {
@@ -132,44 +132,58 @@
                 .start();
         }
 
+        
+
+        //多边形
+        let Polygon = new HumbleRender.Polygon({
+            style: {
+                fill: 'red',
+                
+            },
+            shape: {
+                points: [[450, 300],[500, 300], [550, 350], [500, 400], [450, 400]],    //坐标集合
+                smooth:0.2,
+                // smoothConstraint: [[450, 300],[550, 400]]
+            }
+        })
+        hr.add(Polygon);
 
 
+        [
+  [
+    67.2399917602539,
+    101.25
+  ],
+  [
+    119.86399322509764,
+    147.08333333333334
+  ],
+  [
+    172.4879946899414,
+    78.33333333333333
+  ],
+  [
+    225.11199615478515,
+    55.41666666666667
+  ],
+  [
+    277.73599761962885,
+    124.16666666666666
+  ],
+  [
+    330.35999908447263,
+    170
+  ],
+  [
+    330.35999908447263,
+    170
+  ],
+  [
+    67.2399917602539,
+    170
+  ]
+]
 
-            // //测试原生canvas
-            // let myCanvas = document.querySelector("#can");
-            // let ctx = myCanvas.getContext("2d");
-
-            // for (let i = 0; i < 3; i++) {
-            //     // drArc(i);
-            //     // function drArc(i){
-            //     ctx.beginPath();
-            //     let cx = 150 + i * 230;
-            //     let cy = 300;
-            //     let r = 100;
-            //     let start_rad = 0;
-            //     let end_rad = (Math.PI * 120) / 180;
-            //     let start_pos = {
-            //         x: 0,
-            //         y: 0
-            //     };
-            //     let end_pos = {
-            //         x: 0,
-            //         y: 0
-            //     };
-            //     start_pos.x = Math.cos(start_rad) * r + cx;
-            //     start_pos.y = Math.sin(start_rad) * r + cy;
-            //     end_pos.x = Math.cos(end_rad) * r + cx;
-            //     end_pos.y = Math.sin(end_rad) * r + cy;
-            //     let grd = ctx.createLinearGradient(start_pos.x, start_pos.y, end_pos.x, end_pos.y);
-            //     grd.addColorStop(0, "red");
-            //     grd.addColorStop(1, "#FD8424");
-            //     ctx.strokeStyle = grd;
-            //     ctx.lineWidth = 10;
-
-            //     ctx.arc(cx, cy, r, start_rad, end_rad);
-            //     ctx.stroke();
-            //     // }
-            // }
     </script>
 </body>
 
