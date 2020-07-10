@@ -2,8 +2,14 @@
  * event_util 常用事件函数 工具集合
  */
 import env from "../tools/dev_support"; //检测设备支持情况
+import { buildTransformer } from "./four_points_transform";
 
 let isDomLevel2 = typeof window !== "undefined" && !!window.addEventListener; //验证dom二级事件
+
+var MOUSE_EVENT_REG = /^(?:mouse|pointer|contextmenu|drag|drop)|click/;
+var EVENT_SAVED_PROP = "___qrEVENTSAVED";
+var _calcOut = [];
+
 export function addEventListener(el, name, handler) {
     if (isDomLevel2) {
         el.addEventListener(name, handler);
@@ -122,4 +128,42 @@ export function normalizeEvent(el, e, calculate) {
         e.which = button & 1 ? 1 : button & 2 ? 3 : button & 4 ? 2 : 0;
     }
     return e;
+}
+
+function prepareCoordMarkers(el, saved) {
+    var markers = saved.markers;
+    if (markers) {
+        return markers;
+    }
+
+    markers = saved.markers = [];
+    var propLR = ["left", "right"];
+    var propTB = ["top", "bottom"];
+
+    for (var i = 0; i < 4; i++) {
+        var marker = document.createElement("div");
+        var stl = marker.style;
+        var idxLR = i % 2;
+        var idxTB = (i >> 1) % 2;
+        stl.cssText = [
+            "position:absolute",
+            "visibility: hidden",
+            "padding: 0",
+            "margin: 0",
+            "border-width: 0",
+            "width:0",
+            "height:0",
+            // 'width: 5px',
+            // 'height: 5px',
+            propLR[idxLR] + ":0",
+            propTB[idxTB] + ":0",
+            propLR[1 - idxLR] + ":auto",
+            propTB[1 - idxTB] + ":auto",
+            "",
+        ].join("!important;");
+        el.appendChild(marker);
+        markers.push(marker);
+    }
+
+    return markers;
 }

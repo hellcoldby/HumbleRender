@@ -12,15 +12,15 @@ function getPlugins(min) {
         plugins.push(
             uglifyPlugin({
                 compress: {
-                    global_defs: { __DEV__: true }
-                }
+                    global_defs: { __DEV__: true },
+                },
             })
         );
     return plugins;
 }
 
 //main -- 主函数 rollup 的配置文件
-exports.createConfig = function(min, format) {
+exports.createConfig = function (min, format) {
     let postfixMin = min ? ".min" : "";
 
     return {
@@ -28,12 +28,12 @@ exports.createConfig = function(min, format) {
         input: getPath(`./humble-render.js`),
         output: {
             name: "HumbleRender",
-            format: format || 'umd',
+            format: format || "umd",
             sourcemap: !min,
-            file: getPath(`dist/humble-render${postfixMin}.js`)
+            file: getPath(`dist/humble-render${postfixMin}.js`),
         },
         watch: {
-            include: [getPath("./src/**"), getPath("./humble-render*.js")]
-        }
+            include: [getPath("./src/**"), getPath("./humble-render*.js")],
+        },
     };
 };

@@ -143,7 +143,7 @@ function mountDOMEventListeners(instance, scope, nativeListenerNames, localOrGlo
     if (env.pointerEventsSuported) {
         console.log("ie 11");
         // Only IE11+/Edge
-        dataUtil.each(nativeListenerNames.pointer, function (evName) {
+        dataUtil.each(nativeListenerNames.pointer, function (nativeEventName) {
             mountSingle(nativeEventName, function (event) {
                 if (localOrGlobal || !isTriggeredFromLocal(event)) {
                     localOrGlobal && markTriggeredFromLocal(event);
@@ -164,26 +164,27 @@ function mountDOMEventListeners(instance, scope, nativeListenerNames, localOrGlo
             });
         }
 
-        console.log(nativeListenerNames);
-        console.log(domHandlers);
+        // console.log(nativeListenerNames);
+        // console.log(domHandlers);
 
-        dataUtil.each(nativeListenerNames.mouse, function (nativeEventName) {
-            mountSingle(nativeEventName, function (event) {
+        dataUtil.each(nativeListenerNames.mouse, function (evName) {
+            mountSingle(evName, function (event) {
                 event = event || window.event;
                 if (!scope.touching && (localOrGlobal || !isTriggeredFromLocal(event))) {
                     localOrGlobal && markTriggeredFromLocal(event);
                     // console.log(domHandlers, nativeEventName);
-                    domHandlers[nativeEventName].call(instance, event);
+                    domHandlers[evName] && domHandlers[evName].call(instance, event);
                 }
             });
         });
 
         //挂载键盘事件
-        dataUtil.each(nativeListenerNames.keyboard, function (nativeEventName) {
-            mountSingle(nativeEventName, function (event) {
+        dataUtil.each(nativeListenerNames.keyboard, function (evName) {
+            console.log(evName);
+            mountSingle(evName, function (event) {
                 if (localOrGlobal || !isTriggeredFromLocal(event)) {
                     localOrGlobal && markTriggeredFromLocal(event);
-                    domHandlers[nativeEventName].call(instance, event);
+                    domHandlers[evName] && domHandlers[evName].call(instance, event);
                 }
             });
         });

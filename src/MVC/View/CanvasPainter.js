@@ -442,7 +442,7 @@ class CanvasPainter {
         for (let i = 0, len = layers.length; i < len; i++) {
             const id = layers[i];
             const curLayer = layersMap[id];
-            console.log(curLayer);
+            // console.log(curLayer);
             const curCtx = curLayer.ctx;
             const curImageData = curCtx.getImageData(0, 0, this._width * this.dpr, this._height * this.dpr);
             // console.log(curImageData);
@@ -514,7 +514,10 @@ export default CanvasPainter;
 //tools--动态创建 根节点
 function createDomRoot(width, height) {
     let oDiv = document.createElement("div");
-    oDiv.style.cssText = [`position: relative`, `width: ${width}px`, `height: ${height}px`, `padding: 0`, `margin: 0`, `border-width: 0`, `background: none`].join(";") + ";";
+    oDiv.style.cssText =
+        [`position: relative`, `width: ${width}px`, `height: ${height}px`, `padding: 0`, `margin: 0`, `border-width: 0`, `background: none`].join(
+            ";"
+        ) + ";";
     return oDiv;
 }
 

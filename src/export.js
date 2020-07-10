@@ -11,3 +11,6 @@ export { default as Text } from "./graphic/shape/Text/Text";
 export { default as Path } from "./graphic/Path/Path";
 export { default as Polygon } from "./graphic/shape/Polygon/Poly";
 export { default as Group } from "./graphic/shape/Group/Group";
+
+//导出平滑曲线的控制手柄集合
+export { default as smoothBezier } from "./graphic/shape/Polygon/helper/smoothBezier";

@@ -19,6 +19,7 @@ export default class Polygon extends Path {
             },
         };
         let mergeOpts = merge(defaultConfig, opts, true);
+        // console.log(mergeOpts);
         super(mergeOpts);
 
         this.type = "polygon";
@@ -31,6 +32,7 @@ export default class Polygon extends Path {
         var l = 0;
         if (points && points.length >= 2) {
             if (smooth && smooth !== "spline") {
+                //计算出控制手柄
                 var controlPoints = smoothBezier(points, smooth, closePath, shape.smoothConstraint);
 
                 ctx.moveTo(points[0][0], points[0][1]);
